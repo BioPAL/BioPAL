@@ -1,0 +1,3 @@
+"""
+Geometry management package
+"""
