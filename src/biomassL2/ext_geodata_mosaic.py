@@ -46,23 +46,20 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
 # Internal libraries
-#from src.miscellanea.EGM2008 import EGM2008
+# from src.miscellanea.EGM2008 import EGM2008
 from biomassL2.EGM2008 import EGM2008
 from arepytools.io import metadata
 from arepytools.io.productfolder import ProductFolder
 from arepytools.io.productfolder import EOpenMode
-#from src.inout.XmlIO import add_param
+
+# from src.inout.XmlIO import add_param
 from biomassL2.XmlIO import add_param
 
-class ext_geodata_mosaic:
-    def __init__(self,
-                 latmin,latmax,lonmin,lonmax,
-                 database_dir,
-                 data_type,
-                 output_dir,
-                 geoid_dir=None):
 
-        #log=logging.getLogger('ext_geodata_mosaic')
+class ext_geodata_mosaic:
+    def __init__(self, latmin, latmax, lonmin, lonmax, database_dir, data_type, output_dir, geoid_dir=None):
+
+        # log=logging.getLogger('ext_geodata_mosaic')
 
         # User inputs
         self.input_dir = database_dir
@@ -74,22 +71,22 @@ class ext_geodata_mosaic:
         self.lonmax = lonmax
         self.geoid_dir = geoid_dir
 
-        # create name of Aresys Product folder, Xml and auxiliary XML 
-        proudct_tag = data_type+'_MOS'
-        self.geodata_output_dir = output_dir+proudct_tag
-        self.geodata_output_raster = self.geodata_output_dir+'/'+proudct_tag+'_0001'
-        self.geodata_output_Xml = self.geodata_output_dir+'/'+proudct_tag+'_0001.xml'
-        self.geodata_output_auxXml = self.geodata_output_dir+'/'+proudct_tag+'_auxXml.xml'
+        # create name of Aresys Product folder, Xml and auxiliary XML
+        proudct_tag = data_type + '_MOS'
+        self.geodata_output_dir = output_dir + proudct_tag
+        self.geodata_output_raster = self.geodata_output_dir + '/' + proudct_tag + '_0001'
+        self.geodata_output_Xml = self.geodata_output_dir + '/' + proudct_tag + '_0001.xml'
+        self.geodata_output_auxXml = self.geodata_output_dir + '/' + proudct_tag + '_auxXml.xml'
 
         # set invalid value according to data type
-        if self.src == 'TDM_FNF': 
-            self.dtype_string = 'int' 
-            self.dtype = metadata.ECellType.int8           
+        if self.src == 'TDM_FNF':
+            self.dtype_string = 'int'
+            self.dtype = metadata.ECellType.int8
             self.invalid_value = 0
         else:
             self.dtype_string = 'float'
             self.dtype = metadata.ECellType.float32
-            self.invalid_value = -32767.0           
+            self.invalid_value = -32767.0
 
         # The CSV Database file is generated only once (if file not available)
         self.DB_output_filename = 'DEMDB_coord.csv'
@@ -98,7 +95,7 @@ class ext_geodata_mosaic:
         self.generate_csv_with_coordinates()
 
     def __del__(self):
-         del self.out_arr
+        del self.out_arr
 
     # -------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
@@ -107,12 +104,12 @@ class ext_geodata_mosaic:
     # -------------------------------------------------------------------------------------------
 
     def generate_csv_with_coordinates(self):
-        log=logging.getLogger('ext_geodata_mosaic')
+        log = logging.getLogger('ext_geodata_mosaic')
 
         self.outputFile_coord = os.path.join(self.input_dir, self.DB_output_filename)
         if not os.path.exists(self.outputFile_coord):
             log.info('Extracting tif information for reference database')
-            #files = os.listdir(input_dir)
+            # files = os.listdir(input_dir)
             file1 = []
             for root, dirs, files in os.walk(self.input_dir):
                 for file in files:
@@ -128,15 +125,18 @@ class ext_geodata_mosaic:
                         if ('DEM.tif' in file) and (self.src in file):
                             log.info('dem file found %s' % file)
                             file1.append(os.path.join(root, file))
-                    else: raise ValueError('Invalid data base name. Valid databases are: Copernicus_DSM, TDM_FNF, TDM_DEM')
-                                  
+                    else:
+                        raise ValueError(
+                            'Invalid data base name. Valid databases are: Copernicus_DSM, TDM_FNF, TDM_DEM'
+                        )
+
             files = sorted(set(file1))
 
             output_data = []
-            header = ['MINLAT','MINLON','MAXLAT','MAXLON','LINK']
+            header = ['MINLAT', 'MINLON', 'MAXLAT', 'MAXLON', 'LINK']
             output_data.append(header)
             for file1, i in zip(files, range(len(files))):
-                if (self.src in file1) and (r'.tif' in file1): # Filename: fromglc10v01_0_10.tif
+                if (self.src in file1) and (r'.tif' in file1):  # Filename: fromglc10v01_0_10.tif
                     log.info('Reading file %s (%i from %i)' % (file1, i, len(files)))
                     file1 = os.path.join(self.input_dir, file1)
                     # Get coordinates
@@ -147,7 +147,7 @@ class ext_geodata_mosaic:
                     samLon = gdal1.GetGeoTransform()[1]  # data.sampling[1]
                     minLat = maxLat - (gdal1.RasterYSize) * samLat
                     maxLon = minLon + (gdal1.RasterXSize) * samLon
-                    del gdal1 
+                    del gdal1
 
                     output_data.append([minLat, minLon, maxLat, maxLon, file1])
 
@@ -158,30 +158,30 @@ class ext_geodata_mosaic:
                 c.writerows(output_data)
         else:
             log.info('reference database already available')
-        
+
         return
 
     # -------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
     # correct for EGM2008
-    # 
+    #
     # -------------------------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------        
-    def corr_geoid(self,lat,lon):
-        
-        log=logging.getLogger('ext_geodata_mosaic')
+    # -------------------------------------------------------------------------------------------
+    def corr_geoid(self, lat, lon):
+
+        log = logging.getLogger('ext_geodata_mosaic')
         log.info('Correcting geoid')
 
         try:
-            latm = np.tile(lat, (len(lon),1)).transpose()
+            latm = np.tile(lat, (len(lon), 1)).transpose()
             lonm = np.tile(lon, (len(lat), 1))
-            geoid = EGM2008(self.geoid_dir,verbose=False).get(latm,lonm)   
-            geoid = np.nan_to_num(geoid,nan=0)
+            geoid = EGM2008(self.geoid_dir, verbose=False).get(latm, lonm)
+            geoid = np.nan_to_num(geoid, nan=0)
             # adding geoid height to have heights over the ellipsoid
-            self.out_arr += geoid         
-        except:    
+            self.out_arr += geoid
+        except:
             log.warning('Not possible to load geoid! Result corresponds to geoidal heights!')
-        
+
         return
 
     # -------------------------------------------------------------------------------------------
@@ -191,11 +191,19 @@ class ext_geodata_mosaic:
     # -------------------------------------------------------------------------------------------
     def get_mosaic(self):
 
-        log=logging.getLogger('ext_geodata_mosaic')
+        log = logging.getLogger('ext_geodata_mosaic')
 
-        log.info('Obtaining geodata defined by geographical corners: ('+
-                 str(self.latmin)+','+str(self.lonmin)+') and ('+
-                 str(self.latmax) + ',' + str(self.lonmax)+') deg')
+        log.info(
+            'Obtaining geodata defined by geographical corners: ('
+            + str(self.latmin)
+            + ','
+            + str(self.lonmin)
+            + ') and ('
+            + str(self.latmax)
+            + ','
+            + str(self.lonmax)
+            + ') deg'
+        )
 
         # Get matching tiles with input coordinates
         df = pd.read_csv(self.outputFile_coord, sep=';')
@@ -209,23 +217,28 @@ class ext_geodata_mosaic:
         case2 = maxlats < self.latmin
         case3 = minlons > self.lonmax
         case4 = maxlons < self.lonmin
-        case = case1 | case2 | case3 | case4 # case1 + case2 + case3 + case4
+        case = case1 | case2 | case3 | case4  # case1 + case2 + case3 + case4
         indices = np.where(case == 0)[0]  # indices are NOT refered to original dataframe!!!
-        links = df['LINK']  
+        links = df['LINK']
         ref_files = np.array(links)[indices].tolist()
         dst_filename = os.path.join(self.input_dir, 'out_dem.tif')
 
         skip_gdalTrans = True
-        if skip_gdalTrans and (len(ref_files)>0):
+        if skip_gdalTrans and (len(ref_files) > 0):
             tmp_ds = gdal.Open(ref_files[0])
             xRes = tmp_ds.GetGeoTransform()[1]
             yRes = -tmp_ds.GetGeoTransform()[5]
-            out_ds = gdal.Warp(dst_filename, ref_files, format='GTiff', outputBounds= (self.lonmin, self.latmin-yRes, self.lonmax+xRes,self.latmax))
+            out_ds = gdal.Warp(
+                dst_filename,
+                ref_files,
+                format='GTiff',
+                outputBounds=(self.lonmin, self.latmin - yRes, self.lonmax + xRes, self.latmax),
+            )
         else:
-            tmp_ds = gdal.Warp('temp', ref_files,
-                               format='MEM')  # gdalWarp needed to mosaic input files. Gdal.translate takes only a single input file as input
-            out_ds = gdal.Translate(dst_filename, tmp_ds,
-                                    projWin=[self.lonmin, self.latmax, self.lonmax, self.latmin])
+            tmp_ds = gdal.Warp(
+                'temp', ref_files, format='MEM'
+            )  # gdalWarp needed to mosaic input files. Gdal.translate takes only a single input file as input
+            out_ds = gdal.Translate(dst_filename, tmp_ds, projWin=[self.lonmin, self.latmax, self.lonmax, self.latmin])
             # width = lonsize, height = latsize) # Output size = defined input size
 
         self.out_arr = out_ds.ReadAsArray()  # output DEM
@@ -239,15 +252,15 @@ class ext_geodata_mosaic:
     # save_mosaic
     # -------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
-    def save_mosaic(self,plot=False,forcePermission=True):
-        log=logging.getLogger('ext_geodata_mosaic')
+    def save_mosaic(self, plot=False, forcePermission=True):
+        log = logging.getLogger('ext_geodata_mosaic')
 
         # get geo information
-        gdalObj = gdal.Open(self.input_dir+'out_dem.tif')
+        gdalObj = gdal.Open(self.input_dir + 'out_dem.tif')
         GT = gdalObj.GetGeoTransform()
-        nLat,nLon = self.out_arr.shape
-        lat = GT[3] + np.arange(nLat)*GT[5]
-        lon = GT[0] + np.arange(nLon)*GT[1]
+        nLat, nLon = self.out_arr.shape
+        lat = GT[3] + np.arange(nLat) * GT[5]
+        lon = GT[0] + np.arange(nLon) * GT[1]
         minLon = lon[0]
         minLat = lat[-1]
         samLat = -GT[5]
@@ -255,23 +268,24 @@ class ext_geodata_mosaic:
         del gdalObj
 
         # correct geoid in case of Copernicus DEM
-        if self.src == 'Copernicus_DSM': 
+        if self.src == 'Copernicus_DSM':
             if self.geoid_dir:
-                self.corr_geoid(lat,lon)
+                self.corr_geoid(lat, lon)
             else:
-                log.warning('Path to EGM2008 not given! Result corresponds to geoidal heights!')   
+                log.warning('Path to EGM2008 not given! Result corresponds to geoidal heights!')
 
-        # remove tempory file 
-        if os.path.exists(self.input_dir+'out_dem.tif'): os.remove(self.input_dir+'out_dem.tif')
+        # remove tempory file
+        if os.path.exists(self.input_dir + 'out_dem.tif'):
+            os.remove(self.input_dir + 'out_dem.tif')
 
-        #1. Save raster to disk according to aresys format
-        log.info('Saving data and metadata to disk: '+self.geodata_output_dir)
+        # 1. Save raster to disk according to aresys format
+        log.info('Saving data and metadata to disk: ' + self.geodata_output_dir)
 
         # Create output folder
         open_mode = EOpenMode.create_or_overwrite
         if not os.path.exists(self.output_dir):
-           os.makedirs(self.output_dir)
-        # Cleanup ProductFolder to avoid crash   
+            os.makedirs(self.output_dir)
+        # Cleanup ProductFolder to avoid crash
         if os.path.exists(self.geodata_output_dir):
             shutil.rmtree(self.geodata_output_dir)
         # Create the ProductFolder
@@ -279,32 +293,32 @@ class ext_geodata_mosaic:
 
         # Write to disk
         data_channel_index = 0
-        if self.src == 'TDM_FNF':             
-            self.out_arr = np.asarray(self.out_arr,dtype='int8')    
-        else:            
-            self.out_arr = np.asarray(self.out_arr,dtype='float32')     
-        pf.append_channel(self.out_arr.shape[0],self.out_arr.shape[1],self.dtype)
+        if self.src == 'TDM_FNF':
+            self.out_arr = np.asarray(self.out_arr, dtype='int8')
+        else:
+            self.out_arr = np.asarray(self.out_arr, dtype='float32')
+        pf.append_channel(self.out_arr.shape[0], self.out_arr.shape[1], self.dtype)
         pf.write_data(data_channel_index, self.out_arr, (0, 0))
 
-        #2. Write the Aresys metadata to disk
+        # 2. Write the Aresys metadata to disk
         chan = pf.get_channel(data_channel_index)
         md = chan.metadata
         md_chan = md.get_metadata_channels(data_channel_index)
         ri = md_chan.get_element('RasterInfo')
         # mapping latitude in lines and longitude in samples
-        ri.set_lines_axis(minLat,'deg',samLat,'deg') 
-        ri.set_samples_axis(minLon,'deg',samLon,'deg')
+        ri.set_lines_axis(minLat, 'deg', samLat, 'deg')
+        ri.set_samples_axis(minLon, 'deg', samLon, 'deg')
         pf.write_metadata(data_channel_index)
 
         if plot:
             plt.imshow(self.out_arr)
             plt.show()
 
-        #3. Auxiliary Biodempp metadata (at the moment only storing database, data_path and invalid)
+        # 3. Auxiliary Biodempp metadata (at the moment only storing database, data_path and invalid)
         log.info('Generating BIODEMPP metadata...')
         self.save_biodempp_metadata()
 
-        #4. Changing permission
+        # 4. Changing permission
         if forcePermission:
             os.system('chmod 664 ' + self.geodata_output_auxXml)
             os.system('chmod 664 ' + self.geodata_output_Xml)
@@ -326,14 +340,26 @@ class ext_geodata_mosaic:
         # Creating an XML file from scratch
         root = ET.Element("Geodata_BIODEMPP")
         geodata = ET.Element("object", name="Auxiliary Parameters")
-        
+
         # Type of data
-        type_data = add_param(geodata, name="geodata_type", unit_text="string", datatype_text="string",
-                              remark_text="", value_text=self.src)
+        type_data = add_param(
+            geodata,
+            name="geodata_type",
+            unit_text="string",
+            datatype_text="string",
+            remark_text="",
+            value_text=self.src,
+        )
         # Invalid value
-        inval_value = add_param(geodata, name="invalid_value", unit_text="1", datatype_text=self.dtype_string,
-                               remark_text="", value_text=str(self.invalid_value))
-        
+        inval_value = add_param(
+            geodata,
+            name="invalid_value",
+            unit_text="1",
+            datatype_text=self.dtype_string,
+            remark_text="",
+            value_text=str(self.invalid_value),
+        )
+
         root.append(geodata)
         dom = minidom.parseString(ET.tostring(root))
 
@@ -342,6 +368,7 @@ class ext_geodata_mosaic:
             outfile.write(dom.toprettyxml(encoding="UTF-8"))
 
         return
+
     # -------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
     #  run all required steps
@@ -351,11 +378,13 @@ class ext_geodata_mosaic:
     def Run(self):
 
         # ---- Configuration logging
-        logging.basicConfig(filename='logging.log',
-                            level='INFO',
-                            format='%(asctime)s - %(levelname)s - %(name)s: %(message)s',
-                            datefmt='%d/%m/%Y %I:%M:%S %p',
-                            filemode='w')
+        logging.basicConfig(
+            filename='logging.log',
+            level='INFO',
+            format='%(asctime)s - %(levelname)s - %(name)s: %(message)s',
+            datefmt='%d/%m/%Y %I:%M:%S %p',
+            filemode='w',
+        )
         # log also to console
         stream_handler = logging.StreamHandler()
         # add formatter to stream handler
@@ -372,5 +401,5 @@ class ext_geodata_mosaic:
         self.save_mosaic()
 
         log.info('External geodata mosaicker succesfully finished')
-        
+
         return
