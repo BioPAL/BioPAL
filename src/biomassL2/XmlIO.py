@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 # Python IO
 import copy
 
+
 class XmlIO:
     """
     Class to read/write XML documents
@@ -58,11 +59,11 @@ class XmlIO:
         shape = np.asarray([np.uint64(d) for d in shape.split()])[::-1]
         size = np.prod(shape)
 
-        if (type == 'pointer'):
+        if type == 'pointer':
             p = v.find('parameter')
             return XmlIO.xml2val(*[p.find(t) for t in ('value', 'datatype')])
 
-        if (type == 'struct'):
+        if type == 'struct':
             obj_arr = [XmlIO(obj) for obj in v.iter('object')]
             return obj_arr[0] if size <= 1 else obj_arr
 
@@ -80,10 +81,12 @@ class XmlIO:
 
     @staticmethod
     def val2xml(v, t, value):
-        cdict = {str: (str, 'string'),
-                 int: (str, 'long'),
-                 float: (str, 'double'),
-                 complex: (lambda z: '({},{})'.format(z.real, z.imag), 'complex')}
+        cdict = {
+            str: (str, 'string'),
+            int: (str, 'long'),
+            float: (str, 'double'),
+            complex: (lambda z: '({},{})'.format(z.real, z.imag), 'complex'),
+        }
         cdict[np.uint8] = cdict[int]
         cdict[np.int32] = cdict[int]
         cdict[np.uint32] = cdict[int]
@@ -94,7 +97,7 @@ class XmlIO:
         cdict[np.complex64] = cdict[complex]
         cdict[bool] = cdict[str]
 
-        if (t.text == 'pointer'):
+        if t.text == 'pointer':
             p = v.find('parameter')
             return XmlIO.val2xml(*([p.find(t) for t in ('value', 'datatype')] + [value]))
 
@@ -185,6 +188,7 @@ class XmlIO:
 
     def tostring(self):
         return xml_tools.tostring(self.__totree().getroot(), encoding='UTF-8')
+
 
 def add_param(root, name, unit_text, datatype_text, remark_text="none", value_text=None, length=1, sub_flag=False):
 
