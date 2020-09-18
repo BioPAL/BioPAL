@@ -1,9 +1,12 @@
+import logging
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.signal import firwin, oaconvolve
-from scipy.constants import c as LIGHTSPEED
-from biomassL2.constants import RANGE_BANDWIDTH_HZ, CARRIER_FREQUENCY_HZ
-import logging
+from biopal.utility.constants import (
+    RANGE_BANDWIDTH_HZ,
+    CARRIER_FREQUENCY_HZ,
+    LIGHTSPEED
+    )
 
 
 def main_covariance_estimation_SR(

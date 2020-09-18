@@ -34,26 +34,21 @@ DLR. February 2020
 
 # Python libraries
 import os
+import csv
+import gdal
 import shutil
 import getpass
 import logging
-import gdal
-import csv
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-
-# Internal libraries
-# from src.miscellanea.EGM2008 import EGM2008
-from biomassL2.EGM2008 import EGM2008
+from biopal.geometry.EGM2008 import EGM2008
+from biopal.io.xml_io import add_param
 from arepytools.io import metadata
 from arepytools.io.productfolder import ProductFolder
 from arepytools.io.productfolder import EOpenMode
-
-# from src.inout.XmlIO import add_param
-from biomassL2.XmlIO import add_param
 
 
 class ext_geodata_mosaic:

@@ -1,6 +1,6 @@
 import os
-import numpy as np
 import enum
+import numpy as np
 from scipy import constants
 from progressbar import progressbar
 from matplotlib import pyplot as plt
@@ -12,8 +12,8 @@ from arepytools.geometry import conversions
 from arepytools.signal import signal_processing
 from arepytools import constants as cst
 
-from biomassL2.XmlIO import XmlIO
-from biomassL2.ext_geodata_mosaic import ext_geodata_mosaic
+from biopal.io.xml_io import XmlIO
+from biopal.geometry.ext_geodata_mosaic import ext_geodata_mosaic
 
 _NEWTON_TOLERANCE = 1.0e-8
 _MAX_ITERATIONS = 8
