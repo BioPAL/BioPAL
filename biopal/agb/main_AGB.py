@@ -16,7 +16,7 @@ from equi7grid.image2equi7grid import image2equi7grid
 from scipy.signal import convolve2d
 
 # biomassL2 processor imports
-from biomassL2.processing_AGB import (
+from biopal.agb.processing_AGB import (
     tableLookupInt,
     compute_processing_blocs_order,
     forward,
@@ -30,19 +30,16 @@ from biomassL2.processing_AGB import (
     initialize_inversion_parameters,
     get_projection_from_path,
 )
-from biomassL2.utility_orchestrator import (
+from biopal.data_operations.data_operations import (
     read_and_oversample_data,
-    read_and_oversample_aux_data,
-    choose_equi7_sampling,
-    check_if_path_exists,
-    geocoding_init,
-    geocoding,
-    tiff_formatter,
+    read_and_oversample_aux_data,  
     fnf_equi7_load_filter_equi7format,
     fnf_tandemx_load_filter_equi7format,
-    apply_calibration_screens,
     apply_dem_flattening,
-    compute_and_oversample_geometry_auxiliaries,
+)
+from biopal.utility.utility_functions import (
+    choose_equi7_sampling,
+    check_if_path_exists,   
     check_if_geometry_auxiliaries_are_present,
     check_fnf_folder_format,
     check_cal_format,
@@ -50,14 +47,23 @@ from biomassL2.utility_orchestrator import (
     get_raster_cal_names,
     get_foss_cal_names,
     resolution_heading_correction,
+    decode_unique_acquisition_id_string,
+    save_breakpoints,
 )
-from biomassL2.IO_interfaces import (
+from biopal.geocoding.geocoding import (
+    geocoding,
+    geocoding_init,   
+)
+from biopal.io.xml_io import (
     parse_chains_input_file,
     parse_chains_configuration_file,
-    decode_unique_acquisition_id_string,
 )
-from biomassL2.utility_functions import save_breakpoints
-from biomassL2.ground_cancellation import ground_cancellation
+from biopal.io.data_io import (
+    tiff_formatter,
+)
+from biopal.screen_calibration.screen_calibration import apply_calibration_screens
+from biopal.geometry.utility_geometry import compute_and_oversample_geometry_auxiliaries
+from biopal.ground_cancellation import ground_cancellation
 
 
 def main_AGB(input_file_xml, configuration_file_xml, geographic_boundaries, geographic_boundaries_per_stack, gdal_path):

@@ -1,32 +1,19 @@
-import struct
 import os
+import ast
+import copy
+import logging
+import numpy as np
+from lxml import etree as xml_tools
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import ElementTree, Element, SubElement
 from collections import namedtuple
 from namedlist import namedlist
 from arepytools.timing.precisedatetime import PreciseDateTime
-import ast
-import logging
-
-###############################################################################
-# Fields to write and read the Biomass Header in the Binary Files:#############
-
-_STRING_ENCODING = 'utf-8'
-_date_str_STR_LEN = 33
-_date_str_FORMAT = '{}s'.format(_date_str_STR_LEN)
-_GEO_CORNERS_FORMAT = 'ffff'  # lon_min, lon_max, lat_min, lat_max
-_UNIQUE_ACQ_ID_STR_LEN = 47
-_UNIQUE_ACQ_ID_FORMAT = '{}s'.format(_UNIQUE_ACQ_ID_STR_LEN)
-_HEADING_FORMAT = 'f'  # heading [deg]T
-_HEADER_FORMAT = _date_str_FORMAT + _GEO_CORNERS_FORMAT + _UNIQUE_ACQ_ID_FORMAT
-_HEADER_FORMAT_SIZE = struct.calcsize(_HEADER_FORMAT)
-###############################################################################
 
 
 ###############################################################################
 # structures (namedtuples) for read and write inputs and configuration files ##
 _XML_VERSION = '1.0'
-
 
 geographic_boundaries = namedlist(
     'geographic_boundaries',
@@ -200,118 +187,6 @@ vertical_range_params = namedtuple('vertical_range_params', 'maximum_height mini
 ###############################################################################
 
 
-def getBiomassHeaderOffsetSize(stack_composition):
-
-    return _HEADER_FORMAT_SIZE
-
-
-def writeBiomassHeader(product_folder, channel_idx, date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id):
-
-    if not isinstance(date_str, str):
-        error_message = 'date_str should be an Utc string, not a PreciseDateTime object'
-        logging.error(error_message)
-        raise ValueError(error_message)
-
-    if len(date_str) != _date_str_STR_LEN:
-        error_message = 'date_str has a different length from an Utc date'
-        logging.error(error_message)
-        raise ValueError(error_message)
-
-    # encode all the strings with the _STRING_ENCODING format
-    encoded_date_str = date_str.encode(_STRING_ENCODING)
-    encoded_unique_acq_id = unique_acq_id.encode(_STRING_ENCODING)
-
-    # fill the struct with all data to write
-    packed_data = struct.pack(
-        _HEADER_FORMAT, encoded_date_str, lon_min, lon_max, lat_min, lat_max, encoded_unique_acq_id
-    )
-
-    raster_info_read = (
-        product_folder.get_channel(channel_idx).metadata.get_metadata_channels(0).get_element('RasterInfo')
-    )
-
-    if raster_info_read.header_offset_bytes != _HEADER_FORMAT_SIZE:
-        error_message = 'Incompatible header offset size, please follow this flow: step 1 -> getBiomassHeaderOffsetSize; step 2 -> append_channel to product_folder with offset from step 1; step 3 -> execute this function'
-        logging.error(error_message)
-        raise ValueError(error_message)
-
-    raster_file = os.path.join(product_folder.pf_dir_path, raster_info_read.file_name)
-    with open(raster_file, 'wb') as raster_fid:
-        raster_fid.write(packed_data)
-
-
-def readBiomassHeader(product_folder, channel_idx):
-
-    data_channel_obj = product_folder.get_channel(channel_idx)
-    metadata_obj = data_channel_obj.metadata
-    metadatachannel_obj = metadata_obj.get_metadata_channels(0)
-    ri = metadatachannel_obj.get_element('RasterInfo')
-    raster_file = os.path.join(product_folder.pf_dir_path, ri.file_name)
-
-    date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(raster_file)
-
-    return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
-
-
-def readBiomassHeader_core(raster_file):
-
-    # get the product folder RasterInfo and retrive the raster_file name
-
-    # read the raster file (just the header)
-    with open(raster_file, 'br') as fid:
-        packed_data = fid.read(_HEADER_FORMAT_SIZE)
-
-    encoded_date_str, lon_min, lon_max, lat_min, lat_max, encoded_unique_acq_id = struct.unpack(
-        _HEADER_FORMAT, packed_data
-    )
-
-    date_str = encoded_date_str.decode(_STRING_ENCODING)
-    unique_acq_id = encoded_unique_acq_id.decode(_STRING_ENCODING)
-
-    return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
-
-
-def decode_unique_acquisition_id_string(unique_acquisition_id_string, output_format='numeric'):
-
-    if output_format == 'string':
-        global_cycle_idx = unique_acquisition_id_string[3:5]
-        heading_deg = unique_acquisition_id_string[8:14]
-        rg_swath_idx = unique_acquisition_id_string[20:22]
-        rg_sub_swath_idx = unique_acquisition_id_string[30:32]
-        az_swath_idx = unique_acquisition_id_string[38:40]
-        baseline_idx = unique_acquisition_id_string[45:]
-
-    elif output_format == 'numeric':
-        global_cycle_idx = int(unique_acquisition_id_string[3:5])
-        heading_deg = float(unique_acquisition_id_string[8:14])
-        rg_swath_idx = int(unique_acquisition_id_string[20:22])
-        rg_sub_swath_idx = int(unique_acquisition_id_string[30:32])
-        az_swath_idx = int(unique_acquisition_id_string[38:40])
-        baseline_idx = int(unique_acquisition_id_string[45:])
-
-    else:
-        raise ValueError(
-            'Input output_format = "{}"  not valid, it should be "numeric" or "string"'.format(output_format)
-        )
-
-    return global_cycle_idx, heading_deg, rg_swath_idx, rg_sub_swath_idx, az_swath_idx, baseline_idx
-
-
-def getBinaryNameFromChannelIDX(pf_name, channel_idx):
-
-    if not type(channel_idx) == type(1) or channel_idx < 1:
-        error_message = 'Input channel_idx should be an integer number greater than zero'
-        logging.error(error_message)
-        raise ValueError(error_message)
-
-    channel_idx_str = str(channel_idx)
-    number_of_zeros = 4 - len(channel_idx_str)
-    zeros_str = '0' * number_of_zeros
-    binary_name = pf_name + '_' + zeros_str + channel_idx_str
-
-    return binary_name
-
-
 def ElementTree_indent(elem, level=0):
     i = "\n" + level * "  "
     if len(elem):
@@ -326,6 +201,23 @@ def ElementTree_indent(elem, level=0):
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
+
+
+def bool_from_string(in_string):
+
+    in_string = in_string[0].upper() + in_string[1:].lower()
+
+    if 'True' in in_string or 'False' in in_string:
+        bool_value = ast.literal_eval(in_string)
+
+    elif '0' in in_string or '1' in in_string:
+        bool_value = bool(ast.literal_eval(in_string))
+    else:
+        error_message = 'Main input file: the L2product AGB, FH, FD and TOMO values should be boolean: True, False, 0 or 1 are supported'
+        logging.error(error_message)
+        raise ValueError(error_message)
+
+    return bool_value
 
 
 def write_chains_input_file(input_params, input_file_xml):
@@ -584,6 +476,59 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
     tree.write(open(configuration_file_xml, 'w'), encoding='unicode')
 
 
+def write_fd_lookup_table(lookup_table_file_name_xml, table_type, lut_dict):
+    """Write the lookup table for fd chain fnf and covariance  outputs"""
+
+    # table_type: string 'fnf' or 'covariance'
+    if not table_type == 'fnf' and not table_type == 'covariance':
+        raise ValueError(
+            '#3th iinput should be a string of value "fnf" or "covariance": "' + table_type + '" is not recognized'
+        )
+
+    if table_type == 'fnf':
+        lut_Item = Element('FDlookUpTableFNFmasks')
+    elif table_type == 'covariance':
+        lut_Item = Element('FDlookUpTableCovariances')
+
+    lut_Item.set('version', _XML_VERSION)
+
+    for stack_id in lut_dict.keys():
+
+        lookup_table_struct = lut_dict[stack_id]
+
+        L1cStack = SubElement(lut_Item, 'L1cStack')
+        L1cStack.set('stack_id', stack_id)
+
+        GeographicBoundaries = SubElement(L1cStack, 'GeographicBoundaries')
+        GeographicBoundaries.set('unit', 'deg')
+
+        lat_min = SubElement(GeographicBoundaries, 'latMin')
+        lat_min.text = lookup_table_struct.boundaries.lat_min
+        lat_max = SubElement(GeographicBoundaries, 'latMax')
+        lat_max.text = lookup_table_struct.boundaries.lat_max
+        lon_min = SubElement(GeographicBoundaries, 'lonMin')
+        lon_min.text = lookup_table_struct.boundaries.lon_min
+        lon_max = SubElement(GeographicBoundaries, 'lonMax')
+        lon_max.text = lookup_table_struct.boundaries.lon_max
+
+        for step_str_idx in lookup_table_struct.dates.keys():
+
+            dates_and_fnames_element = SubElement(L1cStack, table_type)
+            dates_and_fnames_element.set('step', step_str_idx)
+
+            date = SubElement(dates_and_fnames_element, 'Date')
+            date.text = lookup_table_struct.dates[step_str_idx]
+            date.set('unit', 'Utc')
+
+            file_name = SubElement(dates_and_fnames_element, 'FileName')
+            file_name.text = lookup_table_struct.file_names[step_str_idx]
+
+    # write to file
+    ElementTree_indent(lut_Item)
+    tree = ElementTree(lut_Item)
+    tree.write(open(lookup_table_file_name_xml, 'w'), encoding='unicode')
+    
+    
 def parse_biomassL2_main_input_file(input_file_xml):
     """Parse the input file, configuration file and current campaign params file
     and store all the needed information in the dataset data_stack class"""
@@ -722,129 +667,6 @@ def parse_biomassL2_main_input_file(input_file_xml):
     return main_input_struct
 
 
-def parse_fd_lookup_table(lookup_table_file_name_xml):
-    """Parse the look up tables uded to indicize the fnf mask and covariance at each FD step"""
-
-    lut_dict = {}
-    # 1) Parse input_file_xml -------------------------------------------------
-    tree = ET.parse(lookup_table_file_name_xml)
-    root = tree.getroot()
-
-    L1cStacks = root.findall('L1cStack')
-    for L1cStack in L1cStacks:
-
-        lookup_table_struct = namedtuple('lookup_table', 'boundaries dates file_names')
-        stack_id = L1cStack.attrib['stack_id']
-
-        # extract all the bondaries coordinates from current stack (one date for stack):
-        geographic_boundaries_curr = geographic_boundaries(None, None, None, None)
-
-        GeographicBoundaries_Item = L1cStack.find('GeographicBoundaries')
-        geographic_boundaries_curr.lat_min = GeographicBoundaries_Item.find('latMin').text
-        geographic_boundaries_curr.lat_max = GeographicBoundaries_Item.find('latMax').text
-        geographic_boundaries_curr.lon_min = GeographicBoundaries_Item.find('lonMin').text
-        geographic_boundaries_curr.lon_max = GeographicBoundaries_Item.find('lonMax').text
-
-        # extract all the dates from current stack (one date for each step):
-        dates_dict = {}
-        fnames_dict = {}
-        try:
-            if L1cStack.getchildren()[0].tag == 'GeographicBoundaries':
-                table_type = L1cStack.getchildren()[1].tag
-            else:
-                table_type = L1cStack.getchildren()[0].tag
-        except:
-            raise ImportError(' table xml is not valid')
-
-        if not table_type == 'fnf' and not table_type == 'covariance':
-            raise ImportError(' table xml is not valid, element "' + table_type + '" not recognized')
-
-        fd_steps = L1cStack.findall(table_type)
-        for step_curr in fd_steps:
-            step_number = step_curr.attrib['step']
-            dates_dict[step_number] = step_curr.find('Date').text
-            fnames_dict[step_number] = step_curr.find('FileName').text
-
-        # fill the optupt dictionary with the current stack boundaries and dates:
-        lookup_table_struct.boundaries = geographic_boundaries_curr
-        lookup_table_struct.dates = dates_dict
-        lookup_table_struct.file_names = fnames_dict
-        lut_dict[stack_id] = lookup_table_struct
-
-        del lookup_table_struct, dates_dict
-
-    return lut_dict
-
-
-def write_fd_lookup_table(lookup_table_file_name_xml, table_type, lut_dict):
-    """Write the lookup table for fd chain fnf and covariance  outputs"""
-
-    # table_type: string 'fnf' or 'covariance'
-    if not table_type == 'fnf' and not table_type == 'covariance':
-        raise ValueError(
-            '#3th iinput should be a string of value "fnf" or "covariance": "' + table_type + '" is not recognized'
-        )
-
-    if table_type == 'fnf':
-        lut_Item = Element('FDlookUpTableFNFmasks')
-    elif table_type == 'covariance':
-        lut_Item = Element('FDlookUpTableCovariances')
-
-    lut_Item.set('version', _XML_VERSION)
-
-    for stack_id in lut_dict.keys():
-
-        lookup_table_struct = lut_dict[stack_id]
-
-        L1cStack = SubElement(lut_Item, 'L1cStack')
-        L1cStack.set('stack_id', stack_id)
-
-        GeographicBoundaries = SubElement(L1cStack, 'GeographicBoundaries')
-        GeographicBoundaries.set('unit', 'deg')
-
-        lat_min = SubElement(GeographicBoundaries, 'latMin')
-        lat_min.text = lookup_table_struct.boundaries.lat_min
-        lat_max = SubElement(GeographicBoundaries, 'latMax')
-        lat_max.text = lookup_table_struct.boundaries.lat_max
-        lon_min = SubElement(GeographicBoundaries, 'lonMin')
-        lon_min.text = lookup_table_struct.boundaries.lon_min
-        lon_max = SubElement(GeographicBoundaries, 'lonMax')
-        lon_max.text = lookup_table_struct.boundaries.lon_max
-
-        for step_str_idx in lookup_table_struct.dates.keys():
-
-            dates_and_fnames_element = SubElement(L1cStack, table_type)
-            dates_and_fnames_element.set('step', step_str_idx)
-
-            date = SubElement(dates_and_fnames_element, 'Date')
-            date.text = lookup_table_struct.dates[step_str_idx]
-            date.set('unit', 'Utc')
-
-            file_name = SubElement(dates_and_fnames_element, 'FileName')
-            file_name.text = lookup_table_struct.file_names[step_str_idx]
-
-    # write to file
-    ElementTree_indent(lut_Item)
-    tree = ElementTree(lut_Item)
-    tree.write(open(lookup_table_file_name_xml, 'w'), encoding='unicode')
-
-
-def bool_from_string(in_string):
-
-    in_string = in_string[0].upper() + in_string[1:].lower()
-
-    if 'True' in in_string or 'False' in in_string:
-        bool_value = ast.literal_eval(in_string)
-
-    elif '0' in in_string or '1' in in_string:
-        bool_value = bool(ast.literal_eval(in_string))
-    else:
-        error_message = 'Main input file: the L2product AGB, FH, FD and TOMO values should be boolean: True, False, 0 or 1 are supported'
-        logging.error(error_message)
-        raise ValueError(error_message)
-
-    return bool_value
-
 
 def parse_chains_input_file(input_file_xml):
     """Parse the input file of inner chains(AGB, FH, FD, TOMO FH and TOMO)"""
@@ -975,96 +797,58 @@ def parse_chains_input_file(input_file_xml):
     return proc_inputs
 
 
-def check_chains_input_file(proc_inputs):
+def parse_fd_lookup_table(lookup_table_file_name_xml):
+    """Parse the look up tables uded to indicize the fnf mask and covariance at each FD step"""
 
-    if not os.path.exists(proc_inputs.L1c_repository):
-        error_message = ' Input file L1cRepository does not exist: ' + proc_inputs.L1c_repository
-        logging.error(error_message)
-        raise RuntimeError(error_message)
+    lut_dict = {}
+    # 1) Parse input_file_xml -------------------------------------------------
+    tree = ET.parse(lookup_table_file_name_xml)
+    root = tree.getroot()
 
-    for key in proc_inputs.stack_composition.keys():
-        for pf_name in proc_inputs.stack_composition[key]:
-            fullPath = os.path.join(proc_inputs.L1c_repository, pf_name)
-            if not os.path.exists(fullPath):
-                error_message = ' Input file Acquisition ' + pf_name + ' does not exist: ' + fullPath
-                logging.error(error_message)
-                raise RuntimeError(error_message)
+    L1cStacks = root.findall('L1cStack')
+    for L1cStack in L1cStacks:
 
-    if not os.path.exists(proc_inputs.dem_folder):
-        error_message = ' Input file AuxiliaryProductList DEM does not exist: ' + proc_inputs.dem_folder
-        logging.error(error_message)
-        raise RuntimeError(error_message)
+        lookup_table_struct = namedtuple('lookup_table', 'boundaries dates file_names')
+        stack_id = L1cStack.attrib['stack_id']
 
-    for ecef_name in proc_inputs.ECEF_grid_file_names:
-        if not os.path.exists(ecef_name):
-            error_message = ' Input file AuxiliaryProductList ECEFgrid does not exist: ' + ecef_name
-            logging.error(error_message)
-            raise RuntimeError(error_message)
+        # extract all the bondaries coordinates from current stack (one date for stack):
+        geographic_boundaries_curr = geographic_boundaries(None, None, None, None)
 
-    for kz_name in proc_inputs.kz_file_names:
-        if not os.path.exists(kz_name):
-            error_message = ' Input file AuxiliaryProductList KZ does not exist: ' + kz_name
-            logging.error(error_message)
-            raise RuntimeError(error_message)
+        GeographicBoundaries_Item = L1cStack.find('GeographicBoundaries')
+        geographic_boundaries_curr.lat_min = GeographicBoundaries_Item.find('latMin').text
+        geographic_boundaries_curr.lat_max = GeographicBoundaries_Item.find('latMax').text
+        geographic_boundaries_curr.lon_min = GeographicBoundaries_Item.find('lonMin').text
+        geographic_boundaries_curr.lon_max = GeographicBoundaries_Item.find('lonMax').text
 
-    for inc_name in proc_inputs.off_nadir_angle_file_names:
-        if not os.path.exists(inc_name):
-            error_message = ' Input file AuxiliaryProductList OffNadirAngle does not exist: ' + inc_name
-            logging.error(error_message)
-            raise RuntimeError(error_message)
+        # extract all the dates from current stack (one date for each step):
+        dates_dict = {}
+        fnames_dict = {}
+        try:
+            if L1cStack.getchildren()[0].tag == 'GeographicBoundaries':
+                table_type = L1cStack.getchildren()[1].tag
+            else:
+                table_type = L1cStack.getchildren()[0].tag
+        except:
+            raise ImportError(' table xml is not valid')
 
-    for h_name in proc_inputs.reference_height_file_names:
-        if not os.path.exists(h_name):
-            error_message = 'Input file AuxiliaryProductList ReferenceHeight does not exist: ' + h_name
-            logging.error(error_message)
-            raise RuntimeError(error_message)
+        if not table_type == 'fnf' and not table_type == 'covariance':
+            raise ImportError(' table xml is not valid, element "' + table_type + '" not recognized')
 
-    chain_id = proc_inputs.chain_id
-    if chain_id == 'AGB':
-        if not os.path.exists(proc_inputs.reference_agb_folder):
-            error_message = (
-                ' Input file AuxiliaryProductList ReferenceAGB does not exist: ' + proc_inputs.reference_agb_folder
-            )
-            logging.error(error_message)
-            raise RuntimeError(error_message)
-    if chain_id == 'FD':
-        if not os.path.exists(proc_inputs.average_covariance_folder):
-            error_message = (
-                ' Input  AuxiliaryProductList AverageCovarianceFolder does not exist: '
-                + proc_inputs.average_covariance_folder
-            )
-            logging.error(error_message)
-            raise RuntimeError(error_message)
-    if chain_id == 'FH':
-        if not os.path.exists(proc_inputs.system_decorrelation_fun_folder):
-            error_message = (
-                ' Input file AuxiliaryProductList SystemDecorrelationFunction does not exist: '
-                + proc_inputs.system_decorrelation_fun_folder
-            )
-            logging.error(error_message)
-            raise RuntimeError(error_message)
+        fd_steps = L1cStack.findall(table_type)
+        for step_curr in fd_steps:
+            step_number = step_curr.attrib['step']
+            dates_dict[step_number] = step_curr.find('Date').text
+            fnames_dict[step_number] = step_curr.find('FileName').text
 
-    if not os.path.exists(proc_inputs.forest_mask_catalogue_folder):
-        error_message = (
-            ' Input file AuxiliaryProductList forest non forest mask catalogue folder does not exist: '
-            + proc_inputs.forest_mask_catalogue_folder
-        )
-        logging.error(error_message)
-        raise RuntimeError(error_message)
+        # fill the optupt dictionary with the current stack boundaries and dates:
+        lookup_table_struct.boundaries = geographic_boundaries_curr
+        lookup_table_struct.dates = dates_dict
+        lookup_table_struct.file_names = fnames_dict
+        lut_dict[stack_id] = lookup_table_struct
 
-    if len(proc_inputs.geographic_grid_sampling) == 0 or proc_inputs.geographic_grid_sampling <= 0:
-        error_message = (
-            ' Input file GeographicGridSampling should be a positive number: ' + proc_inputs.geographic_grid_sampling
-        )
-        logging.error(error_message)
-        raise RuntimeError(error_message)
+        del lookup_table_struct, dates_dict
 
-    if not os.path.exists(proc_inputs.forest_mask_catalogue_folder):
-        error_message = (
-            ' Input file AuxiliaryProductList ForestMask does not exist: ' + proc_inputs.forest_mask_catalogue_folder
-        )
-        logging.error(error_message)
-        raise RuntimeError(error_message)
+    return lut_dict
 
 
 def parse_chains_configuration_file(configuration_file_xml):
@@ -1358,6 +1142,98 @@ def parse_chains_configuration_file(configuration_file_xml):
     return proc_config
 
 
+def check_chains_input_file(proc_inputs):
+
+    if not os.path.exists(proc_inputs.L1c_repository):
+        error_message = ' Input file L1cRepository does not exist: ' + proc_inputs.L1c_repository
+        logging.error(error_message)
+        raise RuntimeError(error_message)
+
+    for key in proc_inputs.stack_composition.keys():
+        for pf_name in proc_inputs.stack_composition[key]:
+            fullPath = os.path.join(proc_inputs.L1c_repository, pf_name)
+            if not os.path.exists(fullPath):
+                error_message = ' Input file Acquisition ' + pf_name + ' does not exist: ' + fullPath
+                logging.error(error_message)
+                raise RuntimeError(error_message)
+
+    if not os.path.exists(proc_inputs.dem_folder):
+        error_message = ' Input file AuxiliaryProductList DEM does not exist: ' + proc_inputs.dem_folder
+        logging.error(error_message)
+        raise RuntimeError(error_message)
+
+    for ecef_name in proc_inputs.ECEF_grid_file_names:
+        if not os.path.exists(ecef_name):
+            error_message = ' Input file AuxiliaryProductList ECEFgrid does not exist: ' + ecef_name
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+
+    for kz_name in proc_inputs.kz_file_names:
+        if not os.path.exists(kz_name):
+            error_message = ' Input file AuxiliaryProductList KZ does not exist: ' + kz_name
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+
+    for inc_name in proc_inputs.off_nadir_angle_file_names:
+        if not os.path.exists(inc_name):
+            error_message = ' Input file AuxiliaryProductList OffNadirAngle does not exist: ' + inc_name
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+
+    for h_name in proc_inputs.reference_height_file_names:
+        if not os.path.exists(h_name):
+            error_message = 'Input file AuxiliaryProductList ReferenceHeight does not exist: ' + h_name
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+
+    chain_id = proc_inputs.chain_id
+    if chain_id == 'AGB':
+        if not os.path.exists(proc_inputs.reference_agb_folder):
+            error_message = (
+                ' Input file AuxiliaryProductList ReferenceAGB does not exist: ' + proc_inputs.reference_agb_folder
+            )
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+    if chain_id == 'FD':
+        if not os.path.exists(proc_inputs.average_covariance_folder):
+            error_message = (
+                ' Input  AuxiliaryProductList AverageCovarianceFolder does not exist: '
+                + proc_inputs.average_covariance_folder
+            )
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+    if chain_id == 'FH':
+        if not os.path.exists(proc_inputs.system_decorrelation_fun_folder):
+            error_message = (
+                ' Input file AuxiliaryProductList SystemDecorrelationFunction does not exist: '
+                + proc_inputs.system_decorrelation_fun_folder
+            )
+            logging.error(error_message)
+            raise RuntimeError(error_message)
+
+    if not os.path.exists(proc_inputs.forest_mask_catalogue_folder):
+        error_message = (
+            ' Input file AuxiliaryProductList forest non forest mask catalogue folder does not exist: '
+            + proc_inputs.forest_mask_catalogue_folder
+        )
+        logging.error(error_message)
+        raise RuntimeError(error_message)
+
+    if len(proc_inputs.geographic_grid_sampling) == 0 or proc_inputs.geographic_grid_sampling <= 0:
+        error_message = (
+            ' Input file GeographicGridSampling should be a positive number: ' + proc_inputs.geographic_grid_sampling
+        )
+        logging.error(error_message)
+        raise RuntimeError(error_message)
+
+    if not os.path.exists(proc_inputs.forest_mask_catalogue_folder):
+        error_message = (
+            ' Input file AuxiliaryProductList ForestMask does not exist: ' + proc_inputs.forest_mask_catalogue_folder
+        )
+        logging.error(error_message)
+        raise RuntimeError(error_message)
+
+
 def parse_campaign_params_simple(campaign_params_file_xml, tag, campaign_tag):
     """Parse the campaign params file xml"""
     # Parse each campaign _param.xml file ---------------------------------------
@@ -1410,3 +1286,217 @@ def parse_campaign_params_simple(campaign_params_file_xml, tag, campaign_tag):
     heading = float(temp[0])
 
     return pixel_spacing_az_m, pixel_spacing_slant_rg_m, date_UTC, SLR_start_m, master, carrierFrequency, heading
+
+
+class XmlIO:
+    """
+    Class to read/write XML documents
+    Allows python object-like access to parameters.
+    pp = XmlIO('path_to_pp.xml')
+    print(pp.v0)     # v0 is automatically converted to floating point
+    print(pp.r[:10]) # first 10 values of range vector, also floating point
+    The parameter object also allows dictionary-like access to handle problematic parameter names
+    (which clash with python keywords). For example:
+    print(pp['lambda']) # pp.lambda would be a syntax error
+    print(pp['pass'])   # same as above
+    print(pp['v0'])     # dictionary style access works for other parameters, too!
+    The class provides full read/write support. Parameter values are changed by standard assignment
+    and structures can be saved using the write method:
+    pp.v0 = 100
+    pp.write('path_to_new_pp.xml')
+    """
+
+    def __init__(self, root):
+        if isinstance(root, str):
+            self.__dict__['__root__'] = xml_tools.parse(root).find('object')
+        else:
+            self.__dict__['__root__'] = root
+
+        if self.__root__ is None:
+            raise ValueError('Expected an "object" element below the root element!')
+
+        self.__dict__['__iterend__'] = False
+
+    def __getstate__(self):
+        return self.__root__
+
+    def __setstate__(self, root):
+        self.__dict__['__root__'] = root
+        self.__dict__['__iterend__'] = False
+
+    def __getparam__(self, name):
+        p = [p for p in self.__root__.iter('parameter') if p.attrib['name'] == name]
+        if len(p) != 1:
+            raise AttributeError('Expected a unique match parameter name "%s", got %i matches.' % (name, len(p)))
+
+        return [p[0].find(tag) for tag in ('remark', 'datatype', 'value', 'unit')]
+
+    @staticmethod
+    def xml2val(v, t):
+        type = t.text
+        shape = t.attrib['length']
+        shape = np.asarray([np.uint64(d) for d in shape.split()])[::-1]
+        size = np.prod(shape)
+
+        if type == 'pointer':
+            p = v.find('parameter')
+            return XmlIO.xml2val(*[p.find(t) for t in ('value', 'datatype')])
+
+        if type == 'struct':
+            obj_arr = [XmlIO(obj) for obj in v.iter('object')]
+            return obj_arr[0] if size <= 1 else obj_arr
+
+        conv = {'bool': bool, 'int': int, 'long': int, 'float': np.float, 'double': np.double, 'string': lambda s: s}
+        try:
+            if size > 1:
+                val = np.asarray([conv[type](v) for v in v.text.strip('[]').split(',')]).reshape(shape)
+            else:
+                val = conv[type](v.text)
+        except KeyError:
+            print('XmlIO WARNING: Unsupported data type "%s" encountered. Skipping!' % (type))
+            return None
+
+        return val
+
+    @staticmethod
+    def val2xml(v, t, value):
+        cdict = {
+            str: (str, 'string'),
+            int: (str, 'long'),
+            float: (str, 'double'),
+            complex: (lambda z: '({},{})'.format(z.real, z.imag), 'complex'),
+        }
+        cdict[np.uint8] = cdict[int]
+        cdict[np.int32] = cdict[int]
+        cdict[np.uint32] = cdict[int]
+        cdict[np.int64] = cdict[int]
+        cdict[np.uint64] = cdict[int]
+        cdict[np.float32] = (str, 'float')
+        cdict[np.float64] = cdict[float]
+        cdict[np.complex64] = cdict[complex]
+        cdict[bool] = cdict[str]
+
+        if t.text == 'pointer':
+            p = v.find('parameter')
+            return XmlIO.val2xml(*([p.find(t) for t in ('value', 'datatype')] + [value]))
+
+        try:
+            vsize = 1 if isinstance(value, str) else len(value)
+        except TypeError:
+            vsize = 1
+
+        t.attrib['length'] = str(vsize)
+        v.clear()
+        if vsize == 1 and not isinstance(value, XmlIO):
+            t.text = cdict[type(value)][1]
+            v.text = cdict[type(value)][0](value)
+        elif all([isinstance(v, XmlIO) for v in value]):
+            t.text = 'struct'
+            for obj in value:
+                v.append(copy.deepcopy(obj.__root__))
+        else:
+            if isinstance(value, np.ndarray):
+                t.attrib['length'] = ' '.join([str(l) for l in value.shape[::-1]])
+                value = value.flat
+            vtype = type(value[0])
+            t.text = cdict[vtype][1]
+            v.text = '[' + ', '.join([cdict[vtype][0](val) for val in value]) + ']'
+
+    def __getattr__(self, key):
+        if key in self.__dict__:
+            return self.__dict__[key]
+        if key == 0:
+            return self
+        r, t, v, u = self.__getparam__(key)
+        return XmlIO.xml2val(v, t)
+
+    def __getitem__(self, key):
+        return self.__getattr__(key)
+
+    def __setattr__(self, name, value):
+        if name in self.__dict__:
+            self.__dict__[name] = value
+            return
+        r, t, v, u = self.__getparam__(name)
+        XmlIO.val2xml(v, t, value)
+
+    def __setitem__(self, key, value):
+        self.__setattr__(key, value)
+
+    def __contains__(self, key):
+        try:
+            _ = self.__getparam__(key)
+        except AttributeError:
+            return False
+        return True
+
+    def __len__(self):
+        return 1
+
+    def __iter__(self):
+        self.__iterend__ = False
+        return self
+
+    def __next__(self):
+        if self.__iterend__:
+            raise StopIteration()
+        self.__iterend__ = True
+        return self
+
+    def update(self, obj):
+        try:
+            d = obj.__dict__
+        except AttributeError:
+            d = obj
+        if not isinstance(d, dict):
+            raise ValueError('Expected a dictionary or an object with a __dict__ attribute!')
+
+        for k in d:
+            self.__setattr__(k, d[k])
+
+    def __totree(self):
+        ste_root = xml_tools.Element('stexml')
+        ste_root.text = '\n'
+        ste_root.append(copy.deepcopy(self.__root__))
+        ste_root.addprevious(xml_tools.PI('xml-stylesheet', 'type="text/xsl" href="stexml.xsl"'))
+        tree = xml_tools.ElementTree(ste_root)
+        return tree
+
+    def write(self, filename):
+        self.__totree().write(filename, pretty_print=True, encoding='UTF-8', xml_declaration=True)
+
+    def tostring(self):
+        return xml_tools.tostring(self.__totree().getroot(), encoding='UTF-8')
+
+
+def add_param(root, name, unit_text, datatype_text, remark_text="none", value_text=None, length=1, sub_flag=False):
+
+    # Sub flag is needed in order to correctly add parameters to a struct-type xml tree
+    if sub_flag:
+        # Check if the value and object subelements were created previously
+        if root.find('value') is None:
+            value = ET.SubElement(root, "value")
+            object = ET.SubElement(value, "object")
+        else:
+            root = root.find('value')
+            object = root.find('object')
+        root = object
+
+    param = ET.SubElement(root, "parameter")
+    param.set("name", name)
+
+    unit = ET.SubElement(param, "unit")
+    unit.text = unit_text
+
+    datatype = ET.SubElement(param, "datatype")
+    datatype.set("length", str(length))
+    datatype.text = datatype_text
+
+    remark = ET.SubElement(param, "remark")
+    remark.text = remark_text
+
+    if datatype_text != 'struct':
+        value = ET.SubElement(param, "value")
+        value.text = value_text
+
+    return param

@@ -1,0 +1,3 @@
+"""
+BioPAL package
+"""

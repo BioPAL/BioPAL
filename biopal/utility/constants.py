@@ -1,5 +1,7 @@
 # Constants
 
+from scipy.constants import c as LIGHTSPEED
+
 # maimum value of the earth rasius (at equator)
 MAX_EARTH_RADIUS_METERS = 6378000
 
@@ -23,3 +25,5 @@ CARRIER_FREQUENCY_HZ = 435000000
 
 # Velocity of the satellite in [m/s]
 SATELLITE_VELOCITY = 7.595823208681849e03
+
+

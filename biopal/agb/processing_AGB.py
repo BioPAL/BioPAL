@@ -1,4 +1,3 @@
-# IMPORT NECESSARY MODULES
 import logging
 import numpy as np
 import scipy as sp
@@ -7,7 +6,7 @@ from scipy.interpolate import interp2d
 from osgeo import gdal
 from gdalconst import GA_ReadOnly
 from equi7grid.equi7grid import Equi7Grid
-from biomassL2.utility_orchestrator import choose_equi7_sampling
+from biopal.utility.utility_functions import choose_equi7_sampling
 
 
 def initialize_inversion_parameters(eq7_sampling, geographic_grid_sampling, geographic_boundaries, proc_confAGB):
