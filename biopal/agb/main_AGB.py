@@ -63,7 +63,7 @@ from biopal.io.data_io import (
 )
 from biopal.screen_calibration.screen_calibration import apply_calibration_screens
 from biopal.geometry.utility_geometry import compute_and_oversample_geometry_auxiliaries
-from biopal.ground_cancellation import ground_cancellation
+from biopal.ground_cancellation.ground_cancellation import ground_cancellation
 
 
 def main_AGB(input_file_xml, configuration_file_xml, geographic_boundaries, geographic_boundaries_per_stack, gdal_path):

@@ -2,8 +2,15 @@ import os
 import logging
 import numpy as np
 import pyproj as proj
+from datetime import datetime
 from arepytools.timing.precisedatetime import PreciseDateTime
 from arepytools.io.productfolder import ProductFolder
+from arepytools.io.metadata import RasterInfo
+from equi7grid.equi7grid import Equi7Grid
+from biopal.utility.constants import (
+    SATELLITE_VELOCITY, 
+    LIGHTSPEED,
+    )
 
 def get_data_time_stamp(folder, pf_name):
     # reads a data:
