@@ -24,23 +24,23 @@ from arepytools.timing.precisedatetime import PreciseDateTime
 # software releases may lack of some libraries, for example when chains are
 # delivered separately
 try:
-    from biopal.agb import main_AGB
+    from biopal.agb.main_AGB import main_AGB
 except:
     pass
 try:
-    from biopal.fh import main_FH
+    from biopal.fh.main_FH import main_FH
 except:
     pass
 try:
-    from biopal.tomo_fh import main_TOMO_FH
+    from biopal.tomo_fh.main_TOMO_FH import main_TOMO_FH
 except:
     pass
 try:
-    from biopal.fd import main_FD
+    from biopal.fd.main_FD import main_FD
 except:
     pass
 try:
-    from biopal.tomo import main_TOMO_CUBE
+    from biopal.tomo.main_TOMO_CUBE import main_TOMO_CUBE
 except:
     pass
 
@@ -53,7 +53,8 @@ except:
 def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, INSTALLATION_FOLDER):
 
     # Set the enviroment
-    os.environ['GDAL_DATA'] = gdal_enviroment_path
+    if gdal_enviroment_path:
+        os.environ['GDAL_DATA'] = gdal_enviroment_path
 
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
@@ -826,21 +827,8 @@ def collect_stacks_to_be_merged(stack_composition):
 
 if __name__ == '__main__':
     
-
-    ###SETTING ENVIROMENT
-
-    # append l2 processor code to python path
-    biopal_path = os.path.dirname(os.path.realpath(__file__))
-    
-    import os
-    import sys
-    #biopal_path= r'C:\ARESYS_PROJ\BioPAL'
-    sys.path.append(biopal_path)
-    # set current directory to "biopal" folder, which contains the main module "__main__.py"
-    os.chdir(os.path.join(biopal_path))
-
     # INSTALLATION_FOLDER is the folder containing "conf" subfolder
-    INSTALLATION_FOLDER = os.path.dirname(biopal_path)
+    biopal_folder = os.path.dirname(os.path.realpath(__file__))
 
     ### USER settings and Inputs:
     # setting gdal paths, this is an example from Anaconda enviroment
@@ -848,8 +836,7 @@ if __name__ == '__main__':
     gdal_enviroment_path = r'pkgs/libgdal-2.3.3-h2e7e64b_0/share/gdal'
 
     # Input file:
-    input_file_xml = os.path.join(INSTALLATION_FOLDER, '..inputs/Input_File.xml')
-    ###
-
+    input_file_xml = os.path.join( os.path.dirname(biopal_folder), 'inputs', 'Input_File.xml')
+ 
     # run processor:
-    biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, INSTALLATION_FOLDER)
+    biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, biopal_folder)
