@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 import collections
 from shutil import copyfile
@@ -12,6 +11,7 @@ from biopal.utility.utility_functions import (
     )
 from biopal.io.xml_io import (
     parse_biomassL2_main_input_file,
+    parse_biopal_configuration_file,
     geographic_boundaries,
     write_chains_input_file,
     input_params,
@@ -46,15 +46,24 @@ except:
 
 
 
-# main orchestrator:
+# main biopal:
 # 1) Sets enviriment and logging, parses the main input
 # 2) Chooses data to be processed
 # 3) Launches each activated chain
-def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, INSTALLATION_FOLDER):
+def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
 
+    default_configuration_folder = os.path.join(INSTALLATION_FOLDER, 'conf')
+    check_if_path_exists(default_configuration_folder, 'FOLDER')
+    
+    biopal_configuration_file_xml = os.path.join(default_configuration_folder, 'biopal_configuration.xml')
+    
+    gdal_path, gdal_environment_path = parse_biopal_configuration_file(biopal_configuration_file_xml)
+    
+    print('gdal_path '+gdal_path )
+    print('gdal_environment_path '+gdal_environment_path)
     # Set the enviroment
-    if gdal_enviroment_path:
-        os.environ['GDAL_DATA'] = gdal_enviroment_path
+    if gdal_environment_path:
+        os.environ['GDAL_DATA'] = gdal_environment_path
 
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
@@ -69,7 +78,7 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
         raise RuntimeError(error_message)
     os.makedirs(output_folder)
 
-    # start the orchestrator logging
+    # start the main logging
     log_file_name = start_logging(output_folder, main_input_struct.proc_flags, 'DEBUG')
 
     logging.debug('Installation   folder is {}'.format(INSTALLATION_FOLDER))
@@ -112,8 +121,6 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
     ) = write_chains_input_file_main(output_folder, main_input_struct, stack_composition)
 
     # Execute all the activated chains, separately
-    default_configuration_folder = os.path.join(INSTALLATION_FOLDER, 'conf')
-    check_if_path_exists(default_configuration_folder, 'FOLDER')
 
     if main_input_struct.proc_flags.FH or main_input_struct.proc_flags.TOMO_FH:
         stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition)
@@ -131,7 +138,7 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
                 gdal_path,
             )
     except Exception as e:
-        logging.error('Orchestrator: error inside AGB chain: ' + str(e), exc_info=True)
+        logging.error('biopal main: error inside AGB chain: ' + str(e), exc_info=True)
         raise
 
     # FD
@@ -141,7 +148,7 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
             main_FD(FD_input_file_xml, configuration_file_xml, geographic_boundaries, gdal_path)
 
     except Exception as e:
-        logging.error('Orchestrator: error inside FD chain: ' + str(e), exc_info=True)
+        logging.error('biopal main: error inside FD chain: ' + str(e), exc_info=True)
         raise
 
     # FH
@@ -152,7 +159,7 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
             main_FH(FH_input_file_xml, configuration_file_xml, stacks_to_merge_dict, geographic_boundaries, gdal_path)
 
     except Exception as e:
-        logging.error('Orchestrator: error inside FH chain: ' + str(e), exc_info=True)
+        logging.error('biopal main: error inside FH chain: ' + str(e), exc_info=True)
         raise
 
     # TOMO FH
@@ -165,7 +172,7 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
             )
 
     except Exception as e:
-        logging.error('Orchestrator: error inside TOMO FH chain: ' + str(e), exc_info=True)
+        logging.error('biopal main: error inside TOMO FH chain: ' + str(e), exc_info=True)
         raise
 
     # TOMO
@@ -176,7 +183,7 @@ def biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, IN
             main_TOMO_CUBE(TOMO_input_file_xml, configuration_file_xml, gdal_path)
 
     except Exception as e:
-        logging.error('Orchestrator: error inside TOMO chain: ' + str(e), exc_info=True)
+        logging.error('biopal main: error inside TOMO chain: ' + str(e), exc_info=True)
         raise
 
     logging.info('All outputs have been saved into: ' + output_folder + '\n')
@@ -830,13 +837,8 @@ if __name__ == '__main__':
     # INSTALLATION_FOLDER is the folder containing "conf" subfolder
     biopal_folder = os.path.dirname(os.path.realpath(__file__))
 
-    ### USER settings and Inputs:
-    # setting gdal paths, this is an example from Anaconda enviroment
-    gdal_path = r'gdal/bin'
-    gdal_enviroment_path = r'pkgs/libgdal-2.3.3-h2e7e64b_0/share/gdal'
-
     # Input file:
     input_file_xml = os.path.join( os.path.dirname(biopal_folder), 'inputs', 'Input_File.xml')
  
     # run processor:
-    biomassL2_processor_main(input_file_xml, gdal_path, gdal_enviroment_path, biopal_folder)
+    biomassL2_processor_main(input_file_xml, biopal_folder)
