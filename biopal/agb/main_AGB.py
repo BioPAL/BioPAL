@@ -554,7 +554,7 @@ def main_AGB(input_file_xml, configuration_file_xml, geographic_boundaries, geog
             logging.info('...done.\n')
 
         except Exception as e:
-            logging.error('FH: error during GEOTIFF formatting: ' + str(e), exc_info=True)
+            logging.error('AGB: error during GEOTIFF formatting: ' + str(e), exc_info=True)
             raise
 
         ### formatting data to EQUI7
@@ -603,7 +603,7 @@ def main_AGB(input_file_xml, configuration_file_xml, geographic_boundaries, geog
         if not os.path.exists(theta_equi7_fnames[unique_stack_id][0]):
             error_message = 'EQUI7 grid has not been generated, output is absent '
             logging.error(error_message)
-            raise
+            raise RuntimeError( error_message+' :'+theta_equi7_fnames[unique_stack_id][0] )
 
         # N0: upper left corner for output map (UTM 32S)
         _, x_upper_left, y_upper_left = e7g_intermediate.lonlat2xy(
