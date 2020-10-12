@@ -6,8 +6,9 @@
 	</GroundCancellation>
 	<EstimateAGB>
 		<number_of_tests>5</number_of_tests>
-		<fraction_of_roi_per_test>80</fraction_of_roi_per_test>
-		<fraction_of_cal_per_test>80</fraction_of_cal_per_test>
+		<fraction_of_roi_per_test>100</fraction_of_roi_per_test>
+		<fraction_of_cal_per_test>100</fraction_of_cal_per_test>
+		<add_variability_on_cal_data >False</add_variability_on_cal_data >
 		<intermediate_ground_averaging>100</intermediate_ground_averaging> <!-- intermediate_ground_averaging<=product_resolution/2 >-->
 		<product_resolution unit="m">200</product_resolution><!--(roi) sampling area size-->
 		<distance_sampling_area unit="m">300</distance_sampling_area><!--distance roi-->
