@@ -124,6 +124,7 @@ agb_est_params = namedtuple(
     'number_of_tests \
                                  fraction_of_roi_per_test \
                                  fraction_of_cal_per_test \
+                                 add_variability_on_cal_data \
                                  intermediate_ground_averaging \
                                  product_resolution \
                                  distance_sampling_area \
@@ -945,6 +946,8 @@ def parse_chains_configuration_file(configuration_file_xml):
         fraction_of_roi_per_test = int(chain_field_Item.find('fraction_of_roi_per_test').text)
         fraction_of_cal_per_test = int(chain_field_Item.find('fraction_of_cal_per_test').text)
 
+        add_variability_on_cal_data = bool_from_string(chain_field_Item.find('add_variability_on_cal_data').text)   
+
         parameter_block_size = float(chain_field_Item.find('parameter_block_size').text)
         distance_parameter_block = float(chain_field_Item.find('distance_parameter_block').text)
         min_number_of_rois = int(chain_field_Item.find('min_number_of_rois').text)
@@ -1042,6 +1045,7 @@ def parse_chains_configuration_file(configuration_file_xml):
             number_of_tests,
             fraction_of_roi_per_test,
             fraction_of_cal_per_test,
+            add_variability_on_cal_data,
             intermediate_ground_averaging,
             product_resolution,
             distance_sampling_area,
