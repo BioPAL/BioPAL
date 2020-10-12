@@ -1273,12 +1273,16 @@ def main_AGB(input_file_xml, configuration_file_xml, geographic_boundaries, geog
             # extract data for rois and cals
             s_cal = forward(sigma_tab[curr_calmask])
             c_cal = forward(np.cos(theta_tab[curr_calmask]))
-            w_cal = (
-                forward(np.maximum(1, cal_tab[curr_calmask]))
-                + (std1_tab_db * eps1)[curr_calmask]
-                + (std2_tab_db * eps2)[curr_calmask]
-                + (std3_tab_db * eps3)[curr_calmask]
-            )
+            if proc_conf.AGB.add_variability_on_cal_data:
+                w_cal = (
+                    forward(np.maximum(1, cal_tab[curr_calmask]))
+                    + (std1_tab_db * eps1)[curr_calmask]
+                    + (std2_tab_db * eps2)[curr_calmask]
+                    + (std3_tab_db * eps3)[curr_calmask]
+                )
+            else:
+                w_cal = forward(np.maximum(1, cal_tab[curr_calmask]))
+                
             s_roi = forward(sigma_tab[curr_roimask])
             c_roi = forward(np.cos(theta_tab[curr_roimask]))
             # number of CAL and ROI measurements
