@@ -2,11 +2,7 @@ import logging
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.signal import firwin, oaconvolve
-from biopal.utility.constants import (
-    RANGE_BANDWIDTH_HZ,
-    CARRIER_FREQUENCY_HZ,
-    LIGHTSPEED
-    )
+from biopal.utility.constants import RANGE_BANDWIDTH_HZ, CARRIER_FREQUENCY_HZ, LIGHTSPEED
 
 
 def main_covariance_estimation_SR(
@@ -22,7 +18,11 @@ def main_covariance_estimation_SR(
     slant_range_spacing_s = pixel_spacing_slant_rg / LIGHTSPEED
 
     MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_GR(
-        data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, slant_range_spacing_s
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_grd_x,
+        pixel_spacing_grd_y,
+        slant_range_spacing_s,
     )
 
     return MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
@@ -47,7 +47,13 @@ def main_covariance_estimation_SSF_SR(
 
     slant_range_spacing_s = pixel_spacing_slant_rg / LIGHTSPEED
 
-    MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_SSF_GR(
+    (
+        MPMB_covariance,
+        rg_vec_subs,
+        az_vec_subs,
+        subs_F_r,
+        subs_F_a,
+    ) = main_covariance_estimation_SSF_GR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_grd_x,
@@ -62,13 +68,21 @@ def main_covariance_estimation_SSF_SR(
 
 
 def main_covariance_estimation_GR(
-    data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, slant_range_spacing_s=None
+    data_stack,
+    cov_est_window_size,
+    pixel_spacing_grd_x,
+    pixel_spacing_grd_y,
+    slant_range_spacing_s=None,
 ):
     """Covariance estimation:  inputs are in Ground Range coordinates
     see also main_covariance_estimation_SR"""
 
     cov_est_opt_str = covariance_options_struct_filler(
-        data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, slant_range_spacing_s
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_grd_x,
+        pixel_spacing_grd_y,
+        slant_range_spacing_s,
     )
 
     MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = MPMBCovarianceEstimation(
@@ -92,7 +106,11 @@ def main_covariance_estimation_SSF_GR(
     see also main_covariance_estimation_SR"""
 
     cov_est_opt_str = covariance_options_struct_filler(
-        data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, slant_range_spacing_s
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_grd_x,
+        pixel_spacing_grd_y,
+        slant_range_spacing_s,
     )
 
     MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = MPMBCovarianceEstimationSSF(
@@ -103,12 +121,21 @@ def main_covariance_estimation_SSF_GR(
 
 
 def covariance_options_struct_filler(
-    data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, slant_range_spacing_s=None
+    data_stack,
+    cov_est_window_size,
+    pixel_spacing_grd_x,
+    pixel_spacing_grd_y,
+    slant_range_spacing_s=None,
 ):
 
     first_level_key = next(iter(data_stack.keys()))
 
-    if first_level_key == 'hh' or first_level_key == 'hv' or first_level_key == 'vh' or first_level_key == 'vv':
+    if (
+        first_level_key == 'hh'
+        or first_level_key == 'hv'
+        or first_level_key == 'vh'
+        or first_level_key == 'vv'
+    ):
         # notched stack, has not acquisitions dict
         pol_names = list(data_stack.keys())
         Num_of_pols = len(pol_names)
@@ -146,7 +173,11 @@ def main_correlation_estimation_SR(
 ):
 
     MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_SR(
-        data_stack, cov_est_window_size, pixel_spacing_slant_rg, pixel_spacing_az, incidence_angle_rad
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_slant_rg,
+        pixel_spacing_az,
+        incidence_angle_rad,
     )
 
     # Normalizing covariance matrix
@@ -166,7 +197,13 @@ def main_correlation_estimation_SSF_SR(
     ground_slope,
 ):
 
-    MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_SSF_SR(
+    (
+        MPMB_covariance,
+        rg_vec_subs,
+        az_vec_subs,
+        subs_F_r,
+        subs_F_a,
+    ) = main_covariance_estimation_SSF_SR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_slant_rg,
@@ -183,7 +220,9 @@ def main_correlation_estimation_SSF_SR(
     return MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
 
 
-def main_correlation_estimation_GR(data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y):
+def main_correlation_estimation_GR(
+    data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y
+):
 
     MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_GR(
         data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y
@@ -196,11 +235,29 @@ def main_correlation_estimation_GR(data_stack, cov_est_window_size, pixel_spacin
 
 
 def main_correlation_estimation_SSF_GR(
-    data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, R, look_angles, ground_slope
+    data_stack,
+    cov_est_window_size,
+    pixel_spacing_grd_x,
+    pixel_spacing_grd_y,
+    R,
+    look_angles,
+    ground_slope,
 ):
 
-    MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_SSF_GR(
-        data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, R, look_angles, ground_slope
+    (
+        MPMB_covariance,
+        rg_vec_subs,
+        az_vec_subs,
+        subs_F_r,
+        subs_F_a,
+    ) = main_covariance_estimation_SSF_GR(
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_grd_x,
+        pixel_spacing_grd_y,
+        R,
+        look_angles,
+        ground_slope,
     )
 
     # Normalizing covariance matrix
@@ -236,7 +293,12 @@ def MPMBCovarianceEstimation(D_in, opt_str):
 
     first_level_key = next(iter(D_in.keys()))
 
-    if first_level_key == 'hh' or first_level_key == 'hv' or first_level_key == 'vh' or first_level_key == 'vv':
+    if (
+        first_level_key == 'hh'
+        or first_level_key == 'hv'
+        or first_level_key == 'vh'
+        or first_level_key == 'vv'
+    ):
         # notched stack, has not acquisitions dict, so we need to encapsulate the input in an external dummy dictionary
         D = {'single_acq': D_in}
     else:
@@ -277,7 +339,9 @@ def MPMBCovarianceEstimation(D_in, opt_str):
     Fa_normalized_transposed = (Anorm @ Fa).T
 
     # Init
-    Cov_MPMB = np.zeros((num_pols * N_imm, num_pols * N_imm, N_rg_out, N_az_out), dtype=np.complex64)
+    Cov_MPMB = np.zeros(
+        (num_pols * N_imm, num_pols * N_imm, N_rg_out, N_az_out), dtype=np.complex64
+    )
 
     logging.info('    MPMB covariance estimation...')
     # nan_mask = np.zeros( D[0].shape , dtype=bool) N_rg, N_az
@@ -332,7 +396,8 @@ def MPMBCovarianceEstimation(D_in, opt_str):
 
     # Symmetric part generation
     diag_mask = np.tile(
-        (np.eye(num_pols * N_imm).reshape(num_pols * N_imm, num_pols * N_imm, 1, 1)) > 0, [1, 1, N_rg_out, N_az_out]
+        (np.eye(num_pols * N_imm).reshape(num_pols * N_imm, num_pols * N_imm, 1, 1)) > 0,
+        [1, 1, N_rg_out, N_az_out],
     )
     Cov_MPMB = Cov_MPMB + np.conjugate(np.moveaxis(Cov_MPMB, [1, 0, 2, 3], [0, 1, 2, 3]))
     Cov_MPMB[diag_mask] = Cov_MPMB[diag_mask] / 2
@@ -403,7 +468,9 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
     Fa_normalized_transposed = (Anorm @ Fa).T
 
     # Init
-    Cov_MPMB = np.zeros((num_pols * N_imm, num_pols * N_imm, N_rg_out, N_az_out), dtype=np.complex64)
+    Cov_MPMB = np.zeros(
+        (num_pols * N_imm, num_pols * N_imm, N_rg_out, N_az_out), dtype=np.complex64
+    )
 
     class ssf_opt_str:
         pass
@@ -465,7 +532,9 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
                     I2 = I2 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
 
                     # Spectral shift filtering
-                    offnadir = np.zeros((look_angles[acq_id_m].shape[0], look_angles[acq_id_m].shape[1], 2))
+                    offnadir = np.zeros(
+                        (look_angles[acq_id_m].shape[0], look_angles[acq_id_m].shape[1], 2)
+                    )
                     offnadir[:, :, 0] = look_angles[acq_id_n]
                     offnadir[:, :, 1] = look_angles[acq_id_m]
                     [I1, I2] = SpectralShiftFiltering(I1, I2, offnadir, ground_slope, ssf_opt_str)
@@ -482,7 +551,8 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
 
     # Symmetric part generation
     diag_mask = np.tile(
-        (np.eye(num_pols * N_imm).reshape(num_pols * N_imm, num_pols * N_imm, 1, 1)) > 0, [1, 1, N_rg_out, N_az_out]
+        (np.eye(num_pols * N_imm).reshape(num_pols * N_imm, num_pols * N_imm, 1, 1)) > 0,
+        [1, 1, N_rg_out, N_az_out],
     )
     Cov_MPMB = Cov_MPMB + np.conjugate(np.moveaxis(Cov_MPMB, [1, 0, 2, 3], [0, 1, 2, 3]))
     Cov_MPMB[diag_mask] = Cov_MPMB[diag_mask] / 2
@@ -510,7 +580,11 @@ def SpectralShiftFiltering(I1, I2, look_angles, ground_slope, opt_str):
         I2_filt: [Nr x Nc] baseband spectral shift filtered SLC"""
 
     # Spectral shift (Hz)
-    Df = opt_str.f0 * np.squeeze(np.diff(look_angles, axis=2)) / np.tan(np.mean(look_angles, axis=2) - ground_slope)
+    Df = (
+        opt_str.f0
+        * np.squeeze(np.diff(look_angles, axis=2))
+        / np.tan(np.mean(look_angles, axis=2) - ground_slope)
+    )
 
     # Space-varying demodulation phases (half)
     phi_half = np.pi * np.cumsum(Df * opt_str.dt, axis=0)
@@ -623,7 +697,9 @@ def build_filtering_matrix(opt_str):
     ok_mask = (col >= 0) * (col < Nxin)
     Nok_mask = np.sum(ok_mask)
 
-    F = csr_matrix((np.ones((1, Nok_mask)).flatten(), (row[ok_mask], col[ok_mask])), shape=(Nxout, Nxin))
+    F = csr_matrix(
+        (np.ones((1, Nok_mask)).flatten(), (row[ok_mask], col[ok_mask])), shape=(Nxout, Nxin)
+    )
 
     Rnorm = csr_matrix((1 / np.sum(F.toarray(), axis=1), (np.arange(Nxout), np.arange(Nxout))))
 
@@ -659,7 +735,9 @@ def covariance_matrix_mat2vec(matrix_in):
         for rg_idx in np.arange(Nrg):
             for az_idx in np.arange(Naz):
 
-                matrix_out[:, rg_idx, az_idx] = matrix_in[:, :, rg_idx, az_idx].reshape((9))[extraction_indexes]
+                matrix_out[:, rg_idx, az_idx] = matrix_in[:, :, rg_idx, az_idx].reshape((9))[
+                    extraction_indexes
+                ]
     else:
 
         matrix_out = matrix_in.reshape((9))[extraction_indexes]
@@ -683,8 +761,16 @@ def covariance_matrix_vec2mat(vector_in):
         for rg_idx in np.arange(Nrg):
             for az_idx in np.arange(Naz):
                 matrix_out[:, :, rg_idx, az_idx] = [
-                    [vector_in[0, rg_idx, az_idx], vector_in[1, rg_idx, az_idx], vector_in[2, rg_idx, az_idx]],
-                    [np.conj(vector_in[1, rg_idx, az_idx]), vector_in[3, rg_idx, az_idx], vector_in[4, rg_idx, az_idx]],
+                    [
+                        vector_in[0, rg_idx, az_idx],
+                        vector_in[1, rg_idx, az_idx],
+                        vector_in[2, rg_idx, az_idx],
+                    ],
+                    [
+                        np.conj(vector_in[1, rg_idx, az_idx]),
+                        vector_in[3, rg_idx, az_idx],
+                        vector_in[4, rg_idx, az_idx],
+                    ],
                     [
                         np.conj(vector_in[2, rg_idx, az_idx]),
                         np.conj(vector_in[4, rg_idx, az_idx]),
@@ -831,7 +917,9 @@ def SKPD_processing(Cov_MPMB, opt_str):
     out_str.Ra = list([ax[0] * Ro[0] + (1 - ax[0]) * Ro[1], ax[-1] * Ro[0] + (1 - ax[-1]) * Ro[1]])
     out_str.Rb = list([bx[0] * Ro[0] + (1 - bx[0]) * Ro[1], bx[-1] * Ro[0] + (1 - bx[-1]) * Ro[1]])
 
-    out_str.Ca = list([-(1 - ax[0]) * Co[0] + ax[0] * Co[1], -(1 - ax[-1]) * Co[0] + ax[-1] * Co[1]])
+    out_str.Ca = list(
+        [-(1 - ax[0]) * Co[0] + ax[0] * Co[1], -(1 - ax[-1]) * Co[0] + ax[-1] * Co[1]]
+    )
     out_str.Cb = list([(1 - bx[0]) * Co[0] - bx[0] * Co[1], (1 - bx[-1]) * Co[0] - bx[-1] * Co[1]])
 
     out_str.full_rank_Ra = [np.linalg.cond(out_str.Ra[0]) < np.linalg.cond(out_str.Ra[1]), False]
@@ -945,7 +1033,9 @@ def LowRankKronApproximation(opt_str):
     out_str.C = list()
     for k in np.arange(opt_str.rank):
         out_str.B.append(np.reshape(U[:, k], (opt_str.Nr1, opt_str.Nc1), order='F'))
-        out_str.C.append(np.reshape(np.transpose(VH)[:, k], (opt_str.Nr2, opt_str.Nc2), order='F'))  # warning !
+        out_str.C.append(
+            np.reshape(np.transpose(VH)[:, k], (opt_str.Nr2, opt_str.Nc2), order='F')
+        )  # warning !
 
     return out_str
 
