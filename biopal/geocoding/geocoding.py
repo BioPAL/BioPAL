@@ -6,7 +6,7 @@ from biopal.utility.constants import (
     EPSG_CODE_ECEF,
     EPSG_CODE_LLA,
     MAX_EARTH_RADIUS_METERS,
-    )
+)
 
 
 def geocoding_init(ecef_grid, rg_vec_subs, az_vec_subs, min_spacing_m):
@@ -28,10 +28,14 @@ def geocoding_init(ecef_grid, rg_vec_subs, az_vec_subs, min_spacing_m):
 
     # latitude should be decrescent
     used_lat_step = -np.abs(lat_lon_step)
-    lat_regular_vector = np.arange(np.nanmax(lat_in) - lat_lon_gap, np.nanmin(lat_in) + lat_lon_gap, used_lat_step)
+    lat_regular_vector = np.arange(
+        np.nanmax(lat_in) - lat_lon_gap, np.nanmin(lat_in) + lat_lon_gap, used_lat_step
+    )
     # longitude should be crescent
     used_lon_step = np.abs(lat_lon_step)
-    lon_regular_vector = np.arange(np.nanmin(lon_in) - lat_lon_gap, np.nanmax(lon_in) + lat_lon_gap, used_lon_step)
+    lon_regular_vector = np.arange(
+        np.nanmin(lon_in) - lat_lon_gap, np.nanmax(lon_in) + lat_lon_gap, used_lon_step
+    )
 
     lonMeshed_out, latMeshed_out = np.meshgrid(lon_regular_vector, lat_regular_vector)
 
@@ -51,7 +55,15 @@ def geocoding_init(ecef_grid, rg_vec_subs, az_vec_subs, min_spacing_m):
     )
 
 
-def geocoding(data_to_geocode, lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask, interp_method='linear'):
+def geocoding(
+    data_to_geocode,
+    lon_in,
+    lat_in,
+    lonMeshed_out,
+    latMeshed_out,
+    valid_values_mask,
+    interp_method='linear',
+):
     f = griddata(
         np.array([lat_in[valid_values_mask].flatten(), lon_in[valid_values_mask].flatten()]).T,
         data_to_geocode[valid_values_mask].flatten(),

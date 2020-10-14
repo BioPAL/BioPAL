@@ -10,13 +10,13 @@ from arepytools.geometry.generalsarorbit import create_general_sar_orbit
 from biopal.utility.utility_functions import (
     convert_rasterinfo_meters_to_seconds,
     convert_rasterinfo_seconds_to_meters,
-    )
+)
 from biopal.geometry import geometric_lib
 from biopal.data_operations.data_operations import data_oversample
 from biopal.utility.constants import (
     OVERSAMPLING_FACTOR,
     LIGHTSPEED,
-    )
+)
 
 
 def compute_and_oversample_geometry_auxiliaries(
@@ -46,7 +46,9 @@ def compute_and_oversample_geometry_auxiliaries(
     try:
         pf_dem = ProductFolder(path_dem, 'r')
     except Exception as e:
-        logging.error('Geometry library:  error during auxiliary DEM reading: ' + str(e), exc_info=True)
+        logging.error(
+            'Geometry library:  error during auxiliary DEM reading: ' + str(e), exc_info=True
+        )
         raise
 
     ch_dem = pf_dem.get_channel(0)
@@ -54,7 +56,9 @@ def compute_and_oversample_geometry_auxiliaries(
 
     dem_samples = ri_dem.samples
     lat_axis = (np.arange(0, ri_dem.lines) * ri_dem.lines_step + ri_dem.lines_start) * np.pi / 180
-    lon_axis = (np.arange(0, dem_samples) * ri_dem.samples_step + ri_dem.samples_start) * np.pi / 180
+    lon_axis = (
+        (np.arange(0, dem_samples) * ri_dem.samples_step + ri_dem.samples_start) * np.pi / 180
+    )
 
     dem = pf_dem.read_data(0, [0, 0, ri_dem.lines, dem_samples])
 
@@ -118,7 +122,9 @@ def compute_and_oversample_geometry_auxiliaries(
     flag_compute_sar_geometry = False
     if not sar_geometry_master:
         flag_compute_sar_geometry = True
-        sar_geometry_master = geometric_lib.SARGeometry(ri_master, sv_master, lat_axis, lon_axis, dem)
+        sar_geometry_master = geometric_lib.SARGeometry(
+            ri_master, sv_master, lat_axis, lon_axis, dem
+        )
         sar_geometry_master.compute_xyz()
 
     dsi_master = ch_master.get_dataset_info(0)
@@ -361,7 +367,9 @@ def compute_and_oversample_geometry_auxiliaries(
 
                 gso_slave = create_general_sar_orbit(sv_slave)
 
-                _, range_points_master_slave = geometric_lib.perform_inverse_geocoding(gso_slave, targets_coords)
+                _, range_points_master_slave = geometric_lib.perform_inverse_geocoding(
+                    gso_slave, targets_coords
+                )
 
                 distance_slave = range_points_master_slave * LIGHTSPEED / 2
                 distance_slave.shape = sar_geometry_master.x_sar_coords.shape
@@ -440,7 +448,9 @@ def compute_and_oversample_geometry_auxiliaries(
 
             gso_slave = create_general_sar_orbit(sv_slave)
 
-            azimuth_points_master_slave, _ = geometric_lib.perform_inverse_geocoding(gso_slave, targets_coords)
+            azimuth_points_master_slave, _ = geometric_lib.perform_inverse_geocoding(
+                gso_slave, targets_coords
+            )
 
             sensor_positions_slave = gso_slave.get_position(azimuth_points_master_slave)
             sensor_positions_slave.shape = (3, *sar_geometry_master.x_sar_coords.shape)
@@ -505,7 +515,9 @@ def compute_and_oversample_geometry_auxiliaries(
             kz[swath_id_list[channel_idx]] = np.zeros((ri_master.lines, ri_master.samples))
         else:
             kz[swath_id_list[channel_idx]] = geometric_lib.compute_vertical_wavenumber_angles(
-                wavelength, off_nadir_angle_rad[swath_id_list[0]], off_nadir_angle_rad[swath_id_list[channel_idx]]
+                wavelength,
+                off_nadir_angle_rad[swath_id_list[0]],
+                off_nadir_angle_rad[swath_id_list[channel_idx]],
             )
 
         if enable_resampling:
