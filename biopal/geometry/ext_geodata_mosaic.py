@@ -1,5 +1,7 @@
 class ext_geodata_mosaic:
-    def __init__(self, latmin, latmax, lonmin, lonmax, database_dir, data_type, output_dir, geoid_dir=None):
+    def __init__(
+        self, latmin, latmax, lonmin, lonmax, database_dir, data_type, output_dir, geoid_dir=None
+    ):
 
         raise NotImplementedError 
 
