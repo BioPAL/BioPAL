@@ -40,7 +40,12 @@ class EGM2008(object):
         for t, f in zip(self.tiles, self.tform):
             lon_px = (lon - f[0]) / f[1]
             lat_px = (lat - f[3]) / f[5]
-            mask = (lon_px >= 0) * (lon_px <= t.RasterXSize) * (lat_px >= 0) * (lat_px <= t.RasterYSize)
+            mask = (
+                (lon_px >= 0)
+                * (lon_px <= t.RasterXSize)
+                * (lat_px >= 0)
+                * (lat_px <= t.RasterYSize)
+            )
             vi = np.flatnonzero(mask)
             if vi.size <= 0:
                 continue

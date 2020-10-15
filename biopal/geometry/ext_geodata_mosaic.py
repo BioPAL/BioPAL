@@ -52,7 +52,9 @@ from arepytools.io.productfolder import EOpenMode
 
 
 class ext_geodata_mosaic:
-    def __init__(self, latmin, latmax, lonmin, lonmax, database_dir, data_type, output_dir, geoid_dir=None):
+    def __init__(
+        self, latmin, latmax, lonmin, lonmax, database_dir, data_type, output_dir, geoid_dir=None
+    ):
 
         # log=logging.getLogger('ext_geodata_mosaic')
 
@@ -233,7 +235,9 @@ class ext_geodata_mosaic:
             tmp_ds = gdal.Warp(
                 'temp', ref_files, format='MEM'
             )  # gdalWarp needed to mosaic input files. Gdal.translate takes only a single input file as input
-            out_ds = gdal.Translate(dst_filename, tmp_ds, projWin=[self.lonmin, self.latmax, self.lonmax, self.latmin])
+            out_ds = gdal.Translate(
+                dst_filename, tmp_ds, projWin=[self.lonmin, self.latmax, self.lonmax, self.latmin]
+            )
             # width = lonsize, height = latsize) # Output size = defined input size
 
         self.out_arr = out_ds.ReadAsArray()  # output DEM
@@ -383,7 +387,9 @@ class ext_geodata_mosaic:
         # log also to console
         stream_handler = logging.StreamHandler()
         # add formatter to stream handler
-        stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(name)s: %(message)s'))
+        stream_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(levelname)s - %(name)s: %(message)s')
+        )
         logging.getLogger().addHandler(stream_handler)
         # create logger for main script
         log = logging.getLogger('main')

@@ -8,9 +8,38 @@ from arepytools.io.productfolder import ProductFolder
 from arepytools.io.metadata import RasterInfo
 from equi7grid.equi7grid import Equi7Grid
 from biopal.utility.constants import (
-    SATELLITE_VELOCITY, 
+    SATELLITE_VELOCITY,
     LIGHTSPEED,
-    )
+)
+
+
+# The class Task is the template to be inherited for the creation of each BioPAL APP
+class Task:
+    def __init__(self, configuration_file_xml):
+
+        self.configuration_file_xml = configuration_file_xml
+
+    def name(self):
+        return self.__class__.__name__
+
+    def _run(self, input_file_xml):
+        raise NotImplementedError()
+
+    def run(self, input_file_xml):
+
+        try:
+
+            logging.info('Starting {}'.format(self.name()))
+            output = self._run(input_file_xml)
+            logging.info('Finished {}'.format(self.name()))
+
+            return output
+
+        except Exception as e:
+            error_msg = 'biopal error inside {}: {}'.format(self.name(), e)
+            logging.error(error_msg, exc_info=True)
+            raise RuntimeError(error_msg)
+
 
 def get_data_time_stamp(folder, pf_name):
     # reads a data:
@@ -70,7 +99,9 @@ def decode_unique_acquisition_id_string(unique_acquisition_id_string, output_for
 
     else:
         raise ValueError(
-            'Input output_format = "{}"  not valid, it should be "numeric" or "string"'.format(output_format)
+            'Input output_format = "{}"  not valid, it should be "numeric" or "string"'.format(
+                output_format
+            )
         )
 
     return global_cycle_idx, heading_deg, rg_swath_idx, rg_sub_swath_idx, az_swath_idx, baseline_idx
@@ -82,7 +113,7 @@ def check_if_path_exists(path, file_folder_str):
 
         logging.error(log_error_str)
         raise Exception(log_error_str)
-        
+
 
 def check_if_geometry_auxiliaries_are_present(
     file_names,
@@ -156,7 +187,7 @@ def choose_equi7_sampling(product_resolution, geographic_grid_sampling):
     else:
         equi7_sampling_quantized = _static_sampling_sorted[0]
 
-    return equi7_sampling_quantized  
+    return equi7_sampling_quantized
 
 
 def evaluate_estimation_quality_matrix(data_in_shape):
@@ -168,7 +199,7 @@ def evaluate_estimation_quality_matrix(data_in_shape):
     quality_matrix = np.zeros(data_in_shape)
 
     return quality_matrix
-    
+
 
 def epsg_in_to_epsg_out(xx, yy, zz, epsg_code_in, epsg_code_out):
     p_in = proj.Proj("+init={}".format(epsg_code_in))
@@ -197,8 +228,12 @@ def convert_rasterinfo_meters_to_seconds(ri_meters):
     samples_step_s = ri_meters.samples_step / LIGHTSPEED * 2
     samples_step_unit = 's'
 
-    ri_seconds.set_lines_axis(ri_meters.lines_start, ri_meters.lines_start_unit, lines_step_s, lines_step_unit)
-    ri_seconds.set_samples_axis(samples_start_s, samples_start_unit, samples_step_s, samples_step_unit)
+    ri_seconds.set_lines_axis(
+        ri_meters.lines_start, ri_meters.lines_start_unit, lines_step_s, lines_step_unit
+    )
+    ri_seconds.set_samples_axis(
+        samples_start_s, samples_start_unit, samples_step_s, samples_step_unit
+    )
 
     return ri_seconds
 
@@ -222,8 +257,12 @@ def convert_rasterinfo_seconds_to_meters(ri_seconds):
     samples_step_m = ri_meters.samples_step * LIGHTSPEED / 2
     samples_step_unit = 'm'
 
-    ri_meters.set_lines_axis(ri_seconds.lines_start, ri_seconds.lines_start_unit, lines_step_m, lines_step_unit)
-    ri_meters.set_samples_axis(samples_start_m, samples_start_unit, samples_step_m, samples_step_unit)
+    ri_meters.set_lines_axis(
+        ri_seconds.lines_start, ri_seconds.lines_start_unit, lines_step_m, lines_step_unit
+    )
+    ri_meters.set_samples_axis(
+        samples_start_m, samples_start_unit, samples_step_m, samples_step_unit
+    )
 
     return ri_meters
 
@@ -246,7 +285,9 @@ def format_folder_name():
     h_str = str(now.hour).rjust(2, '0')
     m_str = str(now.minute).rjust(2, '0')
     s_str = str(now.second).rjust(2, '0')
-    current_date_string = 'BIOMASS_L2_' + year_str + month_str + day_str + 'T' + h_str + m_str + s_str
+    current_date_string = (
+        'BIOMASS_L2_' + year_str + month_str + day_str + 'T' + h_str + m_str + s_str
+    )
 
     return current_date_string
 
@@ -295,10 +336,13 @@ def get_min_time_stamp_repository(L1c_repository, stack_composition):
     for idx, (unique_stack_id, unique_acq_pf_names) in enumerate(stack_composition.items()):
 
         if idx == 0:
-            time_tag_mjd_initial = get_min_time_stamp_repository_core(L1c_repository, unique_acq_pf_names)
+            time_tag_mjd_initial = get_min_time_stamp_repository_core(
+                L1c_repository, unique_acq_pf_names
+            )
         else:
             time_tag_mjd_initial = min(
-                time_tag_mjd_initial, get_min_time_stamp_repository_core(L1c_repository, unique_acq_pf_names)
+                time_tag_mjd_initial,
+                get_min_time_stamp_repository_core(L1c_repository, unique_acq_pf_names),
             )
 
     time_tag_mjd_initial = PreciseDateTime().set_from_utc_string(time_tag_mjd_initial)
@@ -312,7 +356,9 @@ def get_min_time_stamp_repository_core(L1c_repository, acquisitions_pf_names):
         if idx == 0:
             min_time_stamp_mjd = get_data_time_stamp(L1c_repository, pf_name)
         else:
-            min_time_stamp_mjd = min(min_time_stamp_mjd, get_data_time_stamp(L1c_repository, pf_name))
+            min_time_stamp_mjd = min(
+                min_time_stamp_mjd, get_data_time_stamp(L1c_repository, pf_name)
+            )
 
     return min_time_stamp_mjd
 
