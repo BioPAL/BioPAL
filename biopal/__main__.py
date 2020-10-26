@@ -28,7 +28,7 @@ try:
 except:
     pass
 try:
-    from biopal.fh.main_FH import main_FH
+    from biopal.fh.main_FH import ForestHeight
 except:
     pass
 try:
@@ -131,14 +131,28 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
         stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition)
 
     # AGB
-    agb_obj = AboveGroundBiomass(
-        os.path.join(default_configuration_folder, 'ConfigurationFile_AGB.xml'),
-        geographic_boundaries,
-        geographic_boundaries_per_stack,
-        gdal_path,
-    )
+    if main_input_struct.proc_flags.AGB:
 
-    agb_obj.run(AGB_input_file_xml)
+        agb_obj = AboveGroundBiomass(
+            os.path.join(default_configuration_folder, 'ConfigurationFile_AGB.xml'),
+            geographic_boundaries,
+            geographic_boundaries_per_stack,
+            gdal_path,
+        )
+
+        agb_obj.run(AGB_input_file_xml)
+
+    # FH
+    if main_input_struct.proc_flags.FH:
+
+        fh_obj = ForestHeight(
+            os.path.join(default_configuration_folder, 'ConfigurationFile_FH.xml'),
+            geographic_boundaries,
+            stacks_to_merge_dict,
+            gdal_path,
+        )
+
+        fh_obj.run(FH_input_file_xml)
 
     # FD
     try:
@@ -150,25 +164,6 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
 
     except Exception as e:
         logging.error('biopal main: FD chain not implemented in this BioPAL version')
-        raise
-
-    # FH
-    try:
-        if main_input_struct.proc_flags.FH:
-
-            configuration_file_xml = os.path.join(
-                default_configuration_folder, 'ConfigurationFile_FH.xml'
-            )
-            main_FH(
-                FH_input_file_xml,
-                configuration_file_xml,
-                stacks_to_merge_dict,
-                geographic_boundaries,
-                gdal_path,
-            )
-
-    except Exception as e:
-        logging.error('biopal main: FH chain not implemented in this BioPAL version')
         raise
 
     # TOMO FH
