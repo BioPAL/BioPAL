@@ -3,6 +3,7 @@ import numpy as np
 import scipy as sp
 from shapely.geometry import MultiPoint
 from scipy.interpolate import interp2d
+import scipy.stats
 from osgeo import gdal
 from gdalconst import GA_ReadOnly
 from equi7grid.equi7grid import Equi7Grid
@@ -430,6 +431,18 @@ def mean_on_rois(
                 data_roi_means_vec[roi_counter - 1] = np.nanmean(
                     stack_data_interp[curr_roi_indexes_pixels]
                 )
+            elif method == 'median':
+                data_roi_means_vec[roi_counter - 1] = np.median(
+                    stack_data_interp[curr_roi_indexes_pixels]
+                )
+            elif method == 'nan_median':
+                data_roi_means_vec[roi_counter - 1] = np.nanmedian(
+                    stack_data_interp[curr_roi_indexes_pixels]
+                )
+            elif method == 'mode':
+                data_roi_means_vec[roi_counter - 1] = sp.stats.mode(
+                    stack_data_interp[curr_roi_indexes_pixels]
+                )[0]
 
     return data_roi_means_vec
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <BIOMASSL2>
-	<L1cRepository>ReleaseV6/AGB/input/dataSet/</L1cRepository>
+	<L1cRepository>C:\Users\macie\Documents\BioPAL-1\new_data\demo_lope_two\dataSet/</L1cRepository>
 	<L2Product>
 		<AGB>true</AGB>
 		<FH>false</FH>
@@ -10,7 +10,7 @@
 	</L2Product>
 	<L1cDate value="start" unit="Utc">01-FEB-2016 00:00:00.000000000000</L1cDate>
 	<L1cDate value="stop" unit="Utc">20-FEB-2016 12:00:00.000000000000</L1cDate>
-	<AuxiliaryProductsFolder>ReleaseV5/AGB/input/auxiliary_data_pf/</AuxiliaryProductsFolder>
+	<AuxiliaryProductsFolder>C:\Users\macie\Documents\BioPAL-1\new_data\demo_lope_two\auxiliary_data_pf</AuxiliaryProductsFolder>
 	<GeographicBoundary unit="deg">
 		<Point>
 			<Latitude>-2</Latitude>
@@ -29,6 +29,6 @@
 			<Longitude>15</Longitude>
 		</Point>
 	</GeographicBoundary>
-	<OutputFolder>ReleaseV6/AGB/output/</OutputFolder>
+	<OutputFolder>C:\Users\macie\Documents\bio_output</OutputFolder>
 	<GeographicGridSampling unit="m">80</GeographicGridSampling>
 </BIOMASSL2>
