@@ -868,75 +868,69 @@ class AGBCoreProcessing(Task):
                     )
                 )
             self.e7g_intermediate = Equi7Grid(self.equi7_sampling_intermediate)
-
+    # %%
     def _run(self, input_file_xml):
 
-        # AGB: Reading chains configuration files
-        check_if_path_exists(self.configuration_file_xml, 'FILE')
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
-
+        # status update and reading xml files
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
         proc_inputs = parse_chains_input_file(input_file_xml)
 
-        # managing folders
+        # setting up directories and making sure that preprocessing has been run
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
-        temp_output_folder = os.path.join(products_folder, 'temporary_processing')
-        if not (os.path.exists(temp_output_folder)):
+        temp_proc_folder = os.path.join(products_folder, 'temporary_processing')
+        if not (os.path.exists(temp_proc_folder)):
             error_message = '"temporary_processing" folder is not present in output: StackBasedProcessing APP should be launched before AGBCoreProcessing '
             logging.error(error_message)
             raise RuntimeError(error_message)
-
         # check auxiliaries (equi7 initialization) and if not present, compute them
         self.check_auxiliaries(proc_conf)
 
-        ########################## AGB INVERSION CORE ############################
+        # preparing folders for final and temporary output
+        global_agb_folder = os.path.join(products_folder, 'global_AGB')
+        temp_agb_folder = os.path.join(temp_proc_folder, 'agb_estimation')
+        os.makedirs(global_agb_folder)
+        os.makedirs(temp_agb_folder)
+        
+        
+        ### don't think we need those - it's not reasonable to average with previous estimates
+        # sigma_tab_pixel_folder = os.path.join(temp_agb_folder, 'sigma_tab')
+        # os.makedirs(sigma_tab_pixel_folder)
+        # theta_tab_pixel_folder = os.path.join(temp_agb_folder, 'theta_tab')
+        # os.makedirs(theta_tab_pixel_folder)
+        # acq_tab_pixel_folder = os.path.join(temp_agb_folder, 'acq_tab')
+        # os.makedirs(acq_tab_pixel_folder)
+        # polid_tab_pixel_folder = os.path.join(temp_agb_folder, 'polid_tab')
+        # os.makedirs(polid_tab_pixel_folder)
 
-        ### INITIALIZE AGB INVERSION ###
-
-        # output folders:
-        output_folder = os.path.join(products_folder, 'global_AGB')
-        os.makedirs(output_folder)
-        temp_output_folder_agb_est = os.path.join(temp_output_folder, 'agb_estimation')
-        os.makedirs(temp_output_folder_agb_est)
-
-        sigma_tab_pixel_folder = os.path.join(temp_output_folder_agb_est, 'sigma_tab')
-        os.makedirs(sigma_tab_pixel_folder)
-        theta_tab_pixel_folder = os.path.join(temp_output_folder_agb_est, 'theta_tab')
-        os.makedirs(theta_tab_pixel_folder)
-        acq_tab_pixel_folder = os.path.join(temp_output_folder_agb_est, 'acq_tab')
-        os.makedirs(acq_tab_pixel_folder)
-        polid_tab_pixel_folder = os.path.join(temp_output_folder_agb_est, 'polid_tab')
-        os.makedirs(polid_tab_pixel_folder)
-
-        # parameter text file path
-        par_path = os.path.join(output_folder, 'par_est.txt')
+        # # parameter text file path
+        # par_path = os.path.join(global_agb_folder, 'par_est.txt')
 
         # read and initialize all the parameters needed for the inversion
+        ### future improvement: update the function below and the xml file to incorporate the new structure
         (
-            dx_in,
-            N0,
-            E0,
-            NN,
-            EN,
-            dE,
-            dN,
-            dE_roi,
-            dN_roi,
-            wE_roi,
-            wN_roi,
-            dE_par,
-            dN_par,
-            wE_par,
-            wN_par,
-            all_vars,
-            l_lims,
-            a_lims,
-            n_lims,
-            w_lims,
-            N_tests,
+            _,
+            first_pixel_north,
+            first_pixel_east,
+            last_pixel_north,
+            last_pixel_east,
+            pixel_size_east,
+            pixel_size_north,
+            sample_spacing_east,
+            sample_spacing_north,
+            _,
+            _,
+            block_spacing_east,
+            block_spacing_north,
+            block_size_east,
+            block_size_north,
+            parameter_variabilities_orig,
+            parameter_limits_l,
+            parameter_limits_a,
+            parameter_limits_n,
+            parameter_limits_w,
+            number_of_subsets,
             geographic_grid_sampling,
             sub_grid_string,
         ) = initialize_inversion_parameters(
@@ -945,8 +939,161 @@ class AGBCoreProcessing(Task):
             self.geographic_boundaries,
             proc_conf.AGB,
         )
+        
+        ### new functions, to be moved out of this method
+        # function for splitting formula according to pre-defined rules and finding the positions of each element in observable and parameter lists                         
+        def parse_formula(formula,names_list,prefer_observables):
+            if prefer_observables:
+                split_terms = [[[np.where(multiplied_term.strip()==np.array(names_list))[0][0] for multiplied_term in added_term.split('*')]\
+                          for added_term in independent_formula.split('+')]\
+                        for independent_formula in formula.split('&')]
+            else:
+                split_terms = [[[np.where(multiplied_term.strip()==np.array(names_list))[0][-1] for multiplied_term in added_term.split('*')]\
+                          for added_term in independent_formula.split('+')]\
+                        for independent_formula in formula.split('&')]
+            return split_terms
+        # define transform functions
+        def transform_function(data,kind,do_forward=True):
+            # note: no check of data and kind is done here, 
+            # it is assumed that the inputs are correct
+            if kind=='db':
+                if do_forward:
+                    return 10*np.log10(data)
+                else:
+                    return 10**(0.1*data)
+            elif kind=='cosdb':
+                if do_forward:
+                    return 10*np.log10(np.cos(data))
+                else:
+                    return np.arccos(10**(0.1*data))
+            else:
+                return data    
+        # define parameter transfer functions
+        def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
+            # note: no check of x, xmax, xmin and kind is done here, 
+            # it is assumed that the inputs are correct
+            if kind=='sin2' :
+                if not x_is_p:
+                    return pmin+(pmax-pmin)*np.sin(x)**2
+                else:
+                    return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
+        
+        
 
-        ### initialize the equi7 sampling grid or output product
+        # function for calculating a given statistic for polygons of arbitrary shape  
+        def stats_on_cal_polygons(data,pixel_axis_east,pixel_axis_north,cal_polygons,method):
+            # here, create a function that calculates statistic in method on CAL data polygons
+            #
+            print('not implemented')
+            return []
+        # function for calculating a given statistic on all samples on a grid and all polygons
+        def stats_on_all_samples(data,pixel_axis_east,pixel_axis_north,sampling_axis_east,sample_size_east,sampling_axis_north,sample_size_north,cal_polygons,method):
+            stats = mean_on_rois(data,pixel_axis_east,pixel_axis_north,sampling_axis_east,sample_size_east,sampling_axis_north,sample_size_north,method)
+            if cal_polygons:
+                stats_cal_polygons = stats_on_cal_polygons(data,pixel_axis_east,pixel_axis_north,cal_polygons,method)
+                stats = np.concatenate((stats,stats_cal_polygons))
+            return stats
+        
+        
+        # function for creating list of format strings and a header for subsequent saving of tables into text files
+        def get_fmt_and_header(column_names,all_column_groups,all_data_types,delimiter='\t',precision=2,column_width=10):
+            out_format = []
+            out_header = []
+            for curr_column in column_names:
+                for curr_column_group,curr_data_type in zip(all_column_groups,all_data_types):
+                    if curr_column in curr_column_group:
+                        if curr_data_type == 'd':
+                            out_format.append('%s%dd' % (r'%',column_width))
+                        elif curr_data_type == 'f':
+                            out_format.append('%s%d.%df' % (r'%',column_width,precision))
+                        break
+                out_header.append('%s%ds' % (r'%',column_width) % curr_column)
+            return out_format,delimiter.join(out_header)
+        
+        ########## PREPARING INPUT
+        # this should be in the xml file and come out from the new version of the xml read function
+        
+        
+        ### in this proposed new version, the user defines the residual function formula on the following format:
+        # formula = 'logsigmahh ~ constanthh + agb_scalinghh * logagb + angle_scalinghh * logcostheta & 
+        #               ... &
+        #            logsigmavv ~ constantvv + agb_scalingvv * logagb + angle_scalingvv * logcostheta ']
+        # Although this format may appear complex at first, it allows a lot of flexibility in defining (multiple) cost functions
+        # With this, different models can be used for different polarisations and we can also change between forward and inverse model fitting
+        #
+        # Four signs are allowed:
+        #   1 - &: separation of independent cost functions
+        #   2 - ~: equivalent to subtraction of whatever follows
+        #   3 - +: addition
+        #   4 - *: multiplication
+        #   The formula is split based on the order above and the mathematical operations are done in the opposite order
+        #     here, we hardcode this before the xml and xml reading function above are updated
+        formula = ' & '.join(['l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db',
+                                'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db',
+                                'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db'])
+        
+            
+        ### then, the user has to define each of the elements of the formula
+        # Essentially, the unique elements of formula_split are cycled through one by one and the user has to select whether it is an "observable" (read only data), "parameter" (estimate only data),
+        # or both ("read and write", typical for AGB for which some calibration data are required)
+        # here, we hardcode this thing before the xml file and "initialize_inversion_parameters" are updated
+        # first, the names of the observables in formula are included (plus a few extras, which may be needed later, like other agb-related parametrs in db)
+        observable_names = ['neg_sigma0_hh_db','neg_sigma0_hv_db','neg_sigma0_vv_db','cos_local_db','agb_1_db','agb_2_db','agb_3_db','agb_4_db']
+        # then, the observable sources are selected (this is intimately bound to the available in data, so it is based on the stack-based processing output and calibration data availability)
+        observable_sources = ['sigma0_hh','sigma0_vh','sigma0_vv','theta','agb_1','agb_2','agb_3','agb_4']
+        # then, the applied transforms are selected (see transform_function() above)
+        observable_transforms = ['-db','-db','-db','cosdb','db','none','none','none']
+        # finally, averaging methods are selected (for averaging pixels within samples)
+        # although oftentimes 'mean' is used, this may not always be the case 
+        # e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) is a better averaging method as it is not as susceptible to 2pi ambiguities
+        observable_averaging_methods = ['mean','mean','mean','mean','mean','mean','mean','mean'] 
+        # then, the names of parameters are specified (should match those in formula)
+        # note that agb is special: it is defined as both "observable" and "parameter", so it will be 
+        # both read from external data and estimated 
+        parameter_names = ['l_hh','l_hv','l_vv','a_hh','a_hv','a_vv','n_hh','n_hv','n_vv','agb_1_db']
+        # then, parameter limits are selected; we here simply reorganise the limits in xml to the selected format
+        parameter_limits = [parameter_limits_l,parameter_limits_l,parameter_limits_l,
+                            parameter_limits_a,parameter_limits_a,parameter_limits_a,
+                            parameter_limits_n,parameter_limits_n,parameter_limits_n,
+                            parameter_limits_w]
+        # parameter transfer functions are used for constraining their values to an interval, here the methods are specified
+        parameter_transfer_method = 'sin2'
+        # parameter variabilities are defined over eight different dimensions:
+        #   spatial - between samples
+        #   forest class - between forest classes
+        #   stack - between stacks, independent from where they come (equivalent to flagging all remaining flags)
+        #   global cycle - between stacks if they come from different global cycle (equivalent to temporal of multiple months)
+        #   heading - between stacks if they come from different headings
+        #   swath - between stacks if they come from different 150-km swaths (equivalent to temporal of several weeks)
+        #   subswath - between stacks if they come from different 50-km subswaths (equivalent to temporal of several days)
+        #   azimuth - betwen stacks if they come from different 150-km images overlapping in azimuth (equivalent to temporal of a few seconds)
+        # as before, some of the new things will be hardcoded for now, but they should come from the xml
+        # compared with before, we need to add two extra columns (spatial and forest class variability) and remove the polarisation column,
+        parameter_variabilities_orig = np.column_stack((np.ones((3,2))==0,np.array(parameter_variabilities_orig)[:,1:]))
+        # moreover, we need to repeat each parameter three times to represent the three polarisations (which now can have different cost functions)
+        parameter_variabilities_orig = parameter_variabilities_orig[np.array([0,0,0,1,1,1,2,2,2]),:]
+        # then, we convert from array to list
+        parameter_variabilities = []
+        for parameter_variability in parameter_variabilities_orig:
+            parameter_variabilities.append(parameter_variability)
+        # finally, we add variability vector for agb1db so that it matches the order from above
+        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        # derived quantities
+        number_of_observables = len(observable_names)
+        number_of_parameters = len(parameter_names)
+        ###################### END OF PREPARING INPUT 
+        
+        
+        
+        ### checking the formula and list of observables        
+        # split formula to a nested list of dictionaries where different operations are done at different levels
+        calibration_formula_terms = parse_formula(formula,observable_names+parameter_names,True)
+        estimation_formula_terms = parse_formula(formula,observable_names+parameter_names,False)
+        # to be implemented: check that all terms of the formula are either observables or parameters
+       
+            
+        
+        # initialize the equi7 sampling grid or output product
         e7g_product = Equi7Grid(geographic_grid_sampling)
         logging.info(
             'EQUI7 Grid sampling used for final products: {}'.format(geographic_grid_sampling)
@@ -963,110 +1110,103 @@ class AGBCoreProcessing(Task):
             logging.error(err_str)
             raise
         subgrid_code = equi7_subgrid_names_list[0][6:8]
-        projection_prev = ''
+        # projection_prev = ''
         equi7_agb_est_out_tif_names_not_merged = []
 
-        ### INITIALIZE AGB INVERSION END ###
+       
 
-        ### PREPARE INVERSION MODULE ###
 
-        # parameter block axis (monidimensional axis, coordinates and bidimensional meshes)
-        EE_par_mesh, NN_par_mesh = np.meshgrid(np.arange(E0, EN, dE_par), np.arange(N0, NN, dN_par))
-        EE_par_coordinates, NN_par_coordinates = [
-            np.float64(x.flatten()) for x in [EE_par_mesh, NN_par_mesh]
+        # parameter block mesh and flattened coordinate vectors
+        block_mesh_east, block_mesh_north = np.meshgrid(np.arange(first_pixel_east, last_pixel_east, block_spacing_east), np.arange(first_pixel_north, last_pixel_north, block_spacing_north))
+        block_corner_coordinates_east, block_corner_coordinates_north = [
+            np.float64(x.flatten()) for x in [block_mesh_east, block_mesh_north]
         ]
-        # if just one block is present, recast the coordinates as numopy array of one element
-        if not EE_par_coordinates.shape:
-            EE_par_coordinates = np.array([EE_par_coordinates])
-            NN_par_coordinates = np.array([NN_par_coordinates])
-
-        # derived quantities
-        dl, da, dn, dw = [np.diff(lims)[0] for lims in [l_lims, a_lims, n_lims, w_lims]]
-        l0, a0, n0, w0 = [lims[0] for lims in [l_lims, a_lims, n_lims, w_lims]]
-
+        # count the blocks and set up a "finished" flag vector
+        number_of_blocks = len(block_corner_coordinates_east.flatten())
+        block_finished_flag = np.zeros((number_of_blocks), dtype='bool')
+        
         # read acquisition info table
-        acq_info_tab = self.lut_progressive_stacks
-        # restructure so that polarisation also is included (replicate rows three times)
-        acq_info_tab = np.column_stack(
-            (
-                np.kron(np.arange(3), np.ones(acq_info_tab.shape[0])),
-                np.kron(np.ones((3, 1)), acq_info_tab),
-            )
-        )
-
+        stack_info_table = self.lut_progressive_stacks
+        stack_info_table_columns = ['stack_id','global_cycle_id','heading_degrees','swath_id','subswath_id','azimuth_id']
+        stack_id_vector = stack_info_table[:,0]
+        number_of_stacks = len(stack_id_vector)
+        
+        
         # Compute the starting block and the nblock processing order
-        par_block_index_curr, block_order = compute_processing_blocs_order(
-            self.lut_cal, EE_par_coordinates, wE_par, NN_par_coordinates, wN_par
+        # proposed improvement: use SAR image boundaries in this
+        current_block_index, block_order = compute_processing_blocs_order(
+            self.lut_cal, block_corner_coordinates_east, block_size_east, block_corner_coordinates_north, block_size_north
         )
 
-        ### PREPARE INVERSION MODULE END ###
-
-        ### STARTING THE MAIN INVERSION ALGORITHM ###
-
-        # set up "finished" table for all parameter blocks
-        number_of_steps = len(EE_par_coordinates.flatten())
-        par_finished = np.zeros((number_of_steps), dtype='bool')
-        # run as long as the current block has a positive value
-        counter_iteration = 0
-        while ~np.all(par_finished):
+        
+        # run as long as not all blocks are finished
+        counter_blocks_run = 0
+        while ~np.all(block_finished_flag):
 
             # show status
-            counter_iteration = counter_iteration + 1
-            logging.info('AGB: Running block #{}'.format(par_block_index_curr))
-            logging.info('AGB: estimation step {} of {}'.format(counter_iteration, number_of_steps))
-
-            ## SELECT VALID PIXELS AND ROIS FOR CURRENT BLOCK
-            # extent of current block
-            par_extent_curr = np.array(
+            counter_blocks_run = counter_blocks_run + 1
+            logging.info('AGB: Running block {} out of {} (block ID: {})'.format(counter_blocks_run, number_of_blocks, current_block_index))
+            
+            
+            
+            
+            # extent of current block # [min_east, max_east, min_north, max_north]
+            current_block_extents = np.array(
                 [
-                    EE_par_coordinates[par_block_index_curr],
-                    EE_par_coordinates[par_block_index_curr] + wE_par,
-                    NN_par_coordinates[par_block_index_curr],
-                    NN_par_coordinates[par_block_index_curr] + wN_par,
+                    block_corner_coordinates_east[current_block_index],
+                    block_corner_coordinates_east[current_block_index] + block_size_east,
+                    block_corner_coordinates_north[current_block_index],
+                    block_corner_coordinates_north[current_block_index] + block_size_north,
                 ]
-            )  # [min_east, max_east, min_north, max_north]
+            )  
 
-            # Generate roi grid for current parameter block
-            EE_roi_mesh, NN_roi_mesh = np.meshgrid(
-                np.arange(par_extent_curr[0], par_extent_curr[1], dE_roi),
-                np.arange(par_extent_curr[2], par_extent_curr[3], dN_roi),
-            )
-
-            # ROI axis for current parameter block
-            EE_roi_axis = np.arange(par_extent_curr[0], par_extent_curr[1], dE_roi)
-            NN_roi_axis = np.arange(par_extent_curr[2], par_extent_curr[3], dN_roi)
-
-            # Pixel axis for current parameter block)
-            EE_pixel_axis = np.arange(par_extent_curr[0], par_extent_curr[1], dE)
-            NN_pixel_axis = np.arange(par_extent_curr[2], par_extent_curr[3], dN)
-
-            EE_pixel_mesh, NN_pixel_mesh = np.meshgrid(EE_pixel_axis, NN_pixel_axis)
-
-            number_of_rois = len(EE_roi_axis) * len(NN_roi_axis)
-            if number_of_rois < proc_conf.AGB.min_number_of_rois:
+            # sampling axes and meshes for current block
+            sampling_axis_east = np.arange(current_block_extents[0], current_block_extents[1], sample_spacing_east)
+            sampling_axis_north = np.arange(current_block_extents[2], current_block_extents[3], sample_spacing_north)
+            sampling_mesh_east, sampling_mesh_north = np.meshgrid( sampling_axis_east,
+                                                                  sampling_axis_north)
+            number_of_samples_on_grid = len(sampling_mesh_east.flatten())
+            
+            ### to be implemented:
+            # define or/and load additional, arbitrarily shaped sampling polygons
+            additional_sampling_polygons = []
+            number_of_polygon_samples = len(additional_sampling_polygons)
+            
+            # calculate the total number of samples
+            number_of_samples = number_of_samples_on_grid + number_of_polygon_samples
+            
+            # checking the number of samples
+            if number_of_samples_on_grid < proc_conf.AGB.min_number_of_rois:
                 logging.info(
-                    'skipping block #{} because the number of rois #{} cannot be less than #{}'.format(
-                        par_block_index_curr, number_of_rois, proc_conf.AGB.min_number_of_rois
+                    'skipping block #{} because the number of samples #{} cannot be less than #{}'.format(
+                        current_block_index, number_of_samples_on_grid, proc_conf.AGB.min_number_of_rois
                     )
                 )
                 # swap the flag
-                par_finished[par_block_index_curr] = True
-                # remove current par block from list
-                block_order = block_order[block_order != par_block_index_curr]
-                # select next par block
+                block_finished_flag[current_block_index] = True
+                # remove current block from list
+                block_order = block_order[block_order != current_block_index]
+                # select next block
                 if len(block_order) > 0:
                     # if there is at least one left, just take the next closest to CALdata
-                    par_block_index_curr = block_order[0]
+                    current_block_index = block_order[0]
                     continue
                 else:
                     break
 
-            EE_pixel_mesh, NN_pixel_mesh = np.meshgrid(EE_pixel_axis, NN_pixel_axis)
+            # pixel axes for current block
+            pixel_axis_east = np.arange(current_block_extents[0], current_block_extents[1], pixel_size_east)
+            pixel_axis_north = np.arange(current_block_extents[2], current_block_extents[3], pixel_size_north)
+            pixel_mesh_east, pixel_mesh_north = np.meshgrid( pixel_axis_east, 
+                                                            pixel_axis_north)
+            number_of_pixels = len(pixel_mesh_east.flatten())
 
+            
+            ## THE FOLLOWING PART IS TABULATING
+            # could be moved to a separate function
             try:
 
-                # Initialize tables creation cycles
-                number_of_stacks = len(self.lut_stacks_paths)
+                # cycle through stacks and check that there are some data within current block
                 block_has_data = np.zeros(number_of_stacks, dtype='bool')
                 for stack_idx, stack_path in enumerate(self.lut_stacks_paths):
 
@@ -1076,12 +1216,31 @@ class AGBCoreProcessing(Task):
                         self.lut_stacks_boundaries[stack_idx, 1],
                         self.lut_stacks_boundaries[stack_idx, 2],
                         self.lut_stacks_boundaries[stack_idx, 3],
-                        par_extent_curr[0],
-                        par_extent_curr[1],
-                        par_extent_curr[3],
-                        par_extent_curr[2],
+                        current_block_extents[0],
+                        current_block_extents[1],
+                        current_block_extents[3],
+                        current_block_extents[2],
                     )
+                number_of_stacks_inside = np.sum(block_has_data == True)
+                if (number_of_stacks_inside == 0):
+                    logging.info(
+                        'skipping block #{} due to lack of valid data points'.format(
+                            current_block_index
+                        )
+                    )
+                    # swap the flag
+                    block_finished_flag[current_block_index] = True
+                    # remove current par block from list
+                    block_order = block_order[block_order != current_block_index]
+                    # select next par block
+                    if len(block_order) > 0:
+                        # if there is at least one left, just take the next closest to CALdata
+                        current_block_index = block_order[0]
+                        continue
+                    else:
+                        break
 
+                # cycle through cals and see that there are some cals within current block
                 block_has_cal = np.zeros(len(self.lut_cal_paths), dtype='bool')
                 for cal_idx, cal_path in enumerate(self.lut_cal_paths):
 
@@ -1091,473 +1250,903 @@ class AGBCoreProcessing(Task):
                         self.lut_cal[cal_idx, 1],
                         self.lut_cal[cal_idx, 2],
                         self.lut_cal[cal_idx, 3],
-                        par_extent_curr[0],
-                        par_extent_curr[1],
-                        par_extent_curr[3],
-                        par_extent_curr[2],
+                        current_block_extents[0],
+                        current_block_extents[1],
+                        current_block_extents[3],
+                        current_block_extents[2],
                     )
 
-                number_of_stacks_inside = np.sum(block_has_data == True)
-
-                if not number_of_stacks_inside:
+                if not np.any(block_has_cal):
                     logging.info(
-                        'skipping block #{} due to too invalid data points'.format(
-                            par_block_index_curr
+                        'skipping block #{} due to lack of calibration data'.format(
+                            current_block_index
                         )
                     )
                     # swap the flag
-                    par_finished[par_block_index_curr] = True
+                    block_finished_flag[current_block_index] = True
                     # remove current par block from list
-                    block_order = block_order[block_order != par_block_index_curr]
+                    block_order = block_order[block_order != current_block_index]
                     # select next par block
                     if len(block_order) > 0:
                         # if there is at least one left, just take the next closest to CALdata
-                        par_block_index_curr = block_order[0]
+                        current_block_index = block_order[0]
                         continue
                     else:
                         break
-
+                    
+                    
+                    
+                # defining names for identifiers (sampleID & forest class ID and then all columns from stack info table)
+                identifier_names = ['sample_id','forest_class_id'] + stack_info_table_columns
+                number_of_identifiers = len(identifier_names)
+                # column names for parameter position vectors
+                parameter_position_names = ['row_'+parameter_name for parameter_name in parameter_names]
+                # defining names for observable table columns (first the identifiers, 
+                # the observable values, and then corresponding positions 
+                # for each parameter in their corresponding parameter table)
+                observable_table_columns = identifier_names+\
+                    observable_names + \
+                        parameter_position_names
+                number_of_observable_table_columns = len(observable_table_columns)
+                
+                # allocating observable table
+                observable_data_table = np.nan * np.zeros ((
+                    number_of_samples * number_of_stacks,
+                    number_of_observable_table_columns
+                    ))
+                    
+                # filling out the first column with sample IDs
+                observable_data_table[:,0] = np.kron(np.arange(number_of_samples),np.ones(number_of_stacks))
+                
+                # filling out columns 3-8 with stack IDs and corresponding other identifications from stack_info_table
+                observable_data_table[:,2] = np.kron(np.ones(number_of_samples),stack_id_vector)
+                for id_idx in range(5):
+                    observable_data_table[:,3+id_idx] = sp.interpolate.interp1d(stack_id_vector,stack_info_table[:,1+id_idx],kind='nearest')(observable_data_table[:,2])
+                
+                
+                ### READING AND SAMPLING FOREST CLASS DATA
+                logging.info('reading & sampling forest class data')
+                # get equi7 information
                 equi7_grid_name = os.listdir(os.path.join(self.lut_stacks_paths[0], 'sigma0_hh'))[0]
-
-                pol_names = ['hh', 'vh', 'vv']
-
-                acqid_tab = np.nan * np.zeros(
-                    (number_of_stacks_inside * len(pol_names), number_of_rois)
-                )  # progressive stacks ids (replicates values for each roi)
-                sigma_tab = np.nan * np.zeros(
-                    (number_of_stacks_inside * len(pol_names), number_of_rois)
-                )  # sigma0 values for each roi and for each pol in each stack
-                theta_tab = np.nan * np.zeros(
-                    (number_of_stacks_inside, number_of_rois)
-                )  # theta values for each roi in each stack: it is replicated after for matching the three polarizations shape
-
-                number_of_pixels = len(EE_pixel_axis) * len(NN_pixel_axis)
-                sigma_tab_pixels = np.nan * np.zeros(
-                    (number_of_stacks_inside * len(pol_names), number_of_pixels)
-                )
-                theta_tab_pixels = np.nan * np.zeros((number_of_stacks_inside, number_of_pixels))
-                acqid_tab_pixels = np.nan * np.zeros(
-                    (number_of_stacks_inside * len(pol_names), number_of_pixels)
+                # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
+                # loaded masks needs to be re-interpolated over the pixels grid (pixel_axis_east, pixel_axis_north)
+                forest_class_map_interp = np.zeros(
+                    (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
                 )
 
-                # loading all fnf masks that fall inside a block: note, more than ine fnf equi7 tile can fall inside
-                # loaded masks needs to be re-interpolated over the pixels roi grid (EE_pixel_axis, NN_pixel_axis)
-                fnf_mask_data_interp = np.zeros(
-                    (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-                )
+                counter_forest_class_maps = 0
+                for forest_class_map_idx, forest_class_map_path in enumerate(self.lut_fnf_paths):
 
-                counter_fnf = 0
-                for fnf_idx, fnf_path in enumerate(self.lut_fnf_paths):
+                    forest_class_map_boundaries = self.lut_fnf[forest_class_map_idx]
 
-                    fnf_boundaries = self.lut_fnf[fnf_idx]
-
-                    fnf_is_inside = check_intersection(
-                        fnf_boundaries[0],
-                        fnf_boundaries[1],
-                        fnf_boundaries[2],
-                        fnf_boundaries[3],
-                        par_extent_curr[0],
-                        par_extent_curr[1],
-                        par_extent_curr[3],
-                        par_extent_curr[2],
+                    forest_class_map_is_inside = check_intersection(
+                        forest_class_map_boundaries[0],
+                        forest_class_map_boundaries[1],
+                        forest_class_map_boundaries[2],
+                        forest_class_map_boundaries[3],
+                        current_block_extents[0],
+                        current_block_extents[1],
+                        current_block_extents[3],
+                        current_block_extents[2],
                     )
-                    if fnf_is_inside:
+                    if forest_class_map_is_inside:
 
-                        fnf_mask_data_interp_curr = np.round(
+                        forest_class_map_interp_curr = np.round(
                             interp2d_wrapper(
-                                fnf_path, 1, EE_pixel_axis, NN_pixel_axis, fill_value=float(0)
+                                forest_class_map_path, 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
                             )
                         )
 
                         # mean all the fnf tiles
-                        fnf_mask_data_interp = np.ceil(
+                        forest_class_map_interp = np.ceil(
                             merge_agb_intermediate(
-                                fnf_mask_data_interp, fnf_mask_data_interp_curr, method='nan_mean'
+                                forest_class_map_interp, forest_class_map_interp_curr, method='nan_mean'
                             )
                         )
+                        
+                        # set all unrealistic values to 0 = non-forest
+                        forest_class_map_interp[(forest_class_map_interp <= 0) | np.isnan(forest_class_map_interp)] = 0
+                        
+                        counter_forest_class_maps = counter_forest_class_maps + 1
 
-                        fnf_mask_data_interp[fnf_mask_data_interp != 1] = 0
-                        fnf_mask_data_interp[np.isnan(fnf_mask_data_interp)] = 0
+                if counter_forest_class_maps == 0:
 
-                        counter_fnf = counter_fnf + 1
-
-                if counter_fnf == 0:
-
-                    err_str = 'Cannot find any FNF mask falling in current block coordinates.'
+                    err_str = 'Cannot find any forest class map falling in current block coordinates.'
                     logging.error(err_str)
                     raise ImportError(err_str)
-
-                # cycle for each stack
-                counter_stacks = 0
-                counter_stack_pols = 0
+                
+                # sampling forest class map
+                temp_forest_class_vector = np.int32(np.round(stats_on_all_samples(
+                    forest_class_map_interp,
+                    pixel_mesh_east,
+                    pixel_mesh_north,
+                    sampling_axis_east,
+                    sample_spacing_east,
+                    sampling_axis_north,
+                    sample_spacing_north,
+                    additional_sampling_polygons,
+                    'mode',
+                )))
+                # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
+                observable_data_table[:,1] = np.kron(temp_forest_class_vector,np.ones(number_of_stacks))
+                
+                
+                
+                
+                
+                
+                ### READING OBSERVABLE DATA
+                # the following assumes a certain format on the radar observables (which consist of multiple stacks)
+                # and on agb (which is assumed to be the same for all observables)
+                # in case we want to work with multiple agb measurements over time (e.g., agb change), then the following needs to be modified
+                observable_types = np.nan * np.zeros(number_of_observables)
+                # cycle over stacks
                 for stack_idx, stack_path in enumerate(self.lut_stacks_paths):
 
                     # go ahead only if current stack is (at least partially) contained in the current parameter block:
                     if block_has_data[stack_idx]:
 
-                        progressive_stack_idx = int(self.lut_progressive_stacks[stack_idx, 0])
-
-                        # cycle for each polarization inside the stack
-                        for pol_name in pol_names:
-
-                            sigma0_eq7_parent_dir_name = os.path.join(
-                                stack_path, 'sigma0_' + pol_name, equi7_grid_name
-                            )
-                            equi7_tiles_names = os.listdir(sigma0_eq7_parent_dir_name)
-
-                            # cycle over all the equi7 tiles, interpolate over pixel grid and mean them togheter
-                            stack_data_interp = np.NaN * np.zeros(
-                                (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-                            )
-                            for equi7_tile_name in equi7_tiles_names:
-
-                                sigma0_tiff_name = os.path.join(
-                                    sigma0_eq7_parent_dir_name,
-                                    equi7_tile_name,
-                                    'sigma0_'
-                                    + pol_name
-                                    + '_'
-                                    + os.path.basename(stack_path)
-                                    + '_'
-                                    + equi7_grid_name[6:]
-                                    + '_'
-                                    + equi7_tile_name
-                                    + '.tif',
+                        # cycle through observables sources in the stack
+                        for source_idx,source_name in enumerate(observable_sources):
+                            
+                            # only do the following for the radar observables (i.e. not an agb observable)
+                            if not (source_name.split('_')[0]=='agb'):
+                                
+                                observable_types[source_idx] = 0
+                                
+                                source_eq7_parent_dir_name = os.path.join(
+                                    stack_path, source_name, equi7_grid_name
                                 )
-
-                                stack_data_interp_curr = interp2d_wrapper(
-                                    sigma0_tiff_name,
-                                    1,
-                                    EE_pixel_axis,
-                                    NN_pixel_axis,
-                                    fill_value=np.NaN,
+                                equi7_tiles_names = os.listdir(source_eq7_parent_dir_name)
+    
+                                # cycle over all the equi7 tiles, interpolate over pixel grid and average
+                                source_data_interp = np.NaN * np.zeros(
+                                    (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
                                 )
-
-                                stack_data_interp = merge_agb_intermediate(
-                                    stack_data_interp, stack_data_interp_curr, method='nan_mean'
+                                for equi7_tile_name in equi7_tiles_names:
+    
+                                    source_tiff_name = os.path.join(
+                                        source_eq7_parent_dir_name,
+                                        equi7_tile_name,
+                                        source_name 
+                                        + '_'
+                                        + os.path.basename(stack_path)
+                                        + '_'
+                                        + equi7_grid_name[6:]
+                                        + '_'
+                                        + equi7_tile_name
+                                        + '.tif',
+                                    )
+    
+                                    source_data_interp_curr = interp2d_wrapper(
+                                        source_tiff_name,
+                                        1,
+                                        pixel_axis_east,
+                                        pixel_axis_north,
+                                        fill_value=np.NaN,
+                                    )
+    
+                                    source_data_interp = merge_agb_intermediate(
+                                        source_data_interp, source_data_interp_curr, method='nan_mean'
+                                    )
+    
+                                # masking the stack:
+                                source_data_interp[forest_class_map_interp == 0] = np.NaN
+        
+                                logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', stack {}, and averaging method '{}'".format(
+                                    source_name,
+                                    observable_names[source_idx],
+                                    observable_transforms[source_idx],
+                                    stack_id_vector[stack_idx],
+                                    observable_averaging_methods[source_idx]))
+                                
+                                # calculate sample statistics
+                                temp_transformed_sampled_data = transform_function(
+                                    stats_on_all_samples(
+                                        source_data_interp,
+                                        pixel_mesh_east,
+                                        pixel_mesh_north,
+                                        sampling_axis_east,
+                                        sample_spacing_east,
+                                        sampling_axis_north,
+                                        sample_spacing_north,
+                                        additional_sampling_polygons, 
+                                        observable_averaging_methods[source_idx],
+                                        ),
+                                    observable_transforms[source_idx])
+                                # find rows where the stack id matches the current stack id
+                                current_rows = (observable_data_table[:,2]==stack_id_vector[stack_idx])
+                                # fill out the table
+                                observable_data_table[current_rows,
+                                                      number_of_identifiers+source_idx] = temp_transformed_sampled_data
+                # go through observable sources again
+                for source_idx,source_name in enumerate(observable_sources):
+                    
+                    # do the following only for agb-type observables
+                    if source_name.split('_')[0]=='agb':
+                        
+                        observable_types[source_idx] = 1
+                        
+                        agb_data_interp = np.nan * np.zeros(
+                            (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
+                        )
+                        
+                        agb_source_band = int(source_name.split('_')[1])
+                    
+                        for cal_idx, cal_path in enumerate(self.lut_cal_paths):
+                            if block_has_cal[cal_idx]:
+                                # counter_cal = counter_cal + 1
+                                # logging.info('reading cal raster from path {}'.format(cal_path))
+                            
+                                agb_data_interp_curr = interp2d_wrapper(
+                                    cal_path, agb_source_band, pixel_axis_east, pixel_axis_north, fill_value=np.NaN
                                 )
+                                # mean all the equi7 tiles
+                                agb_data_interp = merge_agb_intermediate(
+                                    agb_data_interp, agb_data_interp_curr, method='nan_mean'
+                                )
+                        logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', and averaging method '{}'".format(
+                                    source_name,
+                                    observable_names[source_idx],
+                                    observable_transforms[source_idx],
+                                    observable_averaging_methods[source_idx]))
+                        # statistics over samples
+                        temp_transformed_sampled_data = transform_function(
+                            stats_on_all_samples(
+                                agb_data_interp,
+                                pixel_mesh_east,
+                                pixel_mesh_north,
+                                sampling_axis_east,
+                                sample_spacing_east,
+                                sampling_axis_north,
+                                sample_spacing_north,
+                                additional_sampling_polygons,
+                                method='nan_mean',
+                            ),
+                            observable_transforms[source_idx])
+                        # fill out the table
+                        observable_data_table[:,number_of_identifiers+source_idx] = np.kron(np.ones(number_of_stacks),temp_transformed_sampled_data)
+                        
+                    
+                # for simpler management, create vectors indicating columns with identifiers, observables, and parameter positions, etc
+                columns_with_identifiers = np.arange(number_of_identifiers)
+                columns_with_observables = number_of_identifiers+np.arange(number_of_observables)
+                columns_with_positions = number_of_identifiers+number_of_observables+np.arange(number_of_parameters)
+                columns_with_sar_observables = number_of_identifiers+np.where(observable_types==0)[0]
+                columns_with_agb_observables = number_of_identifiers+np.where(observable_types==1)[0]
+                
+                # mark rows in observable data table that have negative identifiers, nan-valued sar observables, infinite sar observables, or negative agb values
+                invalid_rows = np.any(observable_data_table[:,columns_with_identifiers]<0,axis=1) | \
+                    np.any(np.isnan(observable_data_table[:,columns_with_sar_observables]),axis=1) | \
+                    np.any(~np.isfinite(observable_data_table[:,columns_with_sar_observables]),axis=1) | \
+                        np.any(observable_data_table[:,columns_with_agb_observables]<0,axis=1) | \
+                        np.any(observable_data_table[:,columns_with_positions]<0,axis=1)
+                # exclude invalid rows
+                observable_data_table = observable_data_table[~invalid_rows,:]
+                # number of rows in data table
+                number_of_rows_in_observable_table = observable_data_table.shape[0]
+                        
+                        
+                ### PREPARING PARAMETER TABLES
+                parameter_property_names = ['lower_limit','upper_limit','initial_value']+['estimate_%d' % (ii) for ii in np.arange(number_of_subsets)+1]
+                parameter_tables = []
+                parameter_table_columns = []
+                # creating parameter matrices
+                for parameter_idx,parameter_variability in enumerate(parameter_variabilities):
+                    # take out only the relevant identifiers (the ones that change as per parameter variability)
+                    # and create column names by adding four additional columns: min, max and initial value, and estimated value (later set to NaN)
+                    parameter_table_columns.append(np.concatenate((np.array(identifier_names)[parameter_variability],
+                                                                   np.array(parameter_property_names))))
+                    # create the minimal ID table (without unnecessary columns for those dimension across which the parameter doesn't change)
+                    temp_ids_table = observable_data_table[:,np.where(parameter_variability)[0]]
+                    # create the last four columns
+                    temp_minmax_table = np.array([parameter_limits[parameter_idx]]) * np.ones((number_of_rows_in_observable_table,1))
+                    temp_initial_table = np.mean(temp_minmax_table,axis=1)
+                    temp_estimated_table = np.kron(np.ones((1,number_of_subsets)),np.array([np.mean(temp_minmax_table,axis=1)]).transpose())
+                    # create the full table
+                    # note: this table has initially the same shape as the observable table
+                    temp_full_table = np.column_stack((
+                            temp_ids_table,
+                            temp_minmax_table,
+                            temp_initial_table,
+                            temp_estimated_table))
+                    # take out unique rows and the inverse vector recreating the rows of the observable table
+                    # the inverse vector is critical as it relates the positions in the observable table to positions in each parameter table
+                    temp_full_table,temp_position_in_observable_table = np.unique(temp_full_table,axis=0,return_inverse=True)
+                    # set the last colum of the full table to nan (estimated value unavailable now)
+                    temp_full_table[:,-number_of_subsets:] = np.nan
+                    # append the table
+                    parameter_tables.append(temp_full_table)
+                    # include the inverse vector in the observable data table at the correct position
+                    observable_data_table[:,number_of_identifiers+number_of_observables+parameter_idx] = temp_position_in_observable_table
+                
 
-                            # masking the stack:
-                            stack_data_interp[fnf_mask_data_interp != 1] = np.NaN
 
-                            sigma_tab_pixels[counter_stack_pols, :] = stack_data_interp.flatten()
-
-                            # Mean on ROI
-                            data_roi_means_vec = mean_on_rois(
-                                stack_data_interp,
-                                EE_pixel_mesh,
-                                NN_pixel_mesh,
-                                EE_roi_axis,
-                                dE_roi,
-                                NN_roi_axis,
-                                dN_roi,
-                                'mean',
-                            )
-
-                            # Insert in table
-                            sigma_tab[counter_stack_pols, :] = data_roi_means_vec
-
-                            progressive_stack_idx_vec = (
-                                np.ones(number_of_rois, dtype='int') * progressive_stack_idx
-                            )
-                            progressive_stack_idx_vec[
-                                np.isnan(data_roi_means_vec)
-                            ] = -1  # invalid value
-
-                            acqid_tab[counter_stack_pols, :] = progressive_stack_idx_vec
-
-                            progressive_stack_idx_vec = (
-                                np.ones(number_of_pixels, dtype='int') * progressive_stack_idx
-                            )
-                            progressive_stack_idx_vec[
-                                np.isnan(stack_data_interp.flatten())
-                            ] = -1  # invalid value
-
-                            acqid_tab_pixels[counter_stack_pols, :] = progressive_stack_idx_vec
-
-                            counter_stack_pols = counter_stack_pols + 1
-
-                        # cycle over all the equi7 tiles, interpolate over pixel grid and mean them togheter
-                        theta_eq7_parent_dir_name = os.path.join(
-                            stack_path, 'theta', equi7_grid_name
-                        )
-
-                        stack_theta_interp = np.NaN * np.zeros(
-                            (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-                        )
-                        for equi7_tile_name in equi7_tiles_names:
-
-                            theta_tiff_name = os.path.join(
-                                theta_eq7_parent_dir_name,
-                                equi7_tile_name,
-                                'theta_'
-                                + os.path.basename(stack_path)
-                                + '_'
-                                + equi7_grid_name[6:]
-                                + '_'
-                                + equi7_tile_name
-                                + '.tif',
-                            )
-
-                            stack_theta_interp_curr = interp2d_wrapper(
-                                theta_tiff_name, 1, EE_pixel_axis, NN_pixel_axis, fill_value=np.NaN
-                            )
-
-                            # mean all the equi7 tiles
-                            stack_theta_interp = merge_agb_intermediate(
-                                stack_theta_interp, stack_theta_interp_curr, method='nan_mean'
-                            )
-
-                            projection_curr = get_projection_from_path(theta_tiff_name)
-                            if projection_prev and (projection_prev != projection_curr):
-                                err_str = 'multiple equi7 projections are not supported.'
-                                logging.error(err_str)
-                                raise ImportError(err_str)
-                            projection_prev = projection_curr
-
-                        # masking the stack:
-                        stack_theta_interp[fnf_mask_data_interp != 1] = np.NaN
-
-                        theta_tab_pixels[counter_stacks, :] = stack_theta_interp.flatten()
-
-                        # Mean on ROI
-                        theta_roi_means_vec = mean_on_rois(
-                            stack_theta_interp,
-                            EE_pixel_mesh,
-                            NN_pixel_mesh,
-                            EE_roi_axis,
-                            dE_roi,
-                            NN_roi_axis,
-                            dN_roi,
-                            'mean',
-                        )
-
-                        # Insert in table
-                        theta_tab[counter_stacks, :] = theta_roi_means_vec
-
-                        counter_stacks = counter_stacks + 1
-
-                # replicate equal values for all the 3 polarizations:
-                theta_tab = np.kron(theta_tab, np.ones((3, 1)))
-                theta_tab_pixels = np.kron(theta_tab_pixels, np.ones((3, 1)))
-
-                N_laypol = sigma_tab.shape[0]  # number of stacks x number of polarizations'
-                N_lay = np.int32(N_laypol / 3)  # number of stacks
-                # create polarisation ID table matching sigma data table in shape and size
-                polid_tab = np.kron(
-                    np.ones((N_lay, 1)),
-                    np.kron(np.array([np.arange(3)]).transpose(), np.ones((1, number_of_rois))),
-                )
-                polid_tab_pixels = np.kron(
-                    np.ones((N_lay, 1)),
-                    np.kron(np.array([np.arange(3)]).transpose(), np.ones((1, number_of_pixels))),
-                )
-
-                # save and delete all the pixel tabs:
-                np.save(
-                    os.path.join(
-                        sigma_tab_pixel_folder,
-                        'sigma_tab_pixels_block_{}'.format(par_block_index_curr),
-                    ),
-                    sigma_tab_pixels,
-                )
-                np.save(
-                    os.path.join(
-                        acq_tab_pixel_folder, 'acq_tab_pixels_block_{}'.format(par_block_index_curr)
-                    ),
-                    acqid_tab_pixels,
-                )
-                np.save(
-                    os.path.join(
-                        theta_tab_pixel_folder,
-                        'theta_tab_pixels_block_{}'.format(par_block_index_curr),
-                    ),
-                    theta_tab_pixels,
-                )
-                np.save(
-                    os.path.join(
-                        polid_tab_pixel_folder,
-                        'polid_tab_pixels_block_{}'.format(par_block_index_curr),
-                    ),
-                    polid_tab_pixels,
-                )
-                del sigma_tab_pixels, acqid_tab_pixels, theta_tab_pixels, polid_tab_pixels
-
-                ## FILTER OUT INVALID ACQUISITIONS
-                # find independent measurements within current tile and count them
-                unique_acqs, acq_count = np.unique(acqid_tab, return_counts=True)
-                # extract acquisitions meeting the requirements on minimal number of independent measurements
-                valid_acqs = np.isin(
-                    acq_info_tab[:, 1],
-                    unique_acqs[acq_count >= proc_conf.AGB.min_number_of_rois_per_stack * 3],
-                )
-                # mask out invalid acquisitions (either too few measurements or there are nans in sigma or theta images)
-                acqid_tab[
-                    (~np.isin(acqid_tab, acq_info_tab[valid_acqs, 1]))
-                    | np.isnan(sigma_tab)
-                    | (sigma_tab < 0)
-                    | np.isnan(theta_tab)
-                ] = -1
-
-                # mask out data in sigma0 and local tables
-                sigma_tab[acqid_tab == -1] = np.nan
-                theta_tab[acqid_tab == -1] = np.nan
-
+                ### SAVING OBSERVABLE AND PARAMETER TABLES
+                # select formatting for the output tables
+                curr_delimiter = '\t'
+                curr_precision = 3
+                curr_column_width = 15
+                all_column_groups = [identifier_names,parameter_position_names,parameter_property_names,observable_names]
+                all_data_types = ['d','d','f','f']
+                
+                
+                # save parameter and observable tables
+                for parameter_idx,parameter_name in enumerate(parameter_names):
+                    curr_format,curr_header = get_fmt_and_header(parameter_table_columns[parameter_idx],all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                    np.savetxt(os.path.join(
+                            temp_agb_folder,
+                            'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+                        parameter_tables[parameter_idx],
+                        fmt=curr_format,
+                        delimiter=curr_delimiter,
+                        header=curr_header,
+                        comments='')
+                
+                curr_format,curr_header = get_fmt_and_header(observable_table_columns,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                np.savetxt(os.path.join(
+                        temp_agb_folder,
+                        'observable_data_table_block_{}.txt'.format(current_block_index)),
+                    observable_data_table,
+                    fmt=curr_format,
+                    delimiter=curr_delimiter,
+                    header=curr_header,
+                    comments='')
+            
+                
+                        # %%
             except Exception as e:
-                logging.error('AGB: error during tables creation.' + str(e), exc_info=True)
+                logging.error('AGB: error during data sampling and tabulating.' + str(e), exc_info=True)
                 raise
+            
+            try:
+                # %%
+                
+                ### CREATE CALIBRATION AND ESTIMATION SUBSETS
+                    
+                # select rows with available agb information as calibration data and those without as estimation data
+                calibration_rows = np.where(np.all(~np.isnan(observable_data_table[:,columns_with_agb_observables]),axis=1))[0]
+                estimation_rows = np.where(np.any(np.isnan(observable_data_table[:,columns_with_agb_observables]),axis=1))[0]
+                calibration_sample_ids,number_of_stacks_per_calibration_sample = np.unique(observable_data_table[calibration_rows,0],return_counts=True)
+                estimation_sample_ids,number_of_stacks_per_estimation_sample = np.unique(observable_data_table[estimation_rows,0],return_counts=True)
+                
+                # calculate subset sizes
+                estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids)/100*proc_conf.AGB.fraction_of_roi_per_test))
+                calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids)/100*proc_conf.AGB.fraction_of_cal_per_test))
+                
+                # find random calibration and estimation subsets
+                random_estimation_subsets = []
+                random_calibration_subsets = []
+                number_of_accepted_subsets = 0
+                while number_of_accepted_subsets < number_of_subsets:
+                    # create a random subset of calibration and estimation samples
+                    current_random_estimation_subset = np.sort(np.random.permutation(estimation_sample_ids)[:estimation_subset_size])
+                    current_random_calibration_subset = np.sort(np.random.permutation(calibration_sample_ids)[:calibration_subset_size])
+                    
+                    # calculate the minimal number of calibration and estimation samples for the space-invariant parameters
+                    # (for the latter, we use the column with parameter positions in parameter tables - the same value indicates the same parameter)
+                    current_calibration_rows = np.isin(observable_data_table[:,0],current_random_calibration_subset)
+                    current_estimation_rows = np.isin(observable_data_table[:,0],current_random_estimation_subset)
+                    current_parameter_position_columns = number_of_identifiers\
+                                                                +number_of_observables\
+                                                                +np.where(~np.row_stack(parameter_variabilities)[:,0])[0]
+                    min_number_of_calibration_measurements_per_space_invariant_parameter = np.inf
+                    min_number_of_estimation_measurements_per_space_invariant_parameter = np.inf
+                    # loop through columns with parameter positions
+                    for column_idx in current_parameter_position_columns:
+                        # calculate the minimal number of samples for all parameter values within this column and all different parameters until the current one
+                        min_number_of_calibration_measurements_per_space_invariant_parameter\
+                            = np.minimum(min_number_of_calibration_measurements_per_space_invariant_parameter,
+                                                            np.min(
+                                                                np.unique(
+                                                                 observable_data_table[current_calibration_rows,column_idx],return_counts=True)[1]))
+                        min_number_of_estimation_measurements_per_space_invariant_parameter\
+                            = np.minimum(min_number_of_estimation_measurements_per_space_invariant_parameter,
+                                                            np.min(
+                                                                np.unique(
+                                                                 observable_data_table[current_estimation_rows,column_idx],return_counts=True)[1]))
+                    # if the minimal number of samples is larger than the one specified in the xml configuration file, accept this subset
+                    # (at the moment, we don't perform other tests, which means that subsets may be repeated)
+                    if (min_number_of_calibration_measurements_per_space_invariant_parameter>proc_conf.AGB.min_number_of_cals_per_test) & \
+                        (min_number_of_estimation_measurements_per_space_invariant_parameter>proc_conf.AGB.min_number_of_rois_per_test):
+                            random_estimation_subsets.append(current_random_estimation_subset)
+                            random_calibration_subsets.append(current_random_calibration_subset)
+                            number_of_accepted_subsets += 1
+                            
+                         
+                ### RUN INVERSION FOR THE CURRENT BLOCK AND TABLE USING ALL SELECTED SUBSETS
+                # %%
+                # def fit_model_to_data_with_subsets(sample_id_vector,
+                #         observable_table,
+                #         parameter_position_table,
+                #         parameter_tables,
+                #         parsed_formula_calibration,
+                #         parsed_formula_estimation,
+                #         parameter_transfer_method,
+                #         calibration_subsets,
+                #         estimation_subsets):
+                    
+                    
+                    
+                #     fit_model_to_data_with_subsets(    
+                #     observable_data_table[:,0],
+                #     observable_data_table[:,columns_with_observables],
+                #     observable_data_table[:,columns_with_positions],
+                #     parameter_tables,
+                #     calibration_formula_terms,
+                #     estimation_formula_terms,
+                #     parameter_transfer_method,
+                #     random_calibration_subsets,
+                #     random_estimation_subsets,
+                # )
+                    
+                
+                
+                def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
+                    # note: no check of x, xmax, xmin and kind is done here, 
+                    # it is assumed that the inputs are correct
+                    if kind=='sin2' :
+                        if not x_is_p:
+                            return pmin+(pmax-pmin)*np.sin(x)**2
+                        else:
+                            return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
+                
+                                
+            
+            
+                # loop through calibration subsets
+                for current_calibration_subset,current_estimation_subset in zip(random_calibration_subsets,random_estimation_subsets):
+                    
+                    # select the rows in the observable table
+                    current_calibration_rows = np.isin(observable_data_table[:,0],current_calibration_subset)
+                    current_estimation_rows = np.isin(observable_data_table[:,0],current_estimation_subset)
+                    
+                    
+                    # take out a subtable with indices for each parameter in the output parameter tables
+                    current_parameter_row_in_parameter_tables = \
+                        observable_data_table[:,columns_with_positions][current_calibration_rows | current_estimation_rows,:]
+                    # take out a subtable with observables
+                    current_observable_table = observable_data_table[:,columns_with_observables][current_calibration_rows | current_estimation_rows,:]
+                    
+                    # convert these positions to positions in a single vector x, where unique
+                    # parameter values are ordered first by rows (samples) and then by columns (independent parameters)
+                    # this requires renumbering and introducing offsets for each column
+                    offset = 0
+                    current_parameter_position_in_beta_vector = [] # position in a single x-vector
+                    current_parameter_position_lut = [] # lut for converting between parameter id and column and parameter position in x
+                    for parameter_idx in range(number_of_parameters):
+                        # add -1 at the beginning to avoid vectors with one element (which will not work with interp1d)
+                        old_indices = np.concatenate((-1*np.ones(1),np.unique(current_parameter_row_in_parameter_tables[:,parameter_idx])))
+                        # new indices is a simple sequence from 0 to number of parameters-1 + offset due to previous parameters
+                        new_indices = np.arange(len(old_indices))-1+offset
+                        # convert parameter indices and add to the list
+                        current_parameter_position_in_beta_vector.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(current_parameter_row_in_parameter_tables[:,parameter_idx]))
+                        # save the lut, removing the first, unnecessary element
+                        current_parameter_position_lut.append(
+                            np.column_stack((new_indices[old_indices>-1],
+                                             parameter_idx+np.zeros(len(old_indices[old_indices>-1])),
+                                             old_indices[old_indices>-1],
+                                             )))
+                        # update offset based on current parameter column
+                        offset = np.max(new_indices)+1
+                    # convert the list of vectors to an array
+                    current_parameter_position_in_beta_vector = np.int32(np.column_stack(current_parameter_position_in_beta_vector))
+                    # stack all luts to one lut
+                    current_parameter_position_lut = np.row_stack(current_parameter_position_lut)
+                    # length of beta vector
+                    length_of_beta_vector = current_parameter_position_lut.shape[0]
+                    
+                    # create a table of min, max, and initial parameter values (requires looping through parameter tables and extracting relevant rows)
+                    beta_min_max_initial_table = np.nan * np.zeros((length_of_beta_vector,3))
+                    for parameter_idx in np.int32(np.unique(current_parameter_position_lut[:,1])):
+                        current_rows_in_lut = current_parameter_position_lut[:,1]==parameter_idx
+                        current_positions_in_parameter_table = np.int32(current_parameter_position_lut[current_rows_in_lut,2])
+                        beta_min_max_initial_table[current_rows_in_lut,:] = \
+                            parameter_tables[parameter_idx][current_positions_in_parameter_table,-(number_of_subsets+3):-number_of_subsets]
+                    # extract min, max, intiial values
+                    beta_low = beta_min_max_initial_table[:,0]
+                    beta_high = beta_min_max_initial_table[:,1]
+                    beta_initial = beta_min_max_initial_table[:,2]
+                    x_initial = parameter_transfer_function(beta_initial,beta_low,beta_high,parameter_transfer_method,True)
+                    # print(x0)
+                    # error
+                    def estimate(x_initial,
+                                                    beta_low,
+                                                    beta_high,
+                                                    parameter_transfer_method,
+                                                    current_estimation_parameter_position_in_beta_vector,
+                                                    current_calibration_parameter_position_in_beta_vector,
+                                                    current_estimation_observable_table,
+                                                    current_calibration_observable_table,
+                                                    estimation_formula_terms,
+                                                    calibration_formula_terms):
+                        def J(x,beta_low,beta_high,parameter_transfer_method,current_parameter_position_in_beta_vector,current_observable_table,formula_terms):
+                            
+                            def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
+                                # note: no check of x, xmax, xmin and kind is done here, 
+                                # it is assumed that the inputs are correct
+                                if kind=='sin2' :
+                                    if not x_is_p:
+                                        return pmin+(pmax-pmin)*np.sin(x)**2
+                                    else:
+                                        return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
+                            def apply_formula(table,formula):
+                                total = 0
+                                for independent_term in formula:
+                                    curr_sum = 0
+                                    for added_term in independent_term:
+                                        curr_product = 1
+                                        for multiplied_term in added_term:
+                                            curr_product *= table[:,multiplied_term] 
+                                            # print(table[-15,multiplied_term] )
+                                        curr_sum += curr_product
+                                    total += (curr_sum)**2
+                                return total
+                            beta = parameter_transfer_function(x,beta_low,beta_high,parameter_transfer_method)
+                            current_parameter_table = beta[current_parameter_position_in_beta_vector]
+                            current_combined_table = np.column_stack((current_observable_table,current_parameter_table))
+                            
+                            # print(np.any(np.isnan(calibration_table),axis=0))
+                            # return apply_formula(estimation_table,parsed_formula_estimation)#+
+                            # print(current_combined_table)
+                            # tot = np.nanmean(apply_formula(current_combined_table,estimation_formula_terms))+\
+                            tot = np.mean(apply_formula(current_combined_table,formula_terms))
+                            print(tot)
+                            return tot
+                                
+                            
+                        
+                        
+                        return sp.optimize.minimize(lambda x:J(x,
+                                                        beta_low,
+                                                        beta_high,
+                                                        parameter_transfer_method,
+                                                        current_calibration_parameter_position_in_beta_vector,
+                                                        current_calibration_observable_table,
+                                                        calibration_formula_terms),x_initial,method='Nelder-Mead')
+                        
+                            
+                    print(estimate(x_initial,
+                                                beta_low,
+                                                beta_high,
+                                                parameter_transfer_method,
+                                                current_parameter_position_in_beta_vector[current_estimation_rows,:],
+                                                current_observable_table,
+                                                estimation_formula_terms,
+                                                calibration_formula_terms))
+                    error
+                        # print(current_parameter_position_in_beta_vector,current_parameter_position_table)
+                        
+                        # print(np.row_stack([np.array([current_position_in_x,np.where([current_parameter_position_in_beta_vector==current_position_in_x])[0][0],
+                        #           np.where([current_parameter_position_in_beta_vector==current_position_in_x])[1][0]]) for current_position_in_x in np.unique(current_parameter_position_in_beta_vector)]))
+                        
+                        # for parameter_position_column,parameter_table in zip(current_parameter_position_table.transpose(),parameter_tables):
+                        #     print(parameter_table[np.int32(parameter_position_column),-4])
+                        
+                        # print(current_parameter_position_in_beta_vector)
+                        # # merge parameter tables
+                        # parameter_tables_merged = np.row_stack([curr_parameter_table[:,-4:-1] for curr_parameter_table in parameter_tables])
+                        # # calculate index offsets for first element of each table
+                        # parameter_index_offsets = [curr_parameter_table.shape]
+                        # p_low = p_rands[:,0]
+                        # p_high = p_rands[:,1]
+                        # p_init = p_rands[:,2]
+                        
+        
+                        # print(parameter_transfer_function(p_init,p_low,p_high,parameter_transfer_method,True))
+                        # x_init = 
+                        
+                            
+                        
+                    
+                    # return []
+                
+                
+                
+                # %%
+            
+            
+            # all_est_sample_ids = np.unique(observable_est_data_table[:,0])
+            # all_cal_sample_ids = np.unique(observable_cal_data_table[:,0])
+            
+            
+            # # if (est_subset_size<proc_conf.AGB.)
+            
+            # # creating subsets of calibration and estimation data
+            # number_of_accepted_tests = 0
+            # est_subset_ids = []
+            # cal_subset_ids = []
+            # while number_of_accepted_tests < number_of_subsets:
+            #     temp_est_subset = all_est_sample_ids[np.random.permutation(np.arange(len(all_est_sample_ids)))[:est_subset_size]]
+            #     temp_cal_subset = all_cal_sample_ids[np.random.permutation(np.arange(len(all_cal_sample_ids)))[:cal_subset_size]]
+            #     # est_subset_ids.append()
+            #     # cal_subset_ids.append()
+                
+            #     temp_parameter_indices_in_cal_data = observable_cal_data_table[np.isin(observable_cal_data_table[:,0],temp_cal_subset),-number_of_parameters:]
+                
+            #     for parameter_idx in range(number_of_parameters):
+            #         if not parameter_variabilities[parameter_idx][0]:
+            #             print(np.min(np.unique(temp_parameter_indices_in_cal_data[:,parameter_idx],return_counts=True)[1]))
+            #     number_of_accepted_tests += 1
+            # np.unique(observable_cal_data_table[:,-number_of_parameters],return_counts=True)
+            
+            
+# 0 1           # %%
+            except Exception as e:
+                logging.error('AGB: error during parameter estimation from tables.' + str(e), exc_info=True)
+                raise
+            
+            
+            
+            
+            # %%
+            # temp_parameter_positions = np.column_stack(position_ids)
+            
+            
+            
+            
+            
+            
+            
+            
+            
+        
+            
+            
+               
+            # np.save(
+            #     os.path.join(
+            #         temp_agb_folder,
+            #         'observable_table_block_{}'.format(current_block_index),
+            #     ),
+            #     observable_table,
+            # )
+            #     # temp_agb_vec = np.nan * np.zeros( (len(temp_sample_id),number_of_observables))
+            #     # # rearrange agb data into tables
+            #     # for descriptor_idx,agb_descriptor in enumerate(agb_descriptors):
+            #     #     temp_data_vec[:,observable_idx] = observable_data_sampled[:,observable_idx,:].flatten()
+                
+            # # rearrange agb descriptors into tables
+            # for descriptor_idx,descriptor_name in enumerate(agb_descriptors):
+            #     np.column_stack(
+            #         (
+            #             sample_id_array.flatten(),
+            #             forest_class_sampled.flatten(),
+            #             agb_data_sampled[:,descriptor_idx]))
+                
 
-            # make sure we have enough data
-            if not sum(valid_acqs == True):
-                logging.info(
-                    'skipping block #{} due to too invalid data points'.format(par_block_index_curr)
-                )
-                # swap the flag
-                par_finished[par_block_index_curr] = True
-                # remove current par block from list
-                block_order = block_order[block_order != par_block_index_curr]
-                # select next par block
-                if len(block_order) > 0:
-                    # if there is at least one left, just take the next closest to CALdata
-                    par_block_index_curr = block_order[0]
-                    continue
-                else:
-                    break
+                            # # # Insert in table
+                            # # sigma_tab[counter_stack_pols, :] = data_roi_means_vec
 
-            ## PREPARE PARAMETER ID TABLES
-            # create roi id table
-            roiid_tab = np.int32(np.array([np.arange(number_of_rois)]) * np.ones((N_laypol, 1)))
-            # create look-up tables for acquisition ID and unique parameter ID
-            par_id_luts = [
-                np.unique(
-                    acq_info_tab[valid_acqs, :] * np.array([curr_var]), axis=0, return_inverse=True
-                )[1]
-                for curr_var in all_vars
-            ]
-            # create parameter id tables matching data tables
-            # acq_info_tab is ordered differently from other tables with respect to acquisition id and polarization
-            # tableLookupInt function takes that into account
-            par_tabs = [
-                tableLookupInt(
-                    acq_info_tab[valid_acqs, :2],
-                    curr_lut,
-                    np.column_stack((polid_tab.flatten(), acqid_tab.flatten())),
-                ).reshape(acqid_tab.shape)
-                for curr_lut in par_id_luts
-            ]
-            # extract the number of unique values for each parameter
-            all_N_par = np.int32(
-                np.array([np.nanmax(par_tab) + 1 for par_tab in par_tabs + [roiid_tab]])
-            )
-            # calculate the offset from first parameter in the large vector
-            par_offsets = np.int32(np.concatenate((np.zeros(1), np.cumsum(all_N_par))))[:-1]
+                            # progressive_stack_idx_vec = (
+                            #     np.ones(number_of_samples_on_grid, dtype='int') * progressive_stack_idx
+                            # )
+                            # progressive_stack_idx_vec[
+                            #     np.isnan(data_roi_means_vec)
+                            # ] = -1  # invalid value
+
+                            # acqid_data_sampled[0,, :] = progressive_stack_idx
+
+                            # progressive_stack_idx_vec = (
+                            #     np.ones(number_of_pixels, dtype='int') * progressive_stack_idx
+                            # )
+                            # progressive_stack_idx_vec[
+                            #     np.isnan(stack_data_interp.flatten())
+                            # ] = -1  # invalid value
+
+                            # acqid_tab_pixels[counter_stack_pols, :] = progressive_stack_idx_vec
+
+                            # counter_stack_pols = counter_stack_pols + 1
+
+                        
+
+                        # # cycle over different angles to read
+                        # for angle_idx,angle_name in enumerate(angle_names):
+                        #     # cycle over all the equi7 tiles, interpolate over pixel grid and mean them togheter
+                            
+                        #     angle_eq7_parent_dir_name = os.path.join(
+                        #         stack_path, angle_name, equi7_grid_name
+                        #     )
+    
+                        #     stack_angle_interp = np.NaN * np.zeros(
+                        #         (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
+                        #     )
+                        #     for equi7_tile_name in equi7_tiles_names:
+    
+                        #         angle_tiff_name = os.path.join(
+                        #             angle_eq7_parent_dir_name,
+                        #             equi7_tile_name, 
+                        #             angle_name
+                        #             + '_'
+                        #             + os.path.basename(stack_path)
+                        #             + '_'
+                        #             + equi7_grid_name[6:]
+                        #             + '_'
+                        #             + equi7_tile_name
+                        #             + '.tif',
+                        #         )
+    
+                        #         stack_angle_interp_curr = interp2d_wrapper(
+                        #             angle_tiff_name, 1, pixel_axis_east, pixel_axis_north, fill_value=np.NaN
+                        #         )
+    
+                        #         # mean all the equi7 tiles
+                        #         stack_angle_interp = merge_agb_intermediate(
+                        #             stack_angle_interp, stack_angle_interp_curr, method='nan_mean'
+                        #         )
+    
+                        #         projection_curr = get_projection_from_path(angle_tiff_name)
+                        #         if projection_prev and (projection_prev != projection_curr):
+                        #             err_str = 'multiple equi7 projections are not supported.'
+                        #             logging.error(err_str)
+                        #             raise ImportError(err_str)
+                        #         projection_prev = projection_curr
+
+                        #     # masking the stack:
+                        #     stack_angle_interp[forest_class_map_interp == 0] = np.NaN
+    
+                        #     # theta_tab_pixels[counter_stacks, :] = stack_theta_interp.flatten()
+    
+                        #     # Mean on ROI
+                        #     angle_data_sampled[:,angle_idx,stack_idx] = mean_on_rois(
+                        #         stack_angle_interp,
+                        #         pixel_mesh_east,
+                        #         pixel_mesh_north,
+                        #         sampling_axis_east,
+                        #         sample_spacing_east,
+                        #         sampling_axis_north,
+                        #         sample_spacing_north,
+                        #         angle_averaging_methods[angle_idx],
+                        #     )
+    
+                            # # Insert in table
+                            # theta_tab[counter_stacks, :] = theta_roi_means_vec
+    
+                            # counter_stacks = counter_stacks + 1
+
+                # # replicate equal values for all the 3 polarizations:
+                # theta_tab = np.kron(theta_tab, np.ones((3, 1)))
+                # theta_tab_pixels = np.kron(theta_tab_pixels, np.ones((3, 1)))
+
+                # N_laypol = sigma_tab.shape[0]  # number of stacks x number of polarizations'
+                # N_lay = np.int32(N_laypol / 3)  # number of stacks
+                # create polarisation ID table matching sigma data table in shape and size
+                # polid_tab = np.kron(
+                #     np.ones((N_lay, 1)),
+                #     np.kron(np.array([np.arange(3)]).transpose(), np.ones((1, number_of_samples_on_grid))),
+                # )
+                # polid_tab_pixels = np.kron(
+                #     np.ones((N_lay, 1)),
+                #     np.kron(np.array([np.arange(3)]).transpose(), np.ones((1, number_of_pixels))),
+                # )
+
+                # # save and delete all the pixel tabs:
+                # np.save(
+                #     os.path.join(
+                #         sigma_tab_pixel_folder,
+                #         'sigma_tab_pixels_block_{}'.format(current_block_index),
+                #     ),
+                #     sigma_tab_pixels,
+                # )
+                # np.save(
+                #     os.path.join(
+                #         acq_tab_pixel_folder, 'acq_tab_pixels_block_{}'.format(current_block_index)
+                #     ),
+                #     acqid_tab_pixels,
+                # )
+                # np.save(
+                #     os.path.join(
+                #         theta_tab_pixel_folder,
+                #         'theta_tab_pixels_block_{}'.format(current_block_index),
+                #     ),
+                #     theta_tab_pixels,
+                # )
+                # np.save(
+                #     os.path.join(
+                #         polid_tab_pixel_folder,
+                #         'polid_tab_pixels_block_{}'.format(current_block_index),
+                #     ),
+                #     polid_tab_pixels,
+                # )
+                # del sigma_tab_pixels, acqid_tab_pixels, theta_tab_pixels, polid_tab_pixels
+
+                
+
+
+                # ## FILTER OUT INVALID ACQUISITIONS
+                
+                # # set all measurements to nan for samples that do not fulfill certain requirements on sigma, theta, etc.
+                # for stack_idx in range(number_of_stacks):
+                #     for obs_idx,observable_name in enumerate(observable_names):
+                #         if observable_name.split('_')[0] == 'sigma':
+                #             invalid_rows = ( 
+                #                     observable_data_sampled[:,obs_idx,stack_idx]<=0
+                #                     ) | (
+                #                         ~np.isfinite(observable_data_sampled[:,obs_idx,stack_idx])
+                #                     ) | (
+                #                         np.isnan(observable_data_sampled[:,obs_idx,stack_idx])
+                #                     )
+                #             observable_data_sampled[invalid_rows,:,stack_idx] = np.nan
+                #         elif observable_name.split('_')[0] == 'theta':
+                #             invalid_rows = ( 
+                #                     observable_data_sampled[:,obs_idx,stack_idx]<0
+                #                     ) | (
+                #                         ~np.isfinite(observable_data_sampled[:,obs_idx,stack_idx])
+                #                     ) | (
+                #                         np.isnan(observable_data_sampled[:,obs_idx,stack_idx])
+                #                     )
+                #             observable_data_sampled[invalid_rows,:,stack_idx] = np.nan
+                            
+                            
+                # unique_acqs = acqid_data_sampled.flatten()
+                # acq_count = np.sum(np.all(~np.isnan(observable_data_sampled),axis=1),axis=0)
+                # # find independent measurements within current tile and count them
+                # # unique_acqs, acq_count = np.unique(acqid_tab, return_counts=True)
+                # # extract acquisitions meeting the requirements on minimal number of independent measurements
+                # valid_acqs = np.isin(
+                #     stack_info_table[:, 0],
+                #     unique_acqs[acq_count >= proc_conf.AGB.min_number_of_rois_per_stack],
+                # )
+                # # mask out invalid acquisitions (either too few measurements or there are nans in sigma or theta images)
+                # # acqid_tab[~np.isin(acquisition_, stack_info_table[valid_acqs, 0]) ] = -1
+
+                # # # mask out data in sigma0 and local tables
+                # # sigma_tab[acqid_tab == -1] = np.nan
+                # # theta_tab[acqid_tab == -1] = np.nan
+
+
+            # # make sure we have enough data
+            # if not sum(valid_acqs == True):
+            #     logging.info(
+            #         'skipping block #{} due to too invalid data points'.format(current_block_index)
+            #     )
+            #     # swap the flag
+            #     block_finished_flag[current_block_index] = True
+            #     # remove current par block from list
+            #     block_order = block_order[block_order != current_block_index]
+            #     # select next par block
+            #     if len(block_order) > 0:
+            #         # if there is at least one left, just take the next closest to CALdata
+            #         current_block_index = block_order[0]
+            #         continue
+            #     else:
+            #         break
+
+            # ## PREPARE PARAMETER ID TABLES
+            # # create roi id table
+            # roiid_tab = np.int32(np.array([np.arange(number_of_samples_on_grid)]) * np.ones((N_laypol, 1)))
+            # # create look-up tables for acquisition ID and unique parameter ID
+            # par_id_luts = [
+            #     np.unique(
+            #         stack_info_table[valid_acqs, :] * np.array([curr_var]), axis=0, return_inverse=True
+            #     )[1]
+            #     for curr_var in parameter_variabilities
+            # ]
+            # # create parameter id tables matching data tables
+            # # stack_info_table is ordered differently from other tables with respect to acquisition id and polarization
+            # # tableLookupInt function takes that into account
+            # par_tabs = [
+            #     tableLookupInt(
+            #         stack_info_table[valid_acqs, :2],
+            #         curr_lut,
+            #         np.column_stack((polid_tab.flatten(), acqid_tab.flatten())),
+            #     ).reshape(acqid_tab.shape)
+            #     for curr_lut in par_id_luts
+            # ]
+            # # extract the number of unique values for each parameter
+            # all_N_par = np.int32(
+            #     np.array([np.nanmax(par_tab) + 1 for par_tab in par_tabs + [roiid_tab]])
+            # )
+            # # calculate the offset from first parameter in the large vector
+            # par_offsets = np.int32(np.concatenate((np.zeros(1), np.cumsum(all_N_par))))[:-1]
 
             # if at least one tile has been finished, load the low-resolution estimates for the relevant pixels
-            counter_cal = 0
-            cal_data_interp = np.nan * np.zeros(
-                (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-            )
-            cal_std1_interp = np.nan * np.zeros(
-                (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-            )
-            cal_std2_interp = np.nan * np.zeros(
-                (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-            )
-            cal_std3_interp = np.nan * np.zeros(
-                (len(NN_pixel_axis), len(EE_pixel_axis)), dtype='float'
-            )
-            for cal_idx, cal_path in enumerate(self.lut_cal_paths):
-                logging.info('current block uses cal: ' + cal_path)
-                if block_has_cal[cal_idx]:
-                    logging.info('above cal is in the block')
-                    counter_cal = counter_cal + 1
-
-                    cal_data_interp_curr = interp2d_wrapper(
-                        cal_path, 1, EE_pixel_axis, NN_pixel_axis, fill_value=np.NaN
-                    )
-                    cal_std1_interp_curr = interp2d_wrapper(
-                        cal_path, 2, EE_pixel_axis, NN_pixel_axis, fill_value=np.NaN
-                    )
-                    cal_std2_interp_curr = interp2d_wrapper(
-                        cal_path, 3, EE_pixel_axis, NN_pixel_axis, fill_value=np.NaN
-                    )
-                    cal_std3_interp_curr = interp2d_wrapper(
-                        cal_path, 4, EE_pixel_axis, NN_pixel_axis, fill_value=np.NaN
-                    )
-
-                    # mean all the equi7 tiles
-                    cal_data_interp = merge_agb_intermediate(
-                        cal_data_interp, cal_data_interp_curr, method='nan_mean'
-                    )
-                    cal_std1_interp = np.sqrt(
-                        merge_agb_intermediate(
-                            cal_std1_interp ** 2, cal_std1_interp_curr ** 2, method='nan_mean'
-                        )
-                    )
-                    cal_std2_interp = np.sqrt(
-                        merge_agb_intermediate(
-                            cal_std2_interp ** 2, cal_std2_interp_curr ** 2, method='nan_mean'
-                        )
-                    )
-                    cal_std3_interp = np.sqrt(
-                        merge_agb_intermediate(
-                            cal_std3_interp ** 2, cal_std3_interp_curr ** 2, method='nan_mean'
-                        )
-                    )
-
-            # Mean on ROI
-            cal_data_roi_means_vec = mean_on_rois(
-                cal_data_interp,
-                EE_pixel_mesh,
-                NN_pixel_mesh,
-                EE_roi_axis,
-                dE_roi,
-                NN_roi_axis,
-                dN_roi,
-                method='nan_mean',
-            )
-            cal_std1_roi_means_vec = np.sqrt(
-                mean_on_rois(
-                    cal_std1_interp ** 2,
-                    EE_pixel_mesh,
-                    NN_pixel_mesh,
-                    EE_roi_axis,
-                    dE_roi,
-                    NN_roi_axis,
-                    dN_roi,
-                    method='nan_mean',
-                )
-            )
-            cal_std2_roi_means_vec = np.sqrt(
-                mean_on_rois(
-                    cal_std2_interp ** 2,
-                    EE_pixel_mesh,
-                    NN_pixel_mesh,
-                    EE_roi_axis,
-                    dE_roi,
-                    NN_roi_axis,
-                    dN_roi,
-                    method='nan_mean',
-                )
-            )
-            cal_std3_roi_means_vec = np.sqrt(
-                mean_on_rois(
-                    cal_std3_interp ** 2,
-                    EE_pixel_mesh,
-                    NN_pixel_mesh,
-                    EE_roi_axis,
-                    dE_roi,
-                    NN_roi_axis,
-                    dN_roi,
-                    method='nan_mean',
-                )
-            )
-
-            # replicate N_laypol times
-            cal_tab = np.kron(cal_data_roi_means_vec, np.ones((N_laypol, 1)))
-            std1_tab_db = np.kron(cal_std1_roi_means_vec, np.ones((N_laypol, 1)))
-            std2_tab_db = np.kron(cal_std2_roi_means_vec, np.ones((N_laypol, 1)))
-            std3_tab_db = np.kron(cal_std3_roi_means_vec, np.ones((N_laypol, 1)))
+            
+            # # replicate N_laypol times
+            # cal_tab = np.kron(cal_data_roi_means_vec, np.ones((N_laypol, 1)))
+            # std1_tab_db = np.kron(cal_std1_roi_means_vec, np.ones((N_laypol, 1)))
+            # std2_tab_db = np.kron(cal_std2_roi_means_vec, np.ones((N_laypol, 1)))
+            # std3_tab_db = np.kron(cal_std3_roi_means_vec, np.ones((N_laypol, 1)))
 
             ## PREPARE CALIBRATION SETS
             # now, lets take out calibration ROIs and randomise two of them to be used for calibration in multiple tests
@@ -1582,16 +2171,16 @@ class AGBCoreProcessing(Task):
                 & (N_roi_sub >= proc_conf.AGB.min_number_of_rois_per_test)
             ):
                 logging.info(
-                    'skipping block #{} due to too few data points'.format(par_block_index_curr)
+                    'skipping block #{} due to too few data points'.format(current_block_index)
                 )
                 # swap the flag
-                par_finished[par_block_index_curr] = True
+                block_finished_flag[current_block_index] = True
                 # remove current par block from list
-                block_order = block_order[block_order != par_block_index_curr]
+                block_order = block_order[block_order != current_block_index]
                 # select next par block
                 if len(block_order) > 0:
                     # if there is at least one left, just take the next closest to CALdata
-                    par_block_index_curr = block_order[0]
+                    current_block_index = block_order[0]
                     continue
                 else:
                     break
@@ -1608,7 +2197,7 @@ class AGBCoreProcessing(Task):
                     axis=0,
                 )
             ]
-            cal_sets = cal_sets[np.random.permutation(np.arange(cal_sets.shape[0]))[:N_tests], :]
+            cal_sets = cal_sets[np.random.permutation(np.arange(cal_sets.shape[0]))[:number_of_subsets], :]
             roi_sets = all_roi_ids[
                 np.unique(
                     np.row_stack(
@@ -1620,9 +2209,9 @@ class AGBCoreProcessing(Task):
                     axis=0,
                 )
             ]
-            roi_sets = roi_sets[np.random.permutation(np.arange(roi_sets.shape[0]))[:N_tests], :]
+            roi_sets = roi_sets[np.random.permutation(np.arange(roi_sets.shape[0]))[:number_of_subsets], :]
             # allocate parameter table
-            curr_output_table = np.nan * np.zeros((N_laypol, number_of_rois, 6, N_tests))
+            curr_output_table = np.nan * np.zeros((N_laypol, number_of_samples_on_grid, 6, number_of_subsets))
             # counter for tests run
             i_test = 0
 
@@ -1636,7 +2225,7 @@ class AGBCoreProcessing(Task):
                 # 1) ROI-to-ROI error
                 # 2) test-to-test error
                 # 3) layer-to-layer error
-                eps1 = np.random.randn(1, number_of_rois)
+                eps1 = np.random.randn(1, number_of_samples_on_grid)
                 eps2 = np.random.randn(N_laypol, 1)
                 eps3 = np.random.randn()
                 # extract data for rois and cals
@@ -1756,7 +2345,7 @@ class AGBCoreProcessing(Task):
                 # show message
                 logging.info(
                     '\tMinimisation for test %d/%d finished (%s)'
-                    % (i_test + 1, N_tests, mod.message)
+                    % (i_test + 1, number_of_subsets, mod.message)
                 )
                 # extract parameter values
                 x = mod.x
@@ -1803,7 +2392,7 @@ class AGBCoreProcessing(Task):
             )
             # calculate the first residual statistics from the difference between these biomass estimates and the true biomass values for CALs
             res_1 = forward(agbest_tab_eq) - forward(
-                np.array([[cal_tab[0, :]]]) * np.ones((N_tests, N_lay, 1))
+                np.array([[cal_tab[0, :]]]) * np.ones((number_of_subsets, N_lay, 1))
             ).transpose([1, 2, 0])
             agbstd_1 = np.nanstd(res_1)
             bias_1 = np.nanmean(res_1)
@@ -1840,7 +2429,7 @@ class AGBCoreProcessing(Task):
                     np.nansum(curr_output_table[:, :, 4, :], axis=0)
                     / np.nansum(curr_output_table[:, :, 1, :] ** 2, axis=0)
                     - bias_1
-                    - np.array([bias_2]).transpose() * np.ones((1, N_tests))
+                    - np.array([bias_2]).transpose() * np.ones((1, number_of_subsets))
                 )
             )
             # calculate the final biomass estimates by averaging over multiple tests
@@ -1856,7 +2445,7 @@ class AGBCoreProcessing(Task):
                 )
             )
             # calculate the third residual statistics from the difference between the individual test estimates and the final biomass values
-            res_3 = forward([agbest]).transpose() * np.ones((1, N_tests)) - forward(
+            res_3 = forward([agbest]).transpose() * np.ones((1, number_of_subsets)) - forward(
                 agbest_tab_eqbar
             )
             agbstd_3 = np.nanstd(res_3, axis=(1))
@@ -1956,15 +2545,15 @@ class AGBCoreProcessing(Task):
                 (
                     np.array(
                         [
-                            par_block_index_curr,
-                            EE_par_coordinates[par_block_index_curr],
-                            NN_par_coordinates[par_block_index_curr],
-                            EE_par_coordinates[par_block_index_curr] + wE_par,
-                            NN_par_coordinates[par_block_index_curr] + wN_par,
+                            current_block_index,
+                            block_corner_coordinates_east[current_block_index],
+                            block_corner_coordinates_north[current_block_index],
+                            block_corner_coordinates_east[current_block_index] + block_size_east,
+                            block_corner_coordinates_north[current_block_index] + block_size_north,
                         ]
                     )
                     * np.ones((np.sum(valid_acqs), 1)),
-                    acq_info_tab[valid_acqs, 0:2],
+                    stack_info_table[valid_acqs, 0:2],
                     np.column_stack([parest[ipar][par_id_luts[ipar]] for ipar in np.arange(3)]),
                 )
             )
@@ -1983,16 +2572,16 @@ class AGBCoreProcessing(Task):
             # roi resolution values (estimate and stds)
             # for the reshape see also how the rois are meaned in mean_on_rois ()
             roi_vals = [
-                agbest.reshape(len(NN_roi_axis), len(EE_roi_axis)),
-                (agbest * 0 + agbstd_1).reshape(len(NN_roi_axis), len(EE_roi_axis)),
-                (agbest * 0 + agbstd_2).reshape(len(NN_roi_axis), len(EE_roi_axis)),
-                (agbest * 0 + agbstd_3).reshape(len(NN_roi_axis), len(EE_roi_axis)),
+                agbest.reshape(len(sampling_axis_north), len(sampling_axis_east)),
+                (agbest * 0 + agbstd_1).reshape(len(sampling_axis_north), len(sampling_axis_east)),
+                (agbest * 0 + agbstd_2).reshape(len(sampling_axis_north), len(sampling_axis_east)),
+                (agbest * 0 + agbstd_3).reshape(len(sampling_axis_north), len(sampling_axis_east)),
             ]
 
-            upper_left_easting_coord = EE_roi_axis[0]  # i.e. horizontal
-            sampling_step_east_west = EE_roi_axis[1] - EE_roi_axis[0]
-            upper_left_northing_coord = NN_roi_axis[0]  # i.e. vertical
-            sampling_step_north_south = NN_roi_axis[1] - NN_roi_axis[0]
+            upper_left_easting_coord = sampling_axis_east[0]  # i.e. horizontal
+            sampling_step_east_west = sampling_axis_east[1] - sampling_axis_east[0]
+            upper_left_northing_coord = sampling_axis_north[0]  # i.e. vertical
+            sampling_step_north_south = sampling_axis_north[1] - sampling_axis_north[0]
             geotransform = [
                 upper_left_easting_coord,
                 sampling_step_east_west,
@@ -2002,12 +2591,12 @@ class AGBCoreProcessing(Task):
                 sampling_step_north_south,
             ]
 
-            lut_cal_curr_row = [EE_roi_axis[0], EE_roi_axis[-1], NN_roi_axis[-1], NN_roi_axis[0], 1]
+            lut_cal_curr_row = [sampling_axis_east[0], sampling_axis_east[-1], sampling_axis_north[-1], sampling_axis_north[0], 1]
             self.lut_cal = np.vstack([self.lut_cal, lut_cal_curr_row])
 
             cal_out_intermediate = os.path.join(
-                temp_output_folder_agb_est,
-                'cal_estimated_from_block_{}'.format(par_block_index_curr),
+                temp_agb_folder,
+                'cal_estimated_from_block_{}'.format(current_block_index),
             )
 
             curr_cal_path = tiff_formatter(
@@ -2023,24 +2612,24 @@ class AGBCoreProcessing(Task):
             sigma_tab = np.load(
                 os.path.join(
                     sigma_tab_pixel_folder,
-                    'sigma_tab_pixels_block_{}.npy'.format(par_block_index_curr),
+                    'sigma_tab_pixels_block_{}.npy'.format(current_block_index),
                 )
             )
             theta_tab = np.load(
                 os.path.join(
                     theta_tab_pixel_folder,
-                    'theta_tab_pixels_block_{}.npy'.format(par_block_index_curr),
+                    'theta_tab_pixels_block_{}.npy'.format(current_block_index),
                 )
             )
             acqid_tab = np.load(
                 os.path.join(
-                    acq_tab_pixel_folder, 'acq_tab_pixels_block_{}.npy'.format(par_block_index_curr)
+                    acq_tab_pixel_folder, 'acq_tab_pixels_block_{}.npy'.format(current_block_index)
                 )
             )
             polid_tab = np.load(
                 os.path.join(
                     polid_tab_pixel_folder,
-                    'polid_tab_pixels_block_{}.npy'.format(par_block_index_curr),
+                    'polid_tab_pixels_block_{}.npy'.format(current_block_index),
                 )
             )
 
@@ -2068,34 +2657,34 @@ class AGBCoreProcessing(Task):
             )
 
             # full resolution values (estimate and stds)
-            agbstd_2 = agbstd_2.reshape(len(NN_roi_axis), len(EE_roi_axis))
-            agbstd_3 = agbstd_3.reshape(len(NN_roi_axis), len(EE_roi_axis))
+            agbstd_2 = agbstd_2.reshape(len(sampling_axis_north), len(sampling_axis_east))
+            agbstd_3 = agbstd_3.reshape(len(sampling_axis_north), len(sampling_axis_east))
 
             pix_vals = [
-                agbest_tab.reshape(len(NN_pixel_axis), len(EE_pixel_axis)),
-                (agbest_tab * 0 + agbstd_1).reshape(len(NN_pixel_axis), len(EE_pixel_axis)),
+                agbest_tab.reshape(len(pixel_axis_north), len(pixel_axis_east)),
+                (agbest_tab * 0 + agbstd_1).reshape(len(pixel_axis_north), len(pixel_axis_east)),
                 sp.interpolate.griddata(
-                    (EE_roi_mesh[~np.isnan(agbstd_2)], NN_roi_mesh[~np.isnan(agbstd_2)]),
+                    (sampling_mesh_east[~np.isnan(agbstd_2)], sampling_mesh_north[~np.isnan(agbstd_2)]),
                     agbstd_2[~np.isnan(agbstd_2)],
-                    (EE_pixel_mesh, NN_pixel_mesh),
+                    (pixel_mesh_east, pixel_mesh_north),
                     method='nearest',
                 )
-                * (~np.isnan(agbest_tab.reshape(len(NN_pixel_axis), len(EE_pixel_axis)))),
+                * (~np.isnan(agbest_tab.reshape(len(pixel_axis_north), len(pixel_axis_east)))),
                 sp.interpolate.griddata(
-                    (EE_roi_mesh[~np.isnan(agbstd_3)], NN_roi_mesh[~np.isnan(agbstd_3)]),
+                    (sampling_mesh_east[~np.isnan(agbstd_3)], sampling_mesh_north[~np.isnan(agbstd_3)]),
                     agbstd_3[~np.isnan(agbstd_3)],
-                    (EE_pixel_mesh, NN_pixel_mesh),
+                    (pixel_mesh_east, pixel_mesh_north),
                     method='nearest',
                 )
-                * (~np.isnan(agbest_tab.reshape(len(NN_pixel_axis), len(EE_pixel_axis)))),
+                * (~np.isnan(agbest_tab.reshape(len(pixel_axis_north), len(pixel_axis_east)))),
             ]
 
             quality_layer = np.sqrt(pix_vals[1] ** 2 + pix_vals[2] ** 2 + pix_vals[3] ** 2)
 
             agb_est_ground_out_file_curr = os.path.join(
-                temp_output_folder_agb_est, 'agb_est_block_{}.tif'.format(par_block_index_curr)
+                temp_agb_folder, 'agb_est_block_{}.tif'.format(current_block_index)
             )
-            geotransform_curr = [EE_pixel_axis[0], dE, 0, NN_pixel_axis[0], 0, dN]
+            geotransform_curr = [pixel_axis_east[0], pixel_size_east, 0, pixel_axis_north[0], 0, pixel_size_north]
 
             agb_est_ground_out_file_curr = tiff_formatter(
                 [pix_vals[0], quality_layer],
@@ -2109,10 +2698,10 @@ class AGBCoreProcessing(Task):
             # [(left, lower), (right, upper)]
             try:
                 lon_min, lat_min = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
-                    min(EE_pixel_axis), min(NN_pixel_axis)
+                    min(pixel_axis_east), min(pixel_axis_north)
                 )
                 lon_max, lat_max = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
-                    max(EE_pixel_axis), max(NN_pixel_axis)
+                    max(pixel_axis_east), max(pixel_axis_north)
                 )
             except Exception as e:
                 logging.error(
@@ -2128,7 +2717,7 @@ class AGBCoreProcessing(Task):
             ftiles = e7g_product.search_tiles_in_roi(bbox=bbox)
 
             equi7_agb_est_outdir_curr = os.path.join(
-                temp_output_folder_agb_est, 'eq7_agb_est_block_{}'.format(par_block_index_curr)
+                temp_agb_folder, 'eq7_agb_est_block_{}'.format(current_block_index)
             )
             os.makedirs(equi7_agb_est_outdir_curr)
             equi7_agb_est_outdir_temp = image2equi7grid(
@@ -2154,13 +2743,13 @@ class AGBCoreProcessing(Task):
 
             ## PREPARING NEXT TILE
             # swap flag
-            par_finished[par_block_index_curr] = True
+            block_finished_flag[current_block_index] = True
             # remove current par block from list
-            block_order = block_order[block_order != par_block_index_curr]
+            block_order = block_order[block_order != current_block_index]
             # select next par block
             if len(block_order) > 0:
                 # if there is at least one left, just take the next closest to CALdata
-                par_block_index_curr = block_order[0]
+                current_block_index = block_order[0]
             else:
                 break
 
@@ -2224,7 +2813,7 @@ class AGBCoreProcessing(Task):
                 os.path.dirname(os.path.dirname(equi7_agb_est_out_tif_names_curr_tile[0]))
             )
             output_folder_curr_tile = os.path.join(
-                output_folder,
+                global_agb_folder,
                 sub_grid_folder_name,
                 tile_name,
                 'agb_est_' + tile_name + sub_grid_folder_name + '.tif',
@@ -2245,7 +2834,7 @@ class AGBCoreProcessing(Task):
 
         if proc_conf.delete_temporary_files:
             try:
-                shutil.rmtree(temp_output_folder)
+                shutil.rmtree(temp_proc_folder)
             except:
                 pass
         logging.info('AGB: estimation ended correctly.\n')
