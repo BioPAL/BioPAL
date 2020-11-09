@@ -667,7 +667,7 @@ class StackBasedProcessing(Task):
                 logging.info('...done.\n')
 
             except Exception as e:
-                logging.error('FH: error during geocoding: ' + str(e), exc_info=True)
+                logging.error('AGB: error during geocoding: ' + str(e), exc_info=True)
                 raise
 
             ### create GEOTIFF of all the layers (estimation, mask ):
@@ -941,43 +941,66 @@ class AGBCoreProcessing(Task):
         )
         
         ### new functions, to be moved out of this method
-        # function for splitting formula according to pre-defined rules and finding the positions of each element in observable and parameter lists                         
-        def parse_formula(formula,names_list,prefer_observables):
-            if prefer_observables:
-                split_terms = [[[np.where(multiplied_term.strip()==np.array(names_list))[0][0] for multiplied_term in added_term.split('*')]\
-                          for added_term in independent_formula.split('+')]\
-                        for independent_formula in formula.split('&')]
-            else:
-                split_terms = [[[np.where(multiplied_term.strip()==np.array(names_list))[0][-1] for multiplied_term in added_term.split('*')]\
-                          for added_term in independent_formula.split('+')]\
-                        for independent_formula in formula.split('&')]
-            return split_terms
+
+        # this function converts the given formula using the list of observable names to
+        # a formula using different columns of an array with name in table name
+        # note: if multiple columns have the same name (e.g., in the case of agb, where agb is both an observable and a parameter),
+        #    the the column position_if_repeated is taken; this way, this function can be used for both calibration data and estimation data
+        def convert_formula(in_string,table_name,column_names,position_if_repeated):
+            out_string = '0'
+            for independent_terms in in_string.split('&'):
+                additive_terms_string = '0'
+                for additive_terms in independent_terms.split('+'):
+                    multiplicative_terms_string = '1'
+                    for multiplicative_term in additive_terms.split('*'):
+                        curr_position = np.where(multiplicative_term.strip()==np.array(column_names))[0]
+                        if len(curr_position)>1:
+                            column_number = curr_position[position_if_repeated]
+                        else:
+                            column_number = curr_position[0]
+                        multiplicative_terms_string = '%s * %s[:,%d]' % (multiplicative_terms_string,table_name,column_number)
+                    additive_terms_string = '%s + %s' % (additive_terms_string,multiplicative_terms_string) 
+                out_string = '%s + (%s)**2' % (out_string,additive_terms_string)
+            return out_string.replace('0 + ','').replace('1 * ','')
+        
         # define transform functions
-        def transform_function(data,kind,do_forward=True):
+        def transform_function(in_data,interval,kind,do_forward=True):
+            out_data = np.copy(in_data)
+            out_data[(out_data<interval[0]) | (out_data>interval[1])] = np.nan
             # note: no check of data and kind is done here, 
             # it is assumed that the inputs are correct
             if kind=='db':
                 if do_forward:
-                    return 10*np.log10(data)
+                    out_data = 10*np.log10(out_data)
                 else:
-                    return 10**(0.1*data)
+                    out_data = 10**(0.1*in_data)
+            elif kind=='-db':
+                if do_forward:
+                    out_data = -10*np.log10(in_data)
+                else:
+                    out_data = 10**(-0.1*in_data)
+            elif kind=='-2db':
+                if do_forward:
+                    out_data = -10*np.log10(2*in_data)
+                else:
+                    out_data = 10**(-0.1*in_data)/2
             elif kind=='cosdb':
                 if do_forward:
-                    return 10*np.log10(np.cos(data))
+                    out_data = 10*np.log10(np.cos(in_data))
                 else:
-                    return np.arccos(10**(0.1*data))
+                    out_data = np.arccos(10**(0.1*in_data))
             else:
-                return data    
+                out_data = np.copy(in_data)
+            return out_data
         # define parameter transfer functions
-        def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
+        def parameter_transfer_function(x,pmin,pmax,x_is_p=False):
             # note: no check of x, xmax, xmin and kind is done here, 
             # it is assumed that the inputs are correct
-            if kind=='sin2' :
-                if not x_is_p:
-                    return pmin+(pmax-pmin)*np.sin(x)**2
-                else:
-                    return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
-        
+            if not x_is_p:
+                return pmin+(pmax-pmin)*np.sin(x)**2
+            else:
+                return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
+    
         
 
         # function for calculating a given statistic for polygons of arbitrary shape  
@@ -1041,8 +1064,10 @@ class AGBCoreProcessing(Task):
         observable_names = ['neg_sigma0_hh_db','neg_sigma0_hv_db','neg_sigma0_vv_db','cos_local_db','agb_1_db','agb_2_db','agb_3_db','agb_4_db']
         # then, the observable sources are selected (this is intimately bound to the available in data, so it is based on the stack-based processing output and calibration data availability)
         observable_sources = ['sigma0_hh','sigma0_vh','sigma0_vv','theta','agb_1','agb_2','agb_3','agb_4']
+        # permissible intervals for sources
+        observable_ranges = [[1e-8,20],[1e-8,20],[1e-8,20],[20*np.pi/180,60*np.pi/180],[1,700],[0,10],[0,10],[0,10]]
         # then, the applied transforms are selected (see transform_function() above)
-        observable_transforms = ['-db','-db','-db','cosdb','db','none','none','none']
+        observable_transforms = ['-db','-2db','-db','cosdb','db','none','none','none']
         # finally, averaging methods are selected (for averaging pixels within samples)
         # although oftentimes 'mean' is used, this may not always be the case 
         # e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) is a better averaging method as it is not as susceptible to 2pi ambiguities
@@ -1056,8 +1081,6 @@ class AGBCoreProcessing(Task):
                             parameter_limits_a,parameter_limits_a,parameter_limits_a,
                             parameter_limits_n,parameter_limits_n,parameter_limits_n,
                             parameter_limits_w]
-        # parameter transfer functions are used for constraining their values to an interval, here the methods are specified
-        parameter_transfer_method = 'sin2'
         # parameter variabilities are defined over eight different dimensions:
         #   spatial - between samples
         #   forest class - between forest classes
@@ -1085,11 +1108,11 @@ class AGBCoreProcessing(Task):
         
         
         
-        ### checking the formula and list of observables        
-        # split formula to a nested list of dictionaries where different operations are done at different levels
-        calibration_formula_terms = parse_formula(formula,observable_names+parameter_names,True)
-        estimation_formula_terms = parse_formula(formula,observable_names+parameter_names,False)
-        # to be implemented: check that all terms of the formula are either observables or parameters
+        # ### checking the formula and list of observables        
+        # # split formula to a nested list of dictionaries where different operations are done at different levels
+        # calibration_formula_terms = parse_formula(formula,observable_names+parameter_names,True)
+        # estimation_formula_terms = parse_formula(formula,observable_names+parameter_names,False)
+        # # to be implemented: check that all terms of the formula are either observables or parameters
        
             
         
@@ -1205,6 +1228,8 @@ class AGBCoreProcessing(Task):
             ## THE FOLLOWING PART IS TABULATING
             # could be moved to a separate function
             try:
+                
+                
 
                 # cycle through stacks and check that there are some data within current block
                 block_has_data = np.zeros(number_of_stacks, dtype='bool')
@@ -1273,35 +1298,26 @@ class AGBCoreProcessing(Task):
                         continue
                     else:
                         break
-                    
+                # %%    
                     
                     
                 # defining names for identifiers (sampleID & forest class ID and then all columns from stack info table)
                 identifier_names = ['sample_id','forest_class_id'] + stack_info_table_columns
                 number_of_identifiers = len(identifier_names)
-                # column names for parameter position vectors
-                parameter_position_names = ['row_'+parameter_name for parameter_name in parameter_names]
-                # defining names for observable table columns (first the identifiers, 
-                # the observable values, and then corresponding positions 
-                # for each parameter in their corresponding parameter table)
-                observable_table_columns = identifier_names+\
-                    observable_names + \
-                        parameter_position_names
-                number_of_observable_table_columns = len(observable_table_columns)
-                
-                # allocating observable table
-                observable_data_table = np.nan * np.zeros ((
+                identifier_table = np.nan * np.zeros (( 
                     number_of_samples * number_of_stacks,
-                    number_of_observable_table_columns
+                    number_of_identifiers
                     ))
+                
+                
                     
                 # filling out the first column with sample IDs
-                observable_data_table[:,0] = np.kron(np.arange(number_of_samples),np.ones(number_of_stacks))
+                identifier_table[:,0] = np.kron(np.arange(number_of_samples),np.ones(number_of_stacks))
                 
                 # filling out columns 3-8 with stack IDs and corresponding other identifications from stack_info_table
-                observable_data_table[:,2] = np.kron(np.ones(number_of_samples),stack_id_vector)
+                identifier_table[:,2] = np.kron(np.ones(number_of_samples),stack_id_vector)
                 for id_idx in range(5):
-                    observable_data_table[:,3+id_idx] = sp.interpolate.interp1d(stack_id_vector,stack_info_table[:,1+id_idx],kind='nearest')(observable_data_table[:,2])
+                    identifier_table[:,3+id_idx] = sp.interpolate.interp1d(stack_id_vector,stack_info_table[:,1+id_idx],kind='nearest')(identifier_table[:,2])
                 
                 
                 ### READING AND SAMPLING FOREST CLASS DATA
@@ -1368,7 +1384,7 @@ class AGBCoreProcessing(Task):
                     'mode',
                 )))
                 # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
-                observable_data_table[:,1] = np.kron(temp_forest_class_vector,np.ones(number_of_stacks))
+                identifier_table[:,1] = np.kron(temp_forest_class_vector,np.ones(number_of_stacks))
                 
                 
                 
@@ -1376,8 +1392,12 @@ class AGBCoreProcessing(Task):
                 
                 
                 ### READING OBSERVABLE DATA
+                # allocate observable table
+                observable_table = np.nan * np.zeros((
+                    number_of_samples * number_of_stacks,
+                    number_of_observables))
                 # the following assumes a certain format on the radar observables (which consist of multiple stacks)
-                # and on agb (which is assumed to be the same for all observables)
+                # and on agb (which is assumed to be the same for all stacks)
                 # in case we want to work with multiple agb measurements over time (e.g., agb change), then the following needs to be modified
                 observable_types = np.nan * np.zeros(number_of_observables)
                 # cycle over stacks
@@ -1433,12 +1453,13 @@ class AGBCoreProcessing(Task):
                                 # masking the stack:
                                 source_data_interp[forest_class_map_interp == 0] = np.NaN
         
-                                logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', stack {}, and averaging method '{}'".format(
+                                logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', stack {}, and averaging method '{}' (mean value: {})".format(
                                     source_name,
                                     observable_names[source_idx],
                                     observable_transforms[source_idx],
                                     stack_id_vector[stack_idx],
-                                    observable_averaging_methods[source_idx]))
+                                    observable_averaging_methods[source_idx],
+                                    np.nanmean(source_data_interp)))
                                 
                                 # calculate sample statistics
                                 temp_transformed_sampled_data = transform_function(
@@ -1453,12 +1474,13 @@ class AGBCoreProcessing(Task):
                                         additional_sampling_polygons, 
                                         observable_averaging_methods[source_idx],
                                         ),
+                                    observable_ranges[source_idx],
                                     observable_transforms[source_idx])
                                 # find rows where the stack id matches the current stack id
-                                current_rows = (observable_data_table[:,2]==stack_id_vector[stack_idx])
+                                current_rows = (identifier_table[:,2]==stack_id_vector[stack_idx])
                                 # fill out the table
-                                observable_data_table[current_rows,
-                                                      number_of_identifiers+source_idx] = temp_transformed_sampled_data
+                                observable_table[current_rows,
+                                                      source_idx] = temp_transformed_sampled_data
                 # go through observable sources again
                 for source_idx,source_name in enumerate(observable_sources):
                     
@@ -1485,11 +1507,12 @@ class AGBCoreProcessing(Task):
                                 agb_data_interp = merge_agb_intermediate(
                                     agb_data_interp, agb_data_interp_curr, method='nan_mean'
                                 )
-                        logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', and averaging method '{}'".format(
+                        logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', and averaging method '{}' (mean value: {})".format(
                                     source_name,
                                     observable_names[source_idx],
                                     observable_transforms[source_idx],
-                                    observable_averaging_methods[source_idx]))
+                                    observable_averaging_methods[source_idx],
+                                    np.nanmean(agb_data_interp)))
                         # statistics over samples
                         temp_transformed_sampled_data = transform_function(
                             stats_on_all_samples(
@@ -1503,34 +1526,35 @@ class AGBCoreProcessing(Task):
                                 additional_sampling_polygons,
                                 method='nan_mean',
                             ),
+                            observable_ranges[source_idx],
                             observable_transforms[source_idx])
                         # fill out the table
-                        observable_data_table[:,number_of_identifiers+source_idx] = np.kron(np.ones(number_of_stacks),temp_transformed_sampled_data)
+                        observable_table[:,source_idx] = np.kron(temp_transformed_sampled_data,np.ones(number_of_stacks))
                         
                     
                 # for simpler management, create vectors indicating columns with identifiers, observables, and parameter positions, etc
-                columns_with_identifiers = np.arange(number_of_identifiers)
-                columns_with_observables = number_of_identifiers+np.arange(number_of_observables)
-                columns_with_positions = number_of_identifiers+number_of_observables+np.arange(number_of_parameters)
-                columns_with_sar_observables = number_of_identifiers+np.where(observable_types==0)[0]
-                columns_with_agb_observables = number_of_identifiers+np.where(observable_types==1)[0]
+                columns_with_sar_observables = np.where(observable_types==0)[0]
+                columns_with_agb_observables = np.where(observable_types==1)[0]
                 
                 # mark rows in observable data table that have negative identifiers, nan-valued sar observables, infinite sar observables, or negative agb values
-                invalid_rows = np.any(observable_data_table[:,columns_with_identifiers]<0,axis=1) | \
-                    np.any(np.isnan(observable_data_table[:,columns_with_sar_observables]),axis=1) | \
-                    np.any(~np.isfinite(observable_data_table[:,columns_with_sar_observables]),axis=1) | \
-                        np.any(observable_data_table[:,columns_with_agb_observables]<0,axis=1) | \
-                        np.any(observable_data_table[:,columns_with_positions]<0,axis=1)
+                invalid_rows = np.any(identifier_table<0,axis=1) | \
+                    np.any(np.isnan(observable_table[:,columns_with_sar_observables]),axis=1) | \
+                    np.any(~np.isfinite(observable_table[:,columns_with_sar_observables]),axis=1) | \
+                        np.any(observable_table[:,columns_with_agb_observables]<0,axis=1)
                 # exclude invalid rows
-                observable_data_table = observable_data_table[~invalid_rows,:]
+                observable_table = observable_table[~invalid_rows,:]
+                identifier_table = identifier_table[~invalid_rows,:]
                 # number of rows in data table
-                number_of_rows_in_observable_table = observable_data_table.shape[0]
+                number_of_rows_in_observable_table = observable_table.shape[0]
                         
                         
                 ### PREPARING PARAMETER TABLES
                 parameter_property_names = ['lower_limit','upper_limit','initial_value']+['estimate_%d' % (ii) for ii in np.arange(number_of_subsets)+1]
+                parameter_position_names = ['row_'+parameter_name for parameter_name in parameter_names]
                 parameter_tables = []
                 parameter_table_columns = []
+                parameter_position_table = np.nan * np.zeros((
+                    number_of_rows_in_observable_table,number_of_parameters))
                 # creating parameter matrices
                 for parameter_idx,parameter_variability in enumerate(parameter_variabilities):
                     # take out only the relevant identifiers (the ones that change as per parameter variability)
@@ -1538,7 +1562,7 @@ class AGBCoreProcessing(Task):
                     parameter_table_columns.append(np.concatenate((np.array(identifier_names)[parameter_variability],
                                                                    np.array(parameter_property_names))))
                     # create the minimal ID table (without unnecessary columns for those dimension across which the parameter doesn't change)
-                    temp_ids_table = observable_data_table[:,np.where(parameter_variability)[0]]
+                    temp_ids_table = identifier_table[:,np.where(parameter_variability)[0]]
                     # create the last four columns
                     temp_minmax_table = np.array([parameter_limits[parameter_idx]]) * np.ones((number_of_rows_in_observable_table,1))
                     temp_initial_table = np.mean(temp_minmax_table,axis=1)
@@ -1558,36 +1582,37 @@ class AGBCoreProcessing(Task):
                     # append the table
                     parameter_tables.append(temp_full_table)
                     # include the inverse vector in the observable data table at the correct position
-                    observable_data_table[:,number_of_identifiers+number_of_observables+parameter_idx] = temp_position_in_observable_table
+                    parameter_position_table[:,parameter_idx] = temp_position_in_observable_table
                 
-
+                
+                line_number_string = ['row']
 
                 ### SAVING OBSERVABLE AND PARAMETER TABLES
                 # select formatting for the output tables
                 curr_delimiter = '\t'
                 curr_precision = 3
-                curr_column_width = 15
-                all_column_groups = [identifier_names,parameter_position_names,parameter_property_names,observable_names]
-                all_data_types = ['d','d','f','f']
+                curr_column_width = 20
+                all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
+                all_data_types = ['d','d','d','f','f','f']
                 
                 
-                # save parameter and observable tables
-                for parameter_idx,parameter_name in enumerate(parameter_names):
-                    curr_format,curr_header = get_fmt_and_header(parameter_table_columns[parameter_idx],all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                    np.savetxt(os.path.join(
-                            temp_agb_folder,
-                            'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
-                        parameter_tables[parameter_idx],
-                        fmt=curr_format,
-                        delimiter=curr_delimiter,
-                        header=curr_header,
-                        comments='')
+                # # save parameter and observable tables
+                # for parameter_idx,parameter_name in enumerate(parameter_names):
+                #     curr_format,curr_header = get_fmt_and_header(parameter_table_columns[parameter_idx],all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                #     np.savetxt(os.path.join(
+                #             temp_agb_folder,
+                #             'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+                #         parameter_tables[parameter_idx],
+                #         fmt=curr_format,
+                #         delimiter=curr_delimiter,
+                #         header=curr_header,
+                #         comments='')
                 
-                curr_format,curr_header = get_fmt_and_header(observable_table_columns,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                curr_format,curr_header = get_fmt_and_header(line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
                 np.savetxt(os.path.join(
                         temp_agb_folder,
                         'observable_data_table_block_{}.txt'.format(current_block_index)),
-                    observable_data_table,
+                    np.column_stack((np.arange(identifier_table.shape[0]),identifier_table,observable_table,parameter_position_table)),
                     fmt=curr_format,
                     delimiter=curr_delimiter,
                     header=curr_header,
@@ -1605,18 +1630,20 @@ class AGBCoreProcessing(Task):
                 ### CREATE CALIBRATION AND ESTIMATION SUBSETS
                     
                 # select rows with available agb information as calibration data and those without as estimation data
-                calibration_rows = np.where(np.all(~np.isnan(observable_data_table[:,columns_with_agb_observables]),axis=1))[0]
-                estimation_rows = np.where(np.any(np.isnan(observable_data_table[:,columns_with_agb_observables]),axis=1))[0]
-                calibration_sample_ids,number_of_stacks_per_calibration_sample = np.unique(observable_data_table[calibration_rows,0],return_counts=True)
-                estimation_sample_ids,number_of_stacks_per_estimation_sample = np.unique(observable_data_table[estimation_rows,0],return_counts=True)
+                calibration_rows = np.where(np.all(~np.isnan(observable_table),axis=1))[0]
+                estimation_rows = np.where(np.any(np.isnan(observable_table),axis=1))[0]
+                calibration_sample_ids = np.unique(identifier_table[calibration_rows,0])
+                estimation_sample_ids = np.unique(identifier_table[estimation_rows,0])
                 
                 # calculate subset sizes
                 estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids)/100*proc_conf.AGB.fraction_of_roi_per_test))
                 calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids)/100*proc_conf.AGB.fraction_of_cal_per_test))
+                estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids)/100*80))
+                calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids)/100*80))
                 
-                # find random calibration and estimation subsets
-                random_estimation_subsets = []
-                random_calibration_subsets = []
+                # find random data subsetting vectors making sure that the number of calibration and estimation areas
+                # is the same in all
+                subset_indexing_vectors = []
                 number_of_accepted_subsets = 0
                 while number_of_accepted_subsets < number_of_subsets:
                     # create a random subset of calibration and estimation samples
@@ -1625,11 +1652,9 @@ class AGBCoreProcessing(Task):
                     
                     # calculate the minimal number of calibration and estimation samples for the space-invariant parameters
                     # (for the latter, we use the column with parameter positions in parameter tables - the same value indicates the same parameter)
-                    current_calibration_rows = np.isin(observable_data_table[:,0],current_random_calibration_subset)
-                    current_estimation_rows = np.isin(observable_data_table[:,0],current_random_estimation_subset)
-                    current_parameter_position_columns = number_of_identifiers\
-                                                                +number_of_observables\
-                                                                +np.where(~np.row_stack(parameter_variabilities)[:,0])[0]
+                    current_calibration_rows = np.isin(identifier_table[:,0],current_random_calibration_subset)
+                    current_estimation_rows = np.isin(identifier_table[:,0],current_random_estimation_subset)
+                    current_parameter_position_columns = np.where(~np.row_stack(parameter_variabilities)[:,0])[0]
                     min_number_of_calibration_measurements_per_space_invariant_parameter = np.inf
                     min_number_of_estimation_measurements_per_space_invariant_parameter = np.inf
                     # loop through columns with parameter positions
@@ -1639,88 +1664,55 @@ class AGBCoreProcessing(Task):
                             = np.minimum(min_number_of_calibration_measurements_per_space_invariant_parameter,
                                                             np.min(
                                                                 np.unique(
-                                                                 observable_data_table[current_calibration_rows,column_idx],return_counts=True)[1]))
+                                                                 parameter_position_table[current_calibration_rows,column_idx],return_counts=True)[1]))
                         min_number_of_estimation_measurements_per_space_invariant_parameter\
                             = np.minimum(min_number_of_estimation_measurements_per_space_invariant_parameter,
                                                             np.min(
                                                                 np.unique(
-                                                                 observable_data_table[current_estimation_rows,column_idx],return_counts=True)[1]))
+                                                                 parameter_position_table[current_estimation_rows,column_idx],return_counts=True)[1]))
                     # if the minimal number of samples is larger than the one specified in the xml configuration file, accept this subset
                     # (at the moment, we don't perform other tests, which means that subsets may be repeated)
                     if (min_number_of_calibration_measurements_per_space_invariant_parameter>proc_conf.AGB.min_number_of_cals_per_test) & \
                         (min_number_of_estimation_measurements_per_space_invariant_parameter>proc_conf.AGB.min_number_of_rois_per_test):
-                            random_estimation_subsets.append(current_random_estimation_subset)
-                            random_calibration_subsets.append(current_random_calibration_subset)
+                            subset_indexing_vectors.append(np.isin(identifier_table[:,0],np.sort(np.concatenate((current_random_calibration_subset,current_random_estimation_subset)))))
                             number_of_accepted_subsets += 1
                             
-                         
+                
+                
+                
+                
+                
                 ### RUN INVERSION FOR THE CURRENT BLOCK AND TABLE USING ALL SELECTED SUBSETS
-                # %%
-                # def fit_model_to_data_with_subsets(sample_id_vector,
-                #         observable_table,
-                #         parameter_position_table,
-                #         parameter_tables,
-                #         parsed_formula_calibration,
-                #         parsed_formula_estimation,
-                #         parameter_transfer_method,
-                #         calibration_subsets,
-                #         estimation_subsets):
-                    
-                    
-                    
-                #     fit_model_to_data_with_subsets(    
-                #     observable_data_table[:,0],
-                #     observable_data_table[:,columns_with_observables],
-                #     observable_data_table[:,columns_with_positions],
-                #     parameter_tables,
-                #     calibration_formula_terms,
-                #     estimation_formula_terms,
-                #     parameter_transfer_method,
-                #     random_calibration_subsets,
-                #     random_estimation_subsets,
-                # )
-                    
-                
-                
-                def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
-                    # note: no check of x, xmax, xmin and kind is done here, 
-                    # it is assumed that the inputs are correct
-                    if kind=='sin2' :
-                        if not x_is_p:
-                            return pmin+(pmax-pmin)*np.sin(x)**2
-                        else:
-                            return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
-                
-                                
+            
             
             
                 # loop through calibration subsets
-                for current_calibration_subset,current_estimation_subset in zip(random_calibration_subsets,random_estimation_subsets):
+                number_of_successful_tests = 0
+                for current_subset in subset_indexing_vectors:
                     
-                    # select the rows in the observable table
-                    current_calibration_rows = np.isin(observable_data_table[:,0],current_calibration_subset)
-                    current_estimation_rows = np.isin(observable_data_table[:,0],current_estimation_subset)
-                    
-                    
+
+
+                                            
                     # take out a subtable with indices for each parameter in the output parameter tables
-                    current_parameter_row_in_parameter_tables = \
-                        observable_data_table[:,columns_with_positions][current_calibration_rows | current_estimation_rows,:]
+                    current_parameter_position_table = parameter_position_table[current_subset,:]
                     # take out a subtable with observables
-                    current_observable_table = observable_data_table[:,columns_with_observables][current_calibration_rows | current_estimation_rows,:]
+                    current_observable_table = observable_table[current_subset,:]
+                    
+                        
                     
                     # convert these positions to positions in a single vector x, where unique
                     # parameter values are ordered first by rows (samples) and then by columns (independent parameters)
                     # this requires renumbering and introducing offsets for each column
                     offset = 0
-                    current_parameter_position_in_beta_vector = [] # position in a single x-vector
+                    current_parameter_index_in_beta_table = [] # position in a single x-vector
                     current_parameter_position_lut = [] # lut for converting between parameter id and column and parameter position in x
                     for parameter_idx in range(number_of_parameters):
                         # add -1 at the beginning to avoid vectors with one element (which will not work with interp1d)
-                        old_indices = np.concatenate((-1*np.ones(1),np.unique(current_parameter_row_in_parameter_tables[:,parameter_idx])))
+                        old_indices = np.concatenate((-1*np.ones(1),np.unique(current_parameter_position_table[:,parameter_idx])))
                         # new indices is a simple sequence from 0 to number of parameters-1 + offset due to previous parameters
                         new_indices = np.arange(len(old_indices))-1+offset
                         # convert parameter indices and add to the list
-                        current_parameter_position_in_beta_vector.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(current_parameter_row_in_parameter_tables[:,parameter_idx]))
+                        current_parameter_index_in_beta_table.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(current_parameter_position_table[:,parameter_idx]))
                         # save the lut, removing the first, unnecessary element
                         current_parameter_position_lut.append(
                             np.column_stack((new_indices[old_indices>-1],
@@ -1730,7 +1722,7 @@ class AGBCoreProcessing(Task):
                         # update offset based on current parameter column
                         offset = np.max(new_indices)+1
                     # convert the list of vectors to an array
-                    current_parameter_position_in_beta_vector = np.int32(np.column_stack(current_parameter_position_in_beta_vector))
+                    current_parameter_index_in_beta_table = np.int32(np.column_stack(current_parameter_index_in_beta_table))
                     # stack all luts to one lut
                     current_parameter_position_lut = np.row_stack(current_parameter_position_lut)
                     # length of beta vector
@@ -1747,102 +1739,284 @@ class AGBCoreProcessing(Task):
                     beta_low = beta_min_max_initial_table[:,0]
                     beta_high = beta_min_max_initial_table[:,1]
                     beta_initial = beta_min_max_initial_table[:,2]
-                    x_initial = parameter_transfer_function(beta_initial,beta_low,beta_high,parameter_transfer_method,True)
-                    # print(x0)
+                    # x_initial = parameter_transfer_function(beta_initial,beta_low,beta_high,True)
+                    x_initial = np.pi/4*np.random.rand(length_of_beta_vector)
+                    
+                    cal_rows = np.all(~np.isnan(current_observable_table),axis=1)
+                    est_rows = np.any(np.isnan(current_observable_table),axis=1)
+                    
+                    
+                    calibration_formula = convert_formula(formula,'calibration_data_table',observable_names + parameter_names,0)
+                    estimation_formula = convert_formula(formula,'estimation_data_table',observable_names + parameter_names,1)
+                        
+                    # calibration_data_table = np.column_stack((current_observable_table[cal_rows,:],beta_initial[current_parameter_index_in_beta_table[cal_rows,:]]))
+                    
+                    def J(x,args):
+                        beta_low,beta_high,parameter_transfer_function,current_observable_table,cal_rows,est_rows,current_parameter_index_in_beta_table,calibration_formula,estimation_formula = args
+                        beta = parameter_transfer_function(x,beta_low,beta_high,False)
+                        
+                        calibration_data_table = np.column_stack((current_observable_table[cal_rows,:],beta[current_parameter_index_in_beta_table[cal_rows,:]]))
+                        estimation_data_table = np.column_stack((current_observable_table[est_rows,:],beta[current_parameter_index_in_beta_table[est_rows,:]]))
+                        # J = np.mean(eval(estimation_formula))+
+                        J = np.sqrt(np.mean(eval(calibration_formula))/2+np.mean(eval(estimation_formula))/2)
+                        # print(J)
+                        return J
+                    # j = J(x_initial,args)
+                    
+                    args = [beta_low,beta_high,parameter_transfer_function,current_observable_table,cal_rows,est_rows,current_parameter_index_in_beta_table,calibration_formula,estimation_formula]
+                    mod = sp.optimize.minimize(J,x_initial,args,method='BFGS')
+                    
+                    x_estimated = mod.x
+                    x_estimated[np.abs(x_initial-x_estimated)<1e-6] = np.nan
+                    beta = parameter_transfer_function(x_estimated, beta_low,beta_high,False)
+                    print(mod.message,J(x_estimated,args))
+                    if mod.success:
+                        number_of_successful_tests += 1
+                        for parameter_idx in range(number_of_parameters):
+                            curr_rows = current_parameter_position_lut[:,1]==parameter_idx
+                            
+                            # error
+                            parameter_tables[parameter_idx][np.int32(current_parameter_position_lut[curr_rows,2]),-number_of_subsets+number_of_successful_tests-1] = \
+                                beta[np.int32(current_parameter_position_lut[curr_rows,0])]
+                            # parameter_table[:,parameter_idx] = np.nanmean(parameter_tables[parameter_idx][:,-number_of_subsets:],axis=1)[np.int32(parameter_position_table[:,parameter_idx])]
+                
+                parameter_table = np.nan * np.zeros((number_of_rows_in_observable_table, number_of_parameters))    
+                for parameter_idx,parameter_name in enumerate(parameter_names):
+                # for parameter_idx in range(number_of_parameters):
+                    curr_rows = current_parameter_position_lut[:,1]==parameter_idx
+                    
                     # error
-                    def estimate(x_initial,
-                                                    beta_low,
-                                                    beta_high,
-                                                    parameter_transfer_method,
-                                                    current_estimation_parameter_position_in_beta_vector,
-                                                    current_calibration_parameter_position_in_beta_vector,
-                                                    current_estimation_observable_table,
-                                                    current_calibration_observable_table,
-                                                    estimation_formula_terms,
-                                                    calibration_formula_terms):
-                        def J(x,beta_low,beta_high,parameter_transfer_method,current_parameter_position_in_beta_vector,current_observable_table,formula_terms):
+                    # parameter_tables[parameter_idx][np.int32(current_parameter_position_lut[curr_rows,2]),-number_of_subsets+number_of_successful_tests-1] = \
+                    #     beta[np.int32(current_parameter_position_lut[curr_rows,0])]
+                    parameter_table[:,parameter_idx] = np.nanmean(parameter_tables[parameter_idx][:,-number_of_subsets:],axis=1)[np.int32(parameter_position_table[:,parameter_idx])]
+            
+                    curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                    np.savetxt(os.path.join(
+                            temp_agb_folder,
+                            'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+                        np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
+                        fmt=curr_format,
+                        delimiter=curr_delimiter,
+                        header=curr_header,
+                        comments='')
+                
+                curr_format,curr_header = get_fmt_and_header(line_number_string+identifier_names+observable_names+parameter_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                np.savetxt(os.path.join(
+                        temp_agb_folder,
+                        'final_data_table_block_{}.txt'.format(current_block_index)),
+                    np.column_stack((np.arange(identifier_table.shape[0]),identifier_table,observable_table,parameter_table)),
+                    fmt=curr_format,
+                    delimiter=curr_delimiter,
+                    header=curr_header,
+                    comments='')
                             
-                            def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
-                                # note: no check of x, xmax, xmin and kind is done here, 
-                                # it is assumed that the inputs are correct
-                                if kind=='sin2' :
-                                    if not x_is_p:
-                                        return pmin+(pmax-pmin)*np.sin(x)**2
-                                    else:
-                                        return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
-                            def apply_formula(table,formula):
-                                total = 0
-                                for independent_term in formula:
-                                    curr_sum = 0
-                                    for added_term in independent_term:
-                                        curr_product = 1
-                                        for multiplied_term in added_term:
-                                            curr_product *= table[:,multiplied_term] 
-                                            # print(table[-15,multiplied_term] )
-                                        curr_sum += curr_product
-                                    total += (curr_sum)**2
-                                return total
-                            beta = parameter_transfer_function(x,beta_low,beta_high,parameter_transfer_method)
-                            current_parameter_table = beta[current_parameter_position_in_beta_vector]
-                            current_combined_table = np.column_stack((current_observable_table,current_parameter_table))
+                    # # %%
+                    
+                    # columns_with_agb_parameters = np.where(np.array([curr_source.split('_')[0]=='agb' for curr_source in parameter_names]))[0]
+                    # columns_with_sar_parameters = np.where(np.array([curr_source.split('_')[0]!='agb' for curr_source in parameter_names]))[0]
+                    
+                    # # convert these positions to positions in a single vector x, where unique
+                    # # parameter values are ordered first by rows (samples) and then by columns (independent parameters)
+                    # # this requires renumbering and introducing offsets for each column
+                    # offset = 0
+                    # current_parameter_index_in_beta_table = [] # position in a single x-vector
+                    # current_parameter_position_lut = [] # lut for converting between parameter id and column and parameter position in x
+                    # for parameter_idx in columns_with_sar_parameters:
+                    #     # add -1 at the beginning to avoid vectors with one element (which will not work with interp1d)
+                    #     old_indices = np.concatenate((-1*np.ones(1),np.unique(current_parameter_position_table[:,parameter_idx])))
+                    #     # new indices is a simple sequence from 0 to number of parameters-1 + offset due to previous parameters
+                    #     new_indices = np.arange(len(old_indices))-1+offset
+                    #     # convert parameter indices and add to the list
+                    #     current_parameter_index_in_beta_table.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(current_parameter_position_table[:,parameter_idx]))
+                    #     # save the lut, removing the first, unnecessary element
+                    #     current_parameter_position_lut.append(
+                    #         np.column_stack((new_indices[old_indices>-1],
+                    #                          parameter_idx+np.zeros(len(old_indices[old_indices>-1])),
+                    #                          old_indices[old_indices>-1],
+                    #                          )))
+                    #     # update offset based on current parameter column
+                    #     offset = np.max(new_indices)+1
+                    # # convert the list of vectors to an array
+                    # current_parameter_index_in_beta_table = np.int32(np.column_stack(current_parameter_index_in_beta_table))
+                    # # stack all luts to one lut
+                    # current_parameter_position_lut = np.row_stack(current_parameter_position_lut)
+                    # # length of beta vector
+                    # length_of_beta_vector = current_parameter_position_lut.shape[0]
+                    
+                    # # create a table of min, max, and initial parameter values (requires looping through parameter tables and extracting relevant rows)
+                    # beta_min_max_initial_table = np.nan * np.zeros((length_of_beta_vector,3))
+                    # for parameter_idx in np.int32(np.unique(current_parameter_position_lut[:,1])):
+                    #     current_rows_in_lut = current_parameter_position_lut[:,1]==parameter_idx
+                    #     current_positions_in_parameter_table = np.int32(current_parameter_position_lut[current_rows_in_lut,2])
+                    #     beta_min_max_initial_table[current_rows_in_lut,:] = \
+                    #         parameter_tables[parameter_idx][current_positions_in_parameter_table,-(number_of_subsets+3):-number_of_subsets]
+                    # # extract min, max, intiial values
+                    # beta_low = beta_min_max_initial_table[:,0]
+                    # beta_high = beta_min_max_initial_table[:,1]
+                    # beta_initial = beta_min_max_initial_table[:,2]
+                    # # x_initial = parameter_transfer_function(beta_initial,beta_low,beta_high,True)
+                    # x_initial = np.pi/4*np.random.rand(length_of_beta_vector)
+                    
+                    
+                    
+                    # new_formula = convert_formula(formula,'new_data_table',observable_names + parameter_names,1)
+                   
+                    
+                    # # calibration_data_table = np.column_stack((current_observable_table[cal_rows,:],beta_initial[current_parameter_index_in_beta_table[cal_rows,:]]))
+                    
+                    # def J(x,args):
+                    #     beta_low,beta_high,parameter_transfer_function,current_observable_table,valid_rows,current_parameter_index_in_beta_table,new_formula = args
+                    #     beta = parameter_transfer_function(x,beta_low,beta_high,False)
+                        
+                    #     new_data_table = np.column_stack((current_observable_table[valid_rows,:],beta[current_parameter_index_in_beta_table[valid_rows,:]]))
+                        
+                    #     # J = np.mean(eval(estimation_formula))+
+                    #     J = np.sqrt(np.mean(eval(new_formula)))
+                    #     # print(J)
+                    #     return J
+                    
+                    # # j = J(x_initial,args)
+                    
+                    # args = [beta_low,beta_high,parameter_transfer_function,np.column_stack((current_observable_table,,cal_rows,est_rows,current_parameter_index_in_beta_table,calibration_formula,estimation_formula]
+                    # mod = sp.optimize.minimize(J,x_initial,args,method='BFGS')
+                    
+                    # x_estimated = mod.x
+                    # x_estimated[np.abs(x_initial-x_estimated)<1e-6] = np.nan
+                    # beta = parameter_transfer_function(x_estimated, beta_low,beta_high,False)
+                    # print(mod.message,J(x_estimated,args))
+                    # # %%
+                
+                
+                
+                ### now we average the estimated AGBs
+                
+                
+                
+                # save parameter and observable tables
+                
+                
+                # %%
+                    # estimation_formula = convert_formula(formula,'data_table',observable_names + parameter_names,1)
+                    
+                    
+                    
+                    
+                    
+                    # def estimate_for_table(x_initial):
+                        
+                    #     def J(x):
+                                
+                    #         # take out the rows with calibration data
+                    #         beta = parameter_transfer_function(x,beta_low,beta_high,False)
+                    #         data_table = np.column_stack((current_observable_table[cal_rows,:],beta[current_parameter_index_in_beta_table[cal_rows,:]]))
+                    #         cal_sum = np.mean(eval(calibration_formula))
+                    #         # est_sum = np.mean(eval(estimation_formula))
+                    #         data_table = np.column_stack((current_observable_table[est_rows,:],beta[current_parameter_index_in_beta_table[est_rows,:]]))
+                    #         # cal_sum = np.mean(eval(calibration_formula))
+                    #         est_sum = np.mean(eval(estimation_formula))
+                    #         return cal_sum+est_sum
+                    #     return sp.optimize.minimize(J,x_initial)
+                    
+                    # estimate_for_table(x_initial)
+                    
+                    
+                    # error
+                    # # print(x0)
+                    # # error
+                    # def estimate(x_initial,
+                    #                                 beta_low,
+                    #                                 beta_high,
+                    #                                 parameter_transfer_method,
+                    #                                 current_estimation_parameter_position_in_beta_vector,
+                    #                                 current_calibration_parameter_position_in_beta_vector,
+                    #                                 current_estimation_observable_table,
+                    #                                 current_calibration_observable_table,
+                    #                                 estimation_formula_terms,
+                    #                                 calibration_formula_terms):
+                    #     def J(x,beta_low,beta_high,parameter_transfer_method,current_parameter_index_in_beta_table,current_observable_table,formula_terms):
                             
-                            # print(np.any(np.isnan(calibration_table),axis=0))
-                            # return apply_formula(estimation_table,parsed_formula_estimation)#+
-                            # print(current_combined_table)
-                            # tot = np.nanmean(apply_formula(current_combined_table,estimation_formula_terms))+\
-                            tot = np.mean(apply_formula(current_combined_table,formula_terms))
-                            print(tot)
-                            return tot
+                    #         def parameter_transfer_function(x,pmin,pmax,kind,x_is_p=False):
+                    #             # note: no check of x, xmax, xmin and kind is done here, 
+                    #             # it is assumed that the inputs are correct
+                    #             if kind=='sin2' :
+                    #                 if not x_is_p:
+                    #                     return pmin+(pmax-pmin)*np.sin(x)**2
+                    #                 else:
+                    #                     return np.arcsin(np.sqrt((x-pmin)/(pmax-pmin)))
+                    #         def apply_formula(table,formula):
+                    #             total = 0
+                    #             for independent_term in formula:
+                    #                 curr_sum = 0
+                    #                 for added_term in independent_term:
+                    #                     curr_product = 1
+                    #                     for multiplied_term in added_term:
+                    #                         curr_product *= table[:,multiplied_term] 
+                    #                         # print(table[-15,multiplied_term] )
+                    #                     curr_sum += curr_product
+                    #                 total += (curr_sum)**2
+                    #             return total
+                    #         beta = parameter_transfer_function(x,beta_low,beta_high,parameter_transfer_method)
+                    #         current_parameter_table = beta[current_parameter_index_in_beta_table]
+                    #         current_combined_table = np.column_stack((current_observable_table,current_parameter_table))
+                            
+                    #         # print(np.any(np.isnan(calibration_table),axis=0))
+                    #         # return apply_formula(estimation_table,parsed_formula_estimation)#+
+                    #         # print(current_combined_table)
+                    #         # tot = np.nanmean(apply_formula(current_combined_table,estimation_formula_terms))+\
+                    #         tot = np.mean(apply_formula(current_combined_table,formula_terms))
+                    #         print(tot)
+                    #         return tot
                                 
                             
                         
                         
-                        return sp.optimize.minimize(lambda x:J(x,
-                                                        beta_low,
-                                                        beta_high,
-                                                        parameter_transfer_method,
-                                                        current_calibration_parameter_position_in_beta_vector,
-                                                        current_calibration_observable_table,
-                                                        calibration_formula_terms),x_initial,method='Nelder-Mead')
+                    #     return sp.optimize.minimize(lambda x:J(x,
+                    #                                     beta_low,
+                    #                                     beta_high,
+                    #                                     parameter_transfer_method,
+                    #                                     current_calibration_parameter_position_in_beta_vector,
+                    #                                     current_calibration_observable_table,
+                    #                                     calibration_formula_terms),x_initial,method='Nelder-Mead')
                         
                             
-                    print(estimate(x_initial,
-                                                beta_low,
-                                                beta_high,
-                                                parameter_transfer_method,
-                                                current_parameter_position_in_beta_vector[current_estimation_rows,:],
-                                                current_observable_table,
-                                                estimation_formula_terms,
-                                                calibration_formula_terms))
-                    error
-                        # print(current_parameter_position_in_beta_vector,current_parameter_position_table)
+                    # print(estimate(x_initial,
+                    #                             beta_low,
+                    #                             beta_high,
+                    #                             parameter_transfer_method,
+                    #                             current_parameter_index_in_beta_table[current_estimation_rows,:],
+                    #                             current_observable_table,
+                    #                             estimation_formula_terms,
+                    #                             calibration_formula_terms))
+                    # error
+                    #     # print(current_parameter_index_in_beta_table,current_parameter_position_table)
                         
-                        # print(np.row_stack([np.array([current_position_in_x,np.where([current_parameter_position_in_beta_vector==current_position_in_x])[0][0],
-                        #           np.where([current_parameter_position_in_beta_vector==current_position_in_x])[1][0]]) for current_position_in_x in np.unique(current_parameter_position_in_beta_vector)]))
+                    #     # print(np.row_stack([np.array([current_position_in_x,np.where([current_parameter_index_in_beta_table==current_position_in_x])[0][0],
+                    #     #           np.where([current_parameter_index_in_beta_table==current_position_in_x])[1][0]]) for current_position_in_x in np.unique(current_parameter_index_in_beta_table)]))
                         
-                        # for parameter_position_column,parameter_table in zip(current_parameter_position_table.transpose(),parameter_tables):
-                        #     print(parameter_table[np.int32(parameter_position_column),-4])
+                    #     # for parameter_position_column,parameter_table in zip(current_parameter_position_table.transpose(),parameter_tables):
+                    #     #     print(parameter_table[np.int32(parameter_position_column),-4])
                         
-                        # print(current_parameter_position_in_beta_vector)
-                        # # merge parameter tables
-                        # parameter_tables_merged = np.row_stack([curr_parameter_table[:,-4:-1] for curr_parameter_table in parameter_tables])
-                        # # calculate index offsets for first element of each table
-                        # parameter_index_offsets = [curr_parameter_table.shape]
-                        # p_low = p_rands[:,0]
-                        # p_high = p_rands[:,1]
-                        # p_init = p_rands[:,2]
+                    #     # print(current_parameter_index_in_beta_table)
+                    #     # # merge parameter tables
+                    #     # parameter_tables_merged = np.row_stack([curr_parameter_table[:,-4:-1] for curr_parameter_table in parameter_tables])
+                    #     # # calculate index offsets for first element of each table
+                    #     # parameter_index_offsets = [curr_parameter_table.shape]
+                    #     # p_low = p_rands[:,0]
+                    #     # p_high = p_rands[:,1]
+                    #     # p_init = p_rands[:,2]
                         
         
-                        # print(parameter_transfer_function(p_init,p_low,p_high,parameter_transfer_method,True))
-                        # x_init = 
+                    #     # print(parameter_transfer_function(p_init,p_low,p_high,parameter_transfer_method,True))
+                    #     # x_init = 
                         
                             
                         
                     
-                    # return []
+                    # # return []
                 
                 
                 
+
                 # %%
             
             
