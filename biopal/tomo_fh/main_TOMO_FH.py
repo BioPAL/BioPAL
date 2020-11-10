@@ -1,23 +1,20 @@
-import logging
 import os
 import numpy as np
+import logging
 import shutil
 from scipy.signal import convolve2d
 from osgeo import gdal
 from equi7grid.equi7grid import Equi7Grid
 from equi7grid.image2equi7grid import image2equi7grid
 
+
 # biomassL2 processor imports
 from biopal.fh.processing_FH import (
-    estimate_height,
     heigths_masking_and_merging,
 )
 from biopal.data_operations.data_operations import (
     read_and_oversample_data,
     read_and_oversample_aux_data,
-    fnf_equi7_load_filter_equi7format,
-    fnf_tandemx_load_filter_equi7format,
-    fnf_and_validity_masks_merging,
     apply_dem_flattening,
     mosaiking,
 )
@@ -26,12 +23,9 @@ from biopal.utility.utility_functions import (
     choose_equi7_sampling,
     check_if_path_exists,
     check_if_geometry_auxiliaries_are_present,
-    check_fnf_folder_format,
-    get_min_time_stamp_repository,
     resolution_heading_correction,
     decode_unique_acquisition_id_string,
     evaluate_estimation_quality_matrix,
-    check_equi7_mask_coverage,
     save_breakpoints,
 )
 from biopal.geocoding.geocoding import (
@@ -49,25 +43,25 @@ from biopal.screen_calibration.screen_calibration import apply_calibration_scree
 from biopal.geometry.utility_geometry import compute_and_oversample_geometry_auxiliaries
 
 
-class ForestHeight(Task):
+from biopal.tomo.processing_TOMO import BiomassForestHeightSKPD
+
+
+class TomoForestHeight(Task):
     def __init__(
         self,
         configuration_file_xml,
-        geographic_boundaries,
         stacks_to_merge_dict,
         gdal_path,
     ):
         super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
         self.stacks_to_merge_dict = stacks_to_merge_dict
         self.gdal_path = gdal_path
 
     def _run(self, input_file_xml):
 
         # Main APP #1: Stack Based Processing
-        stack_based_processing_obj = StackBasedProcessingFH(
+        stack_based_processing_obj = StackBasedProcessingTOMOFH(
             self.configuration_file_xml,
-            self.geographic_boundaries,
             self.gdal_path,
         )
 
@@ -75,7 +69,7 @@ class ForestHeight(Task):
         (data_equi7_fnames, mask_equi7_fnames) = stack_based_processing_obj.run(input_file_xml)
 
         # Main APP #2: Core Processing
-        fh_processing_obj = CoreProcessingFH(
+        tomo_fh_processing_obj = CoreProcessingTOMOFH(
             self.configuration_file_xml,
             self.stacks_to_merge_dict,
             data_equi7_fnames,
@@ -83,25 +77,23 @@ class ForestHeight(Task):
         )
 
         # Run Main APP #2: AGB Core Processing
-        fh_processing_obj.run(input_file_xml)
+        tomo_fh_processing_obj.run(input_file_xml)
 
 
-class StackBasedProcessingFH(Task):
+class StackBasedProcessingTOMOFH(Task):
     def __init__(
         self,
         configuration_file_xml,
-        geographic_boundaries,
         gdal_path,
     ):
         super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
         self.gdal_path = gdal_path
 
     def _run(self, input_file_xml):
 
         ########################## INITIAL STEPS ##############################
 
-        logging.info('FH: Reading chains configuration files')
+        logging.info('TOMO FH: Reading chains configuration file')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
         proc_inputs = parse_chains_input_file(input_file_xml)
@@ -110,34 +102,25 @@ class StackBasedProcessingFH(Task):
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
         if proc_conf.save_breakpoints:
             breakpoints_output_folder = os.path.join(products_folder, 'breakpoints')
-            logging.info('FH: Breakpoints will be saved into: ' + breakpoints_output_folder)
+            logging.info('TOMO FH: Breakpoints will be saved into: ' + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
 
         temp_output_folder = os.path.join(products_folder, 'temporary_processing')
-        logging.info('FH: Temporary data folder:' + temp_output_folder + '\n')
+        logging.info('TOMO FH: Temporary data folder:' + temp_output_folder + '\n')
         os.makedirs(temp_output_folder)
 
-        ### get temporal date time of the input data (get the minimum date from all the stacks)
-        time_tag_mjd_initial = get_min_time_stamp_repository(
-            proc_inputs.L1c_repository, proc_inputs.stack_composition
-        )
-
-        ### initialize the equi7 sampling grid
         equi7_sampling = choose_equi7_sampling(
-            proc_conf.FH.product_resolution, proc_inputs.geographic_grid_sampling
+            proc_conf.TOMO_FH.product_resolution, proc_inputs.geographic_grid_sampling
         )
         e7g = Equi7Grid(equi7_sampling)
-        logging.info('EQUI7 Grid sampling used: {}'.format(equi7_sampling))
+        logging.info('    EQUI7 Grid sampling used: {}'.format(equi7_sampling))
 
-        ########################## INITIAL STEPS END ##############################
+        ########################## INITIAL STEPS END #############################
 
-        kz_mask = {}
         data_equi7_fnames = {}
         mask_equi7_fnames = {}
         ########################## STACK BASED STEPS ##############################
-        for stack_idx, (unique_stack_id, acquisitions_pf_names) in enumerate(
-            proc_inputs.stack_composition.items()
-        ):
+        for unique_stack_id, acquisitions_pf_names in proc_inputs.stack_composition.items():
 
             # make temporary sub-directories
             temp_output_folder_gr = os.path.join(
@@ -152,7 +135,9 @@ class StackBasedProcessingFH(Task):
             ### load data ( and oversample if requested and if needed )
             try:
                 logging.info(
-                    'FH: Data loading for stack ' + unique_stack_id + '; this may take a while:'
+                    'TOMO FH: Data loading for stack '
+                    + unique_stack_id
+                    + '; this may take a while:'
                 )
 
                 (
@@ -163,15 +148,13 @@ class StackBasedProcessingFH(Task):
                 ) = read_and_oversample_data(
                     proc_inputs.L1c_repository, acquisitions_pf_names, proc_conf.enable_resampling
                 )
-
             except Exception as e:
-                logging.error('FH: error during input data reading: ' + str(e), exc_info=True)
+                logging.error('TOMO FH: error during input data reading: ' + str(e), exc_info=True)
                 raise
 
             ### load or compute auxiliary data
             try:
 
-                read_dist = proc_conf.FH.spectral_shift_filtering
                 read_ref_h = not proc_conf.apply_calibration_screen and proc_conf.DEM_flattening
                 read_cal_screens = proc_conf.apply_calibration_screen
                 geometry_aux_are_present = check_if_geometry_auxiliaries_are_present(
@@ -179,7 +162,7 @@ class StackBasedProcessingFH(Task):
                     unique_stack_id,
                     acquisitions_pf_names,
                     read_ref_h=read_ref_h,
-                    read_dist=read_dist,
+                    read_dist=False,
                 )
 
                 if proc_conf.compute_geometry or not geometry_aux_are_present:
@@ -187,7 +170,7 @@ class StackBasedProcessingFH(Task):
                     # messages for the log:
                     if proc_conf.compute_geometry:
                         logging.info(
-                            'FH: calling geometry library for stack ' + unique_stack_id + '\n'
+                            'TOMO FH: calling geometry library for stack ' + unique_stack_id + '\n'
                         )
                         if geometry_aux_are_present:
                             logging.warning(
@@ -198,7 +181,7 @@ class StackBasedProcessingFH(Task):
                             logging.info('\n')
                     else:
                         logging.warning(
-                            'FH: calling geometry library since AuxiliaryProductsFolder "Geometry" is empty or not complete \n'
+                            'TOMO FH: calling geometry library since AuxiliaryProductsFolder "Geometry" is empty or not complete \n'
                         )
 
                     (
@@ -217,7 +200,7 @@ class StackBasedProcessingFH(Task):
                         master_id,
                         proc_conf.enable_resampling,
                         comp_ref_h=read_ref_h,
-                        comp_dist=read_dist,
+                        comp_dist=False,
                         force_ellipsoid=True,
                     )
 
@@ -227,7 +210,7 @@ class StackBasedProcessingFH(Task):
                         slope,
                         kz,
                         reference_height,
-                        R,
+                        _,
                         _,
                     ) = compute_and_oversample_geometry_auxiliaries(
                         proc_inputs.L1c_repository,
@@ -237,6 +220,7 @@ class StackBasedProcessingFH(Task):
                         master_id,
                         proc_conf.enable_resampling,
                         comp_ref_h=read_ref_h,
+                        comp_dist=False,
                         sar_geometry_master=sar_geometry_master,
                     )
 
@@ -253,12 +237,12 @@ class StackBasedProcessingFH(Task):
                     )
                     del ellipsoid_slope
 
-                    logging.info('FH: ...geometry auxiliaries computation done.')
+                    logging.info('TOMO FH: ...geometry auxiliaries computation done.')
 
                 else:
 
                     logging.info(
-                        'FH: geometry auxiliaries are provided from user, so they are now being loaded and not computed, for stack '
+                        'TOMO FH: geometry auxiliaries are provided from user, so they are now being loaded and not computed, for stack '
                         + unique_stack_id
                         + '\n'
                     )
@@ -269,7 +253,7 @@ class StackBasedProcessingFH(Task):
                         slope,
                         kz,
                         reference_height,
-                        R,
+                        _,
                         _,
                         _,
                         _,
@@ -283,14 +267,14 @@ class StackBasedProcessingFH(Task):
                         proc_conf.enable_resampling,
                         raster_info_orig,
                         read_ref_h=read_ref_h,
-                        read_dist=read_dist,
+                        read_dist=False,
                     )
-                    logging.info('FH: ...geometry auxiliaries loading done.')
+                    logging.info('TOMO FH: ...geometry auxiliaries loading done.')
 
                 # read the rest of auxiliaries which are notpart of the geometry library:
                 if read_cal_screens:
 
-                    logging.warning('FH: loading calibration screens \n')
+                    logging.warning('TOMO FH: loading calibration screens \n')
 
                     (
                         _,
@@ -323,7 +307,7 @@ class StackBasedProcessingFH(Task):
 
             except Exception as e:
                 logging.error(
-                    'FH: error during auxiliary data computation and/or loading: ' + str(e),
+                    'TOMO FH: error during auxiliary data computation and/or loading: ' + str(e),
                     exc_info=True,
                 )
                 raise
@@ -331,7 +315,7 @@ class StackBasedProcessingFH(Task):
             ### Screen calibration (ground steering)
             try:
                 if proc_conf.apply_calibration_screen:
-                    logging.info('FH: applying calibration screen...')
+                    logging.info('TOMO FH: applying calibration screen...')
                     beta0_calibrated = apply_calibration_screens(
                         beta0_calibrated,
                         raster_info,
@@ -342,7 +326,7 @@ class StackBasedProcessingFH(Task):
                     logging.info('...done.\n')
 
                 elif proc_conf.DEM_flattening:
-                    logging.info('FH: DEM flattening... ')
+                    logging.info('TOM FH: DEM flattening... ')
                     beta0_calibrated = apply_dem_flattening(
                         beta0_calibrated, kz, reference_height, master_id, raster_info
                     )
@@ -350,23 +334,26 @@ class StackBasedProcessingFH(Task):
 
             except Exception as e:
                 logging.error(
-                    'FH: error during screen calibration or DEM flattening.' + str(e), exc_info=True
+                    'TOMO FH: error during screen calibration or DEM flattening.' + str(e),
+                    exc_info=True,
                 )
                 raise
 
             ### compute mean incidence angle
             look_angle_rad = np.nanmean(off_nadir_angle_rad[master_id])  # 0.4886921905584123
             logging.info(
-                'FH: incidence angle used is {} [deg] \n'.format(np.rad2deg(look_angle_rad))
+                'TOMO FH: incidence angle used is {} [deg] \n'.format(np.rad2deg(look_angle_rad))
             )
 
             ### mean of off nadir and slope over final resolution
             windtm_x = np.int(
-                np.round(proc_conf.FH.product_resolution / raster_info.pixel_spacing_az / 2) * 2 + 1
+                np.round(proc_conf.TOMO_FH.product_resolution / raster_info.pixel_spacing_az / 2)
+                * 2
+                + 1
             )
             windtm_y = np.int(
                 np.round(
-                    proc_conf.FH.product_resolution
+                    proc_conf.TOMO_FH.product_resolution
                     / (raster_info.pixel_spacing_slant_rg / np.sin(look_angle_rad))
                     / 2
                 )
@@ -374,54 +361,27 @@ class StackBasedProcessingFH(Task):
                 + 1
             )
 
-            logging.info(' FH: computing mean of off nadir based on final product resolution...')
+            logging.info(
+                'TOMO FH: computing mean of off nadir based on final product resolution...'
+            )
 
-            off_nadir_angle_master_filtered_rad = convolve2d(
+            # only mster is used in the code, do not convolve all the stacs, it is useless
+            off_nadir_angle_rad[master_id] = convolve2d(
                 off_nadir_angle_rad[master_id],
                 np.ones((windtm_y, windtm_x)) / windtm_y / windtm_x,
                 mode='same',
             )
-
             logging.info('...done.')
 
-            logging.info(' FH: computing mean of slope based on final product resolution...')
+            logging.info('TOMO FH: computing mean of slope based on final product resolution...')
 
-            slope_filtered = convolve2d(
+            slope = convolve2d(
                 slope, np.ones((windtm_y, windtm_x)) / windtm_y / windtm_x, mode='same'
             )
-
             logging.info('...done.')
 
-            logging.info(' FH: computing kz mask with configuration thresholds ')
-            kz_list_temp = []
-            kz_nan_mask = np.zeros(kz[next(iter(kz))].shape, dtype=bool)
-            if master_id not in kz.keys():
-                master_id = list(kz.keys())[0]
-            for acq_id in kz.keys():
-                kz[acq_id] = (
-                    kz[acq_id]
-                    * np.sin(off_nadir_angle_master_filtered_rad)
-                    / np.sin(off_nadir_angle_master_filtered_rad - slope_filtered)
-                )
-                kz_list_temp.append(kz[acq_id])
-                kz_nan_mask = np.logical_or(kz_nan_mask, np.isnan(kz[acq_id]))
-
-            del off_nadir_angle_master_filtered_rad
-            ### creating mask for KZ:
-            # this will be integrated after geocoding with
-            # a second mask keeping into account estimation valid values and
-            # a third map which is the forest non forest mask
-            delta_kz = np.maximum.reduce(kz_list_temp) - np.minimum.reduce(kz_list_temp)
-            condition_curr = np.logical_and(
-                delta_kz > proc_conf.FH.kz_thresholds[0], delta_kz < proc_conf.FH.kz_thresholds[1]
-            )
-            kz_mask = np.where(condition_curr, True, False)
-            kz_mask[kz_nan_mask] = False
-
-            del kz_list_temp, kz_nan_mask
-
             # covariance estimation window size, it may be modified by an internal flag in case of air-plane geometry
-            cov_est_window_size = proc_conf.FH.product_resolution
+            cov_est_window_size = proc_conf.TOMO_FH.product_resolution
 
             if proc_conf.multilook_heading_correction:
                 _, heading_deg, _, _, _, _ = decode_unique_acquisition_id_string(
@@ -437,70 +397,43 @@ class StackBasedProcessingFH(Task):
             )
 
             ### height estimation
-            logging.info('FH: ' + unique_stack_id + ': performing heigth estimation...')
+            logging.info('TOMO FH: ' + unique_stack_id + ': performing heigth estimation...')
             try:
 
-                if proc_conf.FH.spectral_shift_filtering:
-
-                    (
-                        estimated_height,
-                        extinctionmap,
-                        ratiomap,
-                        gammaT1map,
-                        gammaT2map,
-                        gammaT3map,
-                        kz,
-                        rg_vec_subs,
-                        az_vec_subs,
-                        subs_F_r,
-                        subs_F_a,
-                        MBMP_correlation,
-                    ) = estimate_height(
-                        beta0_calibrated,
-                        cov_est_window_size,
-                        raster_info.pixel_spacing_slant_rg,
-                        raster_info.pixel_spacing_az,
-                        look_angle_rad,
-                        kz,
-                        proc_conf.FH,
-                        R,
-                        off_nadir_angle_rad,
-                        slope,
-                    )
-                else:
-                    (
-                        estimated_height,
-                        extinctionmap,
-                        ratiomap,
-                        gammaT1map,
-                        gammaT2map,
-                        gammaT3map,
-                        kz,
-                        rg_vec_subs,
-                        az_vec_subs,
-                        subs_F_r,
-                        subs_F_a,
-                        MBMP_correlation,
-                    ) = estimate_height(
-                        beta0_calibrated,
-                        cov_est_window_size,
-                        raster_info.pixel_spacing_slant_rg,
-                        raster_info.pixel_spacing_az,
-                        look_angle_rad,
-                        kz,
-                        proc_conf.FH,
-                    )
-
-                estimated_height = estimated_height / np.cos(
-                    slope_filtered[rg_vec_subs, :][:, az_vec_subs]
+                vertical_vector = np.arange(
+                    proc_conf.vertical_range.minimum_height,
+                    proc_conf.vertical_range.maximum_height + proc_conf.vertical_range.sampling,
+                    proc_conf.vertical_range.sampling,
                 )
-                logging.info('...done.\n')
+
+                (
+                    estimated_height,
+                    power_peak,
+                    rg_vec_subs,
+                    az_vec_subs,
+                    subs_F_r,
+                    subs_F_a,
+                ) = BiomassForestHeightSKPD(
+                    beta0_calibrated,
+                    cov_est_window_size,
+                    raster_info.pixel_spacing_slant_rg,
+                    raster_info.pixel_spacing_az,
+                    look_angle_rad,
+                    kz,
+                    vertical_vector,
+                    proc_conf.TOMO_FH,
+                )
+
+                estimated_height = estimated_height * (
+                    1
+                    - np.tan(slope[rg_vec_subs, :][:, az_vec_subs])
+                    / np.tan(off_nadir_angle_rad[master_id][rg_vec_subs, :][:, az_vec_subs])
+                )
 
             except Exception as e:
                 logging.error('FH: error during height estimation: ' + str(e), exc_info=True)
                 raise
-
-            del beta0_calibrated, slope, slope_filtered, off_nadir_angle_rad
+            del beta0_calibrated
 
             ### Placemark for the quality estimation to be defined
             try:
@@ -550,15 +483,6 @@ class StackBasedProcessingFH(Task):
                 )
                 logging.info('...done.\n')
 
-                # geocode the KZ mask
-                logging.info(unique_stack_id + ': Geocoding kz mask...')
-                kz_mask_subs = kz_mask[rg_vec_subs, :][:, az_vec_subs]
-                kz_mask_ground = geocoding(
-                    kz_mask_subs, lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask
-                )
-                # round the mask to quantize it because it is boolean: NOTE, do not cast to bool  otherwise the NaN will become True!
-                kz_mask_ground = np.round(kz_mask_ground)
-
                 # geocode the FH quality layer
                 logging.info(unique_stack_id + ': geocoding the estimated height quality layer...')
                 quality_layer_ground = geocoding(
@@ -571,53 +495,33 @@ class StackBasedProcessingFH(Task):
                 )
                 logging.info('...done.\n')
 
-                del kz_mask, kz_mask_subs
-                logging.info('...done.\n')
-
             except Exception as e:
-                logging.error('FH: error during geocoding: ' + str(e), exc_info=True)
+                logging.error('TOMO FH: error during geocoding: ' + str(e), exc_info=True)
                 raise
 
             ### saving breakpoints
             if proc_conf.save_breakpoints:
                 logging.info(
-                    'FH: saving breakpoints (in slant range geometry) on '
+                    'TOMO FH: saving mail results (in slant range geometry) on '
                     + breakpoints_output_folder
                 )
                 post_string = '_SR_' + unique_stack_id
 
-                breakpoint_names = [
-                    'estimated_height' + post_string,
-                    'extinctionmap' + post_string,
-                    'ratiomap' + post_string,
-                    'gammaT1' + post_string,
-                    'gammaT2' + post_string,
-                    'gammaT3' + post_string,
-                ]
+                breakpoint_names = ['estimated_height' + post_string]
 
-                save_breakpoints(
-                    breakpoints_output_folder,
-                    breakpoint_names,
-                    [estimated_height, extinctionmap, ratiomap, gammaT1map, gammaT2map, gammaT3map],
-                )
+                save_breakpoints(breakpoints_output_folder, breakpoint_names, [estimated_height])
                 logging.info('...done.\n')
-            del estimated_height, kz
+            del estimated_height
 
             ### creating mask to exclude estimation not valid values:
             condition_curr = np.logical_and(
-                data_ground > proc_conf.FH.model_parameters.estimation_valid_values_limits[0],
-                data_ground < proc_conf.FH.model_parameters.estimation_valid_values_limits[1],
+                data_ground > proc_conf.TOMO_FH.estimation_valid_values_limits[0],
+                data_ground < proc_conf.TOMO_FH.estimation_valid_values_limits[1],
             )
             estimation_mask_ground = np.where(condition_curr, True, False)
             estimation_mask_ground[np.isnan(data_ground)] = False
-
-            ### logical AND with kz and estimation masks: before merging also the FNF mask will be added
             # also casted to float, for incapsulation in a geotiff
-            kz_and_valid_values_mask_ground = np.logical_and(kz_mask_ground, estimation_mask_ground)
-            kz_and_valid_values_mask_ground.astype(float)
-            kz_and_valid_values_mask_ground = np.round(kz_and_valid_values_mask_ground)
-
-            del kz_mask_ground, estimation_mask_ground
+            estimation_mask_ground.astype(float)
 
             ### create GEOTIFF of all the layers (estimation, mask ):
             logging.info(unique_stack_id + ': formatting data to GEOTIFF...')
@@ -626,10 +530,9 @@ class StackBasedProcessingFH(Task):
                 data_ground_fname = os.path.join(
                     temp_output_folder_gr, 'FH_' + unique_stack_id + '.tif'
                 )
-                kz_and_valid_values_mask_ground_fname = os.path.join(
+                valid_values_mask_ground_fname = os.path.join(
                     temp_output_folder_gr, 'mask_' + unique_stack_id + '.tif'
                 )
-                #           fnf_mask_ground_fname                 = os.path.join( temp_output_folder, 'fnf_mask_ground_'                 +unique_stack_id)
 
                 upper_left_easting_coord = lon_regular_vector[0]  # i.e. horizontal
                 sampling_step_east_west = used_lon_step
@@ -655,8 +558,8 @@ class StackBasedProcessingFH(Task):
 
                 # forest height temporary mask geotiff formatting (this mask should be merged with the fnf mask, generated after )
                 tiff_formatter(
-                    kz_and_valid_values_mask_ground,
-                    kz_and_valid_values_mask_ground_fname,
+                    estimation_mask_ground,
+                    valid_values_mask_ground_fname,
                     geotransform,
                     gdal_data_format=gdal.GDT_Float32,
                 )
@@ -664,24 +567,15 @@ class StackBasedProcessingFH(Task):
                 logging.info('...done.\n')
 
             except Exception as e:
-                logging.error('FH: error during GEOTIFF formatting: ' + str(e), exc_info=True)
+                logging.error('TOMO FH: error during GEOTIFF formatting: ' + str(e), exc_info=True)
                 raise
 
             ### formatting data to EQUI7
             logging.info(unique_stack_id + ': formatting into EQUI7 grid...')
             try:
 
-                equi7_sampling = choose_equi7_sampling(
-                    proc_conf.FH.product_resolution, proc_inputs.geographic_grid_sampling
-                )
-                e7g = Equi7Grid(equi7_sampling)
-                logging.info('    EQUI7 Grid sampling used: {}'.format(equi7_sampling))
-
-                equi7_data_outdir = os.path.join(
-                    temp_output_folder_e7,
-                    'data',
-                )
-                equi7_temp_mask_outdir = os.path.join(temp_output_folder_e7, 'mask')
+                equi7_data_outdir = os.path.join(temp_output_folder_e7, 'data')
+                equi7_mask_outdir = os.path.join(temp_output_folder_e7, 'mask')
 
                 # in general from here the Equi7 can output multiple tiles, which file names are stored in the output list ( wrapped here in a dict for the stack )
                 data_equi7_fnames[unique_stack_id] = image2equi7grid(
@@ -695,10 +589,10 @@ class StackBasedProcessingFH(Task):
                     resampling_type='bilinear',
                     tile_nodata=np.nan,
                 )
-                validity_mask_equi7_fnames = image2equi7grid(
+                mask_equi7_fnames[unique_stack_id] = image2equi7grid(
                     e7g,
-                    kz_and_valid_values_mask_ground_fname,
-                    equi7_temp_mask_outdir,
+                    valid_values_mask_ground_fname,
+                    equi7_mask_outdir,
                     gdal_path=self.gdal_path,
                     inband=None,
                     subgrid_ids=None,
@@ -708,7 +602,7 @@ class StackBasedProcessingFH(Task):
                 )
 
             except Exception as e:
-                logging.error('FH: error during EQUI7 formatting: ' + str(e), exc_info=True)
+                logging.error('TOMO FH: error during EQUI7 formatting: ' + str(e), exc_info=True)
                 raise
 
             if not os.path.exists(data_equi7_fnames[unique_stack_id][0]):
@@ -717,53 +611,6 @@ class StackBasedProcessingFH(Task):
                 raise
 
             logging.info('...done.\n')
-
-            if stack_idx == 0:
-                ### prepare the forest non forest mask
-                # it is loaded if equi7, or converted to equi7 if TANDEM-X
-                # it is a list containing all the loaded FNF-FTILES
-                fnf_format = check_fnf_folder_format(proc_inputs.forest_mask_catalogue_folder)
-                if fnf_format == 'TANDEM-X':
-                    logging.info(
-                        'Initial Forest mask is in TANDEM-X format, converting to equi7...'
-                    )
-
-                    # conversion step 1: get the tiff names of current zone
-                    equi7_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format(
-                        proc_inputs.forest_mask_catalogue_folder,
-                        e7g,
-                        proc_conf.FH.product_resolution,
-                        temp_output_folder,
-                        self.gdal_path,
-                        self.geographic_boundaries,
-                        time_tag_mjd_initial,
-                    )
-
-                elif fnf_format == 'EQUI7':
-                    logging.info('Initial Forest mask reading and formatting...')
-
-                    # re format the input mask in equi7 with the output resolution:
-                    equi7_fnf_mask_fnames = fnf_equi7_load_filter_equi7format(
-                        proc_inputs.forest_mask_catalogue_folder,
-                        e7g,
-                        proc_conf.FH.product_resolution,
-                        temp_output_folder,
-                        self.gdal_path,
-                    )
-
-            # check the equi7_fnf_mask_fnames
-            check_equi7_mask_coverage(data_equi7_fnames[unique_stack_id], equi7_fnf_mask_fnames)
-
-            # logical AND of each equi7 temp mask with each equi7 fnf mask
-            mask_equi7_fnames[unique_stack_id] = fnf_and_validity_masks_merging(
-                equi7_fnf_mask_fnames,
-                validity_mask_equi7_fnames,
-                temp_output_folder,
-                unique_stack_id,
-            )
-
-            logging.info('...done.\n')
-
         ######################## STACK BASED STEPS END. ###########################
         return (
             data_equi7_fnames,
@@ -771,7 +618,7 @@ class StackBasedProcessingFH(Task):
         )
 
 
-class CoreProcessingFH(Task):
+class CoreProcessingTOMOFH(Task):
     def __init__(
         self,
         configuration_file_xml,
@@ -779,28 +626,24 @@ class CoreProcessingFH(Task):
         data_equi7_fnames,
         mask_equi7_fnames,
     ):
-
         super().__init__(configuration_file_xml)
         self.stacks_to_merge_dict = stacks_to_merge_dict
         self.data_equi7_fnames = data_equi7_fnames
         self.mask_equi7_fnames = mask_equi7_fnames
 
     def _run(self, input_file_xml):
+        ######################## NOT STACK BASED STEPS ############################
 
-        # FH: Reading chains configuration files
-        logging.info('FH: Reading chains configuration files')
+        ### managing output folders:
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
         proc_inputs = parse_chains_input_file(input_file_xml)
-
-        # managing folders
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
         temp_output_folder = os.path.join(products_folder, 'temporary_processing')
 
-        ######################## NOT STACK BASED STEPS ############################
         try:
 
-            logging.info('FH: merging ascending with descending stacks....\n')
+            logging.info('TOMO FH: merging ascending with descending stacks....\n')
 
             merged_data_fnames, merging_folder = heigths_masking_and_merging(
                 self.data_equi7_fnames, self.mask_equi7_fnames, self.stacks_to_merge_dict
@@ -814,7 +657,7 @@ class CoreProcessingFH(Task):
 
         try:
 
-            logging.info('FH: mosaiking equi7 tiles....\n')
+            logging.info('TOMO FH: mosaiking equi7 tiles....\n')
 
             output_folder = os.path.join(products_folder, 'global_FH')
 
@@ -827,9 +670,6 @@ class CoreProcessingFH(Task):
             raise
 
         if proc_conf.delete_temporary_files:
-            try:
-                shutil.rmtree(temp_output_folder)
-            except:
-                pass
+            shutil.rmtree(temp_output_folder)
 
-        logging.info('FH: Forest Height estimation ended correctly.\n')
+        logging.info('TOMO FH: Forest Height estimation ended correctly.\n')
