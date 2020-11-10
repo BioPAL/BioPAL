@@ -32,7 +32,7 @@ try:
 except:
     pass
 try:
-    from biopal.tomo_fh.main_TOMO_FH import main_TOMO_FH
+    from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
 except:
     pass
 try:
@@ -154,6 +154,17 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
 
         fh_obj.run(FH_input_file_xml)
 
+    # TOMO FH
+    if main_input_struct.proc_flags.TOMO_FH:
+
+        tomo_fh_obj = TomoForestHeight(
+            os.path.join(default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml'),
+            stacks_to_merge_dict,
+            gdal_path,
+        )
+
+        tomo_fh_obj.run(TOMO_FH_input_file_xml)
+
     # FD
     try:
         if main_input_struct.proc_flags.FD:
@@ -164,25 +175,6 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
 
     except Exception as e:
         logging.error('biopal main: FD chain not implemented in this BioPAL version')
-        raise
-
-    # TOMO FH
-    try:
-        if main_input_struct.proc_flags.TOMO_FH:
-
-            configuration_file_xml = os.path.join(
-                default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml'
-            )
-            main_TOMO_FH(
-                TOMO_FH_input_file_xml,
-                configuration_file_xml,
-                stacks_to_merge_dict,
-                geographic_boundaries,
-                gdal_path,
-            )
-
-    except Exception as e:
-        logging.error('biopal main: TOMO FH chain not implemented in this BioPAL version')
         raise
 
     # TOMO
