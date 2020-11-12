@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <BIOMASSL2>
-	<L1cRepository>C:\Users\macie\Documents\BioPAL-1\new_data\demo_lope_two\dataSet/</L1cRepository>
+	<L1cRepository>C:\Users\macie\Documents\BioPAL-1\new_data\demo_lope_two\dataSet</L1cRepository>
 	<L2Product>
 		<AGB>true</AGB>
 		<FH>false</FH>
