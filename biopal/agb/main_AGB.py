@@ -80,6 +80,7 @@ from biopal.agb.estimating_AGB import (
     swap_names_and_merge_formula,
     regularise_indices,
     match_string_lists,
+    read_tables,
 )
 
 class AboveGroundBiomass(Task):
@@ -933,8 +934,8 @@ class AGBCoreProcessing(Task):
             pixel_size_north,
             sample_spacing_east,
             sample_spacing_north,
-            _,
-            _,
+            sample_size_east,
+            sample_size_north,
             block_spacing_east,
             block_spacing_north,
             block_size_east,
@@ -987,8 +988,28 @@ class AGBCoreProcessing(Task):
         # here, we hardcode this thing before the xml file and "initialize_inversion_parameters" are updated
         # first, the names of the observables in formula are included (plus a few extras, which may be needed later, like other agb-related parametrs in db)
         observable_names = ['neg_sigma0_hh_db','neg_sigma0_hv_db','neg_sigma0_vv_db','cos_local_db','agb_1_db','agb_2_db','agb_3_db','agb_4_db']
-        # then, the observable sources are selected (this is intimately bound to the available in data, so it is based on the stack-based processing output and calibration data availability)
-        observable_sources = ['sigma0_hh','sigma0_vh','sigma0_vv','theta','agb_1','agb_2','agb_3','agb_4']
+        # flags whether the observable comes from SAR and should be interpreted with stack_info_table or should be replicated across stacks
+        observable_is_stacked = [True,True,True,True,False,False,False,False]
+        # flag indicating whether the current parameter is required for the sample to be included
+        observable_is_required = [True,True,True,True,False,False,False,False]
+        # the following contains a list with sources of observable data
+        # each list element may contain either:
+        #  1) a list of paths to folders with all tiles (one list element for each stack)
+        #  2) list of paths to tif files with data (one list element for each image to be read)
+        # In the following, we show how this
+        observable_source_paths = []
+        equi7_grid_name = 'EQUI7_AF050M'
+        for observable_idx,observable_source in enumerate(['sigma0_hh','sigma0_vh','sigma0_vv','theta']):
+            current_list = []
+            for current_path in self.lut_stacks_paths:
+                current_list.append(os.path.join(current_path,observable_source,equi7_grid_name))
+            observable_source_paths.append(current_list)
+        observable_source_paths = observable_source_paths + 4*[self.lut_cal_paths]
+        ## note: for now, it is assumed that stacked observables have paths provided as list of directiries for Equi7 tiles,
+        # whiel non-stacked observables have paths provided as list of geotiff file paths (to accommodate the current layout)
+        
+        # which band in the tiff file to read (1 = first band)
+        observable_source_bands = [1,1,1,1,1,2,3,4]
         # permissible intervals for sources
         observable_ranges = [[1e-8,20],[1e-8,20],[1e-8,20],[20*np.pi/180,60*np.pi/180],[1,700],[0,10],[0,10],[0,10]]
         # then, the applied transforms are selected (see transform_function() above)
@@ -1029,10 +1050,7 @@ class AGBCoreProcessing(Task):
         parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
         parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
         parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        # derived quantities
-        number_of_observables = len(observable_names)
-        number_of_parameters = len(parameter_names)
-        ###################### END OF PREPARING INPUT 
+       ###################### END OF PREPARING INPUT 
         
         
             
@@ -1072,8 +1090,6 @@ class AGBCoreProcessing(Task):
         # read acquisition info table
         stack_info_table = self.lut_progressive_stacks
         stack_info_table_columns = ['stack_id','global_cycle_id','heading_degrees','swath_id','subswath_id','azimuth_id']
-        stack_id_vector = stack_info_table[:,0]
-        number_of_stacks = len(stack_id_vector)
         
         
         # Compute the starting block and the nblock processing order
@@ -1141,10 +1157,7 @@ class AGBCoreProcessing(Task):
             # pixel axes for current block
             pixel_axis_east = np.arange(current_block_extents[0], current_block_extents[1], pixel_size_east)
             pixel_axis_north = np.arange(current_block_extents[2], current_block_extents[3], pixel_size_north)
-            pixel_mesh_east, pixel_mesh_north = np.meshgrid( pixel_axis_east, 
-                                                            pixel_axis_north)
-            number_of_pixels = len(pixel_mesh_east.flatten())
-
+            
             
             ## THE FOLLOWING PART IS TABULATING
             # could be moved to a separate function
@@ -1153,7 +1166,7 @@ class AGBCoreProcessing(Task):
                 
 
                 # cycle through stacks and check that there are some data within current block
-                block_has_data = np.zeros(number_of_stacks, dtype='bool')
+                block_has_data = np.zeros(len(stack_info_table[:,0]), dtype='bool')
                 for stack_idx, stack_path in enumerate(self.lut_stacks_paths):
 
                     # go ahead only if current parameter block is at least partially contained in the data stack:
@@ -1220,291 +1233,109 @@ class AGBCoreProcessing(Task):
                     else:
                         break
                 # %%    
-                    
-                    
-                # defining names for identifiers (sampleID & forest class ID and then all columns from stack info table)
-                identifier_names = ['sample_id','forest_class_id'] + stack_info_table_columns
-                number_of_identifiers = len(identifier_names)
-                identifier_table = np.nan * np.zeros (( 
-                    number_of_samples * number_of_stacks,
-                    number_of_identifiers
-                    ))
-                
-                
-                    
-                # filling out the first column with sample IDs
-                identifier_table[:,0] = np.kron(np.arange(number_of_samples),np.ones(number_of_stacks))
-                
-                # filling out columns 3-8 with stack IDs and corresponding other identifications from stack_info_table
-                identifier_table[:,2] = np.kron(np.ones(number_of_samples),stack_id_vector)
-                for id_idx in range(5):
-                    identifier_table[:,3+id_idx] = sp.interpolate.interp1d(stack_id_vector,stack_info_table[:,1+id_idx],kind='nearest')(identifier_table[:,2])
-                
-                
-                ### READING AND SAMPLING FOREST CLASS DATA
-                logging.info('reading & sampling forest class data')
-                # get equi7 information
-                equi7_grid_name = os.listdir(os.path.join(self.lut_stacks_paths[0], 'sigma0_hh'))[0]
-                # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
-                # loaded masks needs to be re-interpolated over the pixels grid (pixel_axis_east, pixel_axis_north)
-                forest_class_map_interp = np.zeros(
-                    (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
-                )
-
-                counter_forest_class_maps = 0
-                for forest_class_map_idx, forest_class_map_path in enumerate(self.lut_fnf_paths):
-
-                    forest_class_map_boundaries = self.lut_fnf[forest_class_map_idx]
-
-                    forest_class_map_is_inside = check_intersection(
-                        forest_class_map_boundaries[0],
-                        forest_class_map_boundaries[1],
-                        forest_class_map_boundaries[2],
-                        forest_class_map_boundaries[3],
-                        current_block_extents[0],
-                        current_block_extents[1],
-                        current_block_extents[3],
-                        current_block_extents[2],
-                    )
-                    if forest_class_map_is_inside:
-
-                        forest_class_map_interp_curr = np.round(
-                            interp2d_wrapper(
-                                forest_class_map_path, 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
-                            )
-                        )
-
-                        # mean all the fnf tiles
-                        forest_class_map_interp = np.ceil(
-                            merge_agb_intermediate(
-                                forest_class_map_interp, forest_class_map_interp_curr, method='nan_mean'
-                            )
-                        )
-                        
-                        # set all unrealistic values to 0 = non-forest
-                        forest_class_map_interp[(forest_class_map_interp <= 0) | np.isnan(forest_class_map_interp)] = 0
-                        
-                        counter_forest_class_maps = counter_forest_class_maps + 1
-
-                if counter_forest_class_maps == 0:
-
-                    err_str = 'Cannot find any forest class map falling in current block coordinates.'
-                    logging.error(err_str)
-                    raise ImportError(err_str)
-                
-                # sampling forest class map
-                temp_forest_class_vector = np.int32(np.round(stats_on_all_samples(
-                    forest_class_map_interp,
-                    pixel_mesh_east,
-                    pixel_mesh_north,
-                    sampling_axis_east,
-                    sample_spacing_east,
-                    sampling_axis_north,
-                    sample_spacing_north,
-                    additional_sampling_polygons,
-                    'mode',
-                )))
-                # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
-                identifier_table[:,1] = np.kron(temp_forest_class_vector,np.ones(number_of_stacks))
-                
-                
-                
-                
-                
-                
-                ### READING OBSERVABLE DATA
-                # allocate observable table
-                observable_table = np.nan * np.zeros((
-                    number_of_samples * number_of_stacks,
-                    number_of_observables))
-                # the following assumes a certain format on the radar observables (which consist of multiple stacks)
-                # and on agb (which is assumed to be the same for all stacks)
-                # in case we want to work with multiple agb measurements over time (e.g., agb change), then the following needs to be modified
-                observable_types = np.nan * np.zeros(number_of_observables)
-                # cycle over stacks
-                for stack_idx, stack_path in enumerate(self.lut_stacks_paths):
-
-                    # go ahead only if current stack is (at least partially) contained in the current parameter block:
-                    if block_has_data[stack_idx]:
-
-                        # cycle through observables sources in the stack
-                        for source_idx,source_name in enumerate(observable_sources):
-                            
-                            # only do the following for the radar observables (i.e. not an agb observable)
-                            if not (source_name.split('_')[0]=='agb'):
-                                
-                                observable_types[source_idx] = 0
-                                
-                                source_eq7_parent_dir_name = os.path.join(
-                                    stack_path, source_name, equi7_grid_name
+                (
+                    observable_table,
+                    observable_names,
+                    identifier_table,
+                    identifier_names,
+                    parameter_position_table,
+                    parameter_position_names,
+                    parameter_tables,
+                    parameter_table_columns,
+                    ) = read_tables(
+                        current_block_extents, # extent of the current area for which the table is created
+                        pixel_axis_east, # east north axes onto which data are interpolated
+                        pixel_axis_north,
+                        sampling_axis_east,
+                        sampling_axis_north,
+                        sample_size_east, # east north extents of the samples
+                        sample_size_north,
+                        additional_sampling_polygons, # additional arbitrarily shaped polygons
+                        block_has_data, # flags whether each stack is in current block
+                        stack_info_table, # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
+                        stack_info_table_columns, # column names for the abovementioned table
+                        self.lut_fnf,#lut_forest_class, # self.lut_fnf
+                        self.lut_fnf_paths,#lut_forest_class_paths, # self.lut_fnf_paths
+                        observable_names, # observable names in formula
+                        observable_is_stacked, # flags whether the observable comes from SAR and should be interpreted with stack_info_table or should be replicated across stacks
+                        observable_is_required,
+                        observable_source_paths, # paths to equi7 tiles or files to read for each observable
+                        observable_source_bands, # which band in the tiff file to read (1 = first band)
+                        observable_transforms, # transform function to apply to observable
+                        observable_averaging_methods, # averaging method (most commonly 'mean', but could be other if required (e.g., for slope aspect angle))
+                        observable_ranges, # permitted ranges, outside those the observable is set to nan
+                        parameter_names, # parameter names in formula
+                        parameter_limits, # permissible parameter intervals
+                        parameter_variabilities, # parameter variabilities across all dimensions
+                        number_of_subsets, # number of subsets to use (used to allocate columns in parameter tables)
                                 )
-                                equi7_tiles_names = os.listdir(source_eq7_parent_dir_name)
-    
-                                # cycle over all the equi7 tiles, interpolate over pixel grid and average
-                                source_data_interp = np.NaN * np.zeros(
-                                    (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
-                                )
-                                for equi7_tile_name in equi7_tiles_names:
-    
-                                    source_tiff_name = os.path.join(
-                                        source_eq7_parent_dir_name,
-                                        equi7_tile_name,
-                                        source_name 
-                                        + '_'
-                                        + os.path.basename(stack_path)
-                                        + '_'
-                                        + equi7_grid_name[6:]
-                                        + '_'
-                                        + equi7_tile_name
-                                        + '.tif',
-                                    )
-    
-                                    source_data_interp_curr = interp2d_wrapper(
-                                        source_tiff_name,
-                                        1,
-                                        pixel_axis_east,
-                                        pixel_axis_north,
-                                        fill_value=np.NaN,
-                                    )
-    
-                                    source_data_interp = merge_agb_intermediate(
-                                        source_data_interp, source_data_interp_curr, method='nan_mean'
-                                    )
-    
-                                # masking the stack:
-                                source_data_interp[forest_class_map_interp == 0] = np.NaN
-        
-                                logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', stack {}, and averaging method '{}' (mean value: {})".format(
-                                    source_name,
-                                    observable_names[source_idx],
-                                    observable_transforms[source_idx],
-                                    stack_id_vector[stack_idx],
-                                    observable_averaging_methods[source_idx],
-                                    np.nanmean(source_data_interp)))
-                                
-                                # calculate sample statistics
-                                temp_transformed_sampled_data = transform_function(
-                                    stats_on_all_samples(
-                                        source_data_interp,
-                                        pixel_mesh_east,
-                                        pixel_mesh_north,
-                                        sampling_axis_east,
-                                        sample_spacing_east,
-                                        sampling_axis_north,
-                                        sample_spacing_north,
-                                        additional_sampling_polygons, 
-                                        observable_averaging_methods[source_idx],
-                                        ),
-                                    observable_ranges[source_idx],
-                                    observable_transforms[source_idx])
-                                # find rows where the stack id matches the current stack id
-                                current_rows = (identifier_table[:,2]==stack_id_vector[stack_idx])
-                                # fill out the table
-                                observable_table[current_rows,
-                                                      source_idx] = temp_transformed_sampled_data
-                # go through observable sources again
-                for source_idx,source_name in enumerate(observable_sources):
+                    #     :
+                    # stack_info_table,
+                    # stack_info_table_columns,
+                    # number_of_subsets,
+                    # block_has_data,
+                    # self.lut_stacks_paths, # self.lut_stacks_pathsself.lut_stacks_paths
+                    # self.lut_fnf_paths, # self.lut_fnf_paths
+                    # self.lut_fnf, # self.lut_fnf
+                    # pixel_axis_east,
+                    # pixel_axis_north,
+                    # sampling_axis_east,
+                    # sampling_axis_north,
+                    # sample_size_east,
+                    # sample_size_north,
+                    # current_block_extents,
+                    # block_has_cal,
+                    # self.lut_cal_paths,#self.lut_cal_paths
+                    # additional_sampling_polygons,
+                    # observable_names,
+                    # observable_sources,
+                    # observable_ranges,
+                    # observable_transforms,
+                    # observable_averaging_methods,
+                    # parameter_names,
+                    # parameter_limits,
+                    # parameter_variabilities,
+                    # )
                     
-                    # do the following only for agb-type observables
-                    if source_name.split('_')[0]=='agb':
-                        
-                        observable_types[source_idx] = 1
-                        
-                        agb_data_interp = np.nan * np.zeros(
-                            (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
-                        )
-                        
-                        agb_source_band = int(source_name.split('_')[1])
                     
-                        for cal_idx, cal_path in enumerate(self.lut_cal_paths):
-                            if block_has_cal[cal_idx]:
-                                # counter_cal = counter_cal + 1
-                                # logging.info('reading cal raster from path {}'.format(cal_path))
-                            
-                                agb_data_interp_curr = interp2d_wrapper(
-                                    cal_path, agb_source_band, pixel_axis_east, pixel_axis_north, fill_value=np.NaN
-                                )
-                                # mean all the equi7 tiles
-                                agb_data_interp = merge_agb_intermediate(
-                                    agb_data_interp, agb_data_interp_curr, method='nan_mean'
-                                )
-                        logging.info("sampling and transforming source '{}' to observable '{}' using transform '{}', and averaging method '{}' (mean value: {})".format(
-                                    source_name,
-                                    observable_names[source_idx],
-                                    observable_transforms[source_idx],
-                                    observable_averaging_methods[source_idx],
-                                    np.nanmean(agb_data_interp)))
-                        # statistics over samples
-                        temp_transformed_sampled_data = transform_function(
-                            stats_on_all_samples(
-                                agb_data_interp,
-                                pixel_mesh_east,
-                                pixel_mesh_north,
-                                sampling_axis_east,
-                                sample_spacing_east,
-                                sampling_axis_north,
-                                sample_spacing_north,
-                                additional_sampling_polygons,
-                                method='nan_mean',
-                            ),
-                            observable_ranges[source_idx],
-                            observable_transforms[source_idx])
-                        # fill out the table
-                        observable_table[:,source_idx] = np.kron(temp_transformed_sampled_data,np.ones(number_of_stacks))
-                        
+                parameter_property_names = parameter_table_columns[0][-number_of_subsets-4:]
                     
-                # for simpler management, create vectors indicating columns with identifiers, observables, and parameter positions, etc
-                columns_with_sar_observables = np.where(observable_types==0)[0]
-                columns_with_agb_observables = np.where(observable_types==1)[0]
+                line_number_string = ['row']
+
+                ### SAVING OBSERVABLE AND PARAMETER TABLES
+                # select formatting for the output tables
+                curr_delimiter = '\t'
+                curr_precision = 3
+                curr_column_width = 20
+                all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
+                all_data_types = ['d','d','d','f','f','f']
                 
-                # mark rows in observable data table that have negative identifiers, nan-valued sar observables, infinite sar observables, or negative agb values
-                invalid_rows = np.any(identifier_table<0,axis=1) | \
-                    np.any(np.isnan(observable_table[:,columns_with_sar_observables]),axis=1) | \
-                    np.any(~np.isfinite(observable_table[:,columns_with_sar_observables]),axis=1) | \
-                        np.any(observable_table[:,columns_with_agb_observables]<0,axis=1)
-                # exclude invalid rows
-                observable_table = observable_table[~invalid_rows,:]
-                identifier_table = identifier_table[~invalid_rows,:]
-                # number of rows in data table
-                number_of_rows_in_observable_table = observable_table.shape[0]
-                        
-                        
-                ### PREPARING PARAMETER TABLES
-                parameter_property_names = ['lower_limit','upper_limit','initial_value']+['estimate_%d' % (ii) for ii in np.arange(number_of_subsets)+1]
-                parameter_position_names = ['row_'+parameter_name for parameter_name in parameter_names]
-                parameter_tables = []
-                parameter_table_columns = []
-                parameter_position_table = np.nan * np.zeros((
-                    number_of_rows_in_observable_table,number_of_parameters))
-                # creating parameter matrices
-                for parameter_idx,parameter_variability in enumerate(parameter_variabilities):
-                    # take out only the relevant identifiers (the ones that change as per parameter variability)
-                    # and create column names by adding four additional columns: min, max and initial value, and estimated value (later set to NaN)
-                    parameter_table_columns.append(np.concatenate((np.array(identifier_names)[parameter_variability],
-                                                                   np.array(parameter_property_names))))
-                    # create the minimal ID table (without unnecessary columns for those dimension across which the parameter doesn't change)
-                    temp_ids_table = identifier_table[:,np.where(parameter_variability)[0]]
-                    # create the last four columns
-                    temp_minmax_table = np.array([parameter_limits[parameter_idx]]) * np.ones((number_of_rows_in_observable_table,1))
-                    temp_initial_table = np.mean(temp_minmax_table,axis=1)
-                    temp_estimated_table = np.kron(np.ones((1,number_of_subsets)),np.array([np.mean(temp_minmax_table,axis=1)]).transpose())
-                    # create the full table
-                    # note: this table has initially the same shape as the observable table
-                    temp_full_table = np.column_stack((
-                            temp_ids_table,
-                            temp_minmax_table,
-                            temp_initial_table,
-                            temp_estimated_table))
-                    # take out unique rows and the inverse vector recreating the rows of the observable table
-                    # the inverse vector is critical as it relates the positions in the observable table to positions in each parameter table
-                    temp_full_table,temp_position_in_observable_table = np.unique(temp_full_table,axis=0,return_inverse=True)
-                    # set the last colum of the full table to nan (estimated value unavailable now)
-                    temp_full_table[:,-number_of_subsets:] = np.nan
-                    # append the table
-                    parameter_tables.append(temp_full_table)
-                    # include the inverse vector in the observable data table at the correct position
-                    parameter_position_table[:,parameter_idx] = temp_position_in_observable_table
                 
+                # curr_format,curr_header = get_fmt_and_header(line_number_string + identifier_names + observable_names + parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                # np.savetxt(os.path.join(
+                #         temp_agb_folder,
+                #         'observable_table_block_{}.txt'.format(current_block_index)),
+                #     np.column_stack((np.arange(number_of_rows_in_observable_table),identifier_table,observable_table,parameter_position_table)),
+                #     fmt=curr_format,
+                #     delimiter=curr_delimiter,
+                #     header=curr_header,
+                #     comments='')
+                
+                    
+                    
+                curr_format,curr_header = get_fmt_and_header(
+                    line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                np.savetxt(os.path.join(
+                        temp_agb_folder,
+                        'observable_table_block_{}.txt'.format(current_block_index)),
+                    np.column_stack((np.arange(observable_table.shape[0]),
+                                     identifier_table,
+                                     observable_table,
+                                     parameter_position_table)),
+                    fmt=curr_format,
+                    delimiter=curr_delimiter,
+                    header=curr_header,
+                    comments='')
                 
                         # %%
             except Exception as e:
@@ -1615,39 +1446,7 @@ class AGBCoreProcessing(Task):
                         parameter_tables[np.int32(current_parameter_idx)][np.int32(current_lut_all_parameters[current_rows,2]),-number_of_subsets+subset_idx] = \
                             current_lut_all_parameters[current_rows,-1]
                         
-                      
-                    
-                line_number_string = ['row']
-
-                ### SAVING OBSERVABLE AND PARAMETER TABLES
-                # select formatting for the output tables
-                curr_delimiter = '\t'
-                curr_precision = 3
-                curr_column_width = 20
-                all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
-                all_data_types = ['d','d','d','f','f','f']
-                
-                
-                # curr_format,curr_header = get_fmt_and_header(line_number_string + identifier_names + observable_names + parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                # np.savetxt(os.path.join(
-                #         temp_agb_folder,
-                #         'observable_table_block_{}.txt'.format(current_block_index)),
-                #     np.column_stack((np.arange(number_of_rows_in_observable_table),identifier_table,observable_table,parameter_position_table)),
-                #     fmt=curr_format,
-                #     delimiter=curr_delimiter,
-                #     header=curr_header,
-                #     comments='')
-                
-                for parameter_idx,parameter_name in enumerate(parameter_names):
-                    curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                    np.savetxt(os.path.join(
-                            temp_agb_folder,
-                            'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
-                        np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
-                        fmt=curr_format,
-                        delimiter=curr_delimiter,
-                        header=curr_header,
-                        comments='')
+                 
                     
                     
                 # %% ESTIMATE AGB FOR SUBSETS
@@ -1707,27 +1506,27 @@ class AGBCoreProcessing(Task):
                         
                       
                     
-                line_number_string = ['row']
+                # line_number_string = ['row']
 
-                ### SAVING OBSERVABLE AND PARAMETER TABLES
-                # select formatting for the output tables
-                curr_delimiter = '\t'
-                curr_precision = 3
-                curr_column_width = 20
-                all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
-                all_data_types = ['d','d','d','f','f','f']
+                # ### SAVING OBSERVABLE AND PARAMETER TABLES
+                # # select formatting for the output tables
+                # curr_delimiter = '\t'
+                # curr_precision = 3
+                # curr_column_width = 20
+                # all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
+                # all_data_types = ['d','d','d','f','f','f']
                 
                 
-                for parameter_idx,parameter_name in enumerate(parameter_names):
-                    curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                    np.savetxt(os.path.join(
-                            temp_agb_folder,
-                            'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
-                        np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
-                        fmt=curr_format,
-                        delimiter=curr_delimiter,
-                        header=curr_header,
-                        comments='')
+                # for parameter_idx,parameter_name in enumerate(parameter_names):
+                #     curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                #     np.savetxt(os.path.join(
+                #             temp_agb_folder,
+                #             'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+                #         np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
+                #         fmt=curr_format,
+                #         delimiter=curr_delimiter,
+                #         header=curr_header,
+                #         comments='')
                     
                     # %%
                 
@@ -1780,7 +1579,7 @@ class AGBCoreProcessing(Task):
                 np.savetxt(os.path.join(
                         temp_agb_folder,
                         'results_table_block_{}.txt'.format(current_block_index)),
-                    np.column_stack((np.arange(number_of_rows_in_observable_table),
+                    np.column_stack((np.arange(observable_table.shape[0]),
                                      identifier_table,
                                      observable_table,
                                      current_table_space_invariant_parameters,
@@ -1792,6 +1591,19 @@ class AGBCoreProcessing(Task):
                     comments='')
             
                 
+                # curr_format,curr_header = get_fmt_and_header(
+                #     line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                # np.savetxt(os.path.join(
+                #         temp_agb_folder,
+                #         'observable_table_block_{}.txt'.format(current_block_index)),
+                #     np.column_stack((np.arange(observable_table.shape[0]),
+                #                      identifier_table,
+                #                      observable_table,
+                #                      parameter_position_table)),
+                #     fmt=curr_format,
+                #     delimiter=curr_delimiter,
+                #     header=curr_header,
+                #     comments='')
                 
                 
                 
