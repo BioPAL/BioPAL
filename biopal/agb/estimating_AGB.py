@@ -250,7 +250,7 @@ def parameter_transfer_function(in_vector,p_lower,p_upper,in_vector_is_p=False):
 
 
 # %% reading tables
-def read_tables(
+def sample_and_tabulate_data(
         block_extents, # extent of the current area for which the table is created
         pixel_axis_east, # east north axes onto which data are interpolated
         pixel_axis_north,
@@ -571,3 +571,258 @@ def read_tables(
         parameter_tables,
         parameter_table_columns,
         )
+
+
+# %%
+
+def fit_formula_to_random_subsets(
+        formula,
+        number_of_subsets,
+        observable_table,
+        observable_names,
+        identifier_table,
+        identifier_names,
+        parameter_position_table,
+        parameter_names,
+        parameter_tables,
+        parameter_table_columns,
+        parameter_variabilities,
+        calibration_fraction,
+        estimation_fraction,
+        calibration_areas_per_test,#proc_conf.AGB.min_number_of_cals_per_test
+        estimation_areas_per_test,#proc_conf.AGB.min_number_of_rois_per_test
+        ):
+
+
+    ### CREATE CALIBRATION AND ESTIMATION SUBSETS
+    logging.info("AGB: creating {} subsets".format(number_of_subsets))
+                
+    # select rows with available agb information as calibration data and those without as estimation data
+    calibration_rows = np.where(np.all(~np.isnan(observable_table),axis=1))[0]
+    estimation_rows = np.where(np.any(np.isnan(observable_table),axis=1))[0]
+    calibration_sample_ids = np.unique(identifier_table[calibration_rows,0])
+    estimation_sample_ids = np.unique(identifier_table[estimation_rows,0])
+    
+    # calculate subset sizes
+    # estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids)/100*proc_conf.AGB.fraction_of_roi_per_test))
+    # calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids)/100*proc_conf.AGB.fraction_of_cal_per_test))
+    estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids)*estimation_fraction))
+    calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids)*calibration_fraction))
+    
+    # find random data subsetting vectors making sure that the number of calibration and estimation areas
+    # is the same in all
+    subset_indexing_vectors = []
+    number_of_accepted_subsets = 0
+    while number_of_accepted_subsets < number_of_subsets:
+        # create a random subset of calibration and estimation samples
+        current_random_estimation_subset = np.sort(np.random.permutation(estimation_sample_ids)[:estimation_subset_size])
+        current_random_calibration_subset = np.sort(np.random.permutation(calibration_sample_ids)[:calibration_subset_size])
+        
+        # calculate the minimal number of calibration and estimation samples for the space-invariant parameters
+        # (for the latter, we use the column with parameter positions in parameter tables - the same value indicates the same parameter)
+        current_calibration_rows = np.isin(identifier_table[:,0],current_random_calibration_subset)
+        current_estimation_rows = np.isin(identifier_table[:,0],current_random_estimation_subset)
+        current_parameter_position_columns = np.where(~np.row_stack(parameter_variabilities)[:,0])[0]
+        min_number_of_calibration_measurements_per_space_invariant_parameter = np.inf
+        min_number_of_estimation_measurements_per_space_invariant_parameter = np.inf
+        # loop through columns with parameter positions
+        for column_idx in current_parameter_position_columns:
+            # calculate the minimal number of samples for all parameter values within this column and all different parameters until the current one
+            min_number_of_calibration_measurements_per_space_invariant_parameter\
+                = np.minimum(min_number_of_calibration_measurements_per_space_invariant_parameter,
+                                                np.min(
+                                                    np.unique(
+                                                     parameter_position_table[current_calibration_rows,column_idx],return_counts=True)[1]))
+            min_number_of_estimation_measurements_per_space_invariant_parameter\
+                = np.minimum(min_number_of_estimation_measurements_per_space_invariant_parameter,
+                                                np.min(
+                                                    np.unique(
+                                                     parameter_position_table[current_estimation_rows,column_idx],return_counts=True)[1]))
+        # if the minimal number of samples is larger than the one specified in the xml configuration file, accept this subset
+        # (at the moment, we don't perform other tests, which means that subsets may be repeated)
+        if (min_number_of_calibration_measurements_per_space_invariant_parameter>calibration_areas_per_test) & \
+            (min_number_of_estimation_measurements_per_space_invariant_parameter>estimation_areas_per_test):
+                subset_indexing_vectors.append(np.isin(identifier_table[:,0],np.sort(np.concatenate((current_random_calibration_subset,current_random_estimation_subset)))))
+                number_of_accepted_subsets += 1
+    
+
+    # %%
+    ### ESTIMATE PARAMETERS FOR SUBSETS
+    
+    # find observables and parameters in formula and create
+    # vectors for selecting parameters and observables that exist in formula
+    observables_in_formula = np.any(match_string_lists(formula,observable_names)>=0,axis=0)
+    observables_in_parameters = np.any(match_string_lists(parameter_names,observable_names)>=0,axis=0)
+    parameters_in_formula = np.any(match_string_lists(formula,parameter_names)>=0,axis=0)
+    # find parameters that do not change between samples
+    space_invariant_parameters = False == np.column_stack(parameter_variabilities)[0,:]
+    
+    # loop through calibration subsets
+    for subset_idx,current_subset in enumerate(subset_indexing_vectors):
+        
+        logging.info("AGB: running CASINO on subset {} out of {}...".format(subset_idx+1,number_of_subsets))
+        
+        # take out a subtable with indices for each parameter in the output parameter tables
+        current_parameter_position_table = parameter_position_table[current_subset,:][:,parameters_in_formula]
+        current_parameter_names = [parameter_name for parameter_name,parameter_in_formula in zip(parameter_names,parameters_in_formula) if parameter_in_formula]
+        # take out a subtable with observables
+        current_observable_table = observable_table[current_subset,:][:,observables_in_formula]
+        current_observable_names = [observable_name for observable_name,observable_in_formula in zip(observable_names,observables_in_formula) if observable_in_formula]
+        # take out only the min-max columns of the parameter tables
+        individual_parameter_min_max_tables = []
+        for parameter_idx in np.where(parameters_in_formula)[0]:
+            individual_parameter_min_max_tables.append(parameter_tables[parameter_idx][:,-number_of_subsets-3:-number_of_subsets-1])
+        
+        
+        # estimate both parameters and AGB for the subset
+        (current_lut_all_parameters,
+        current_table_all_parameters,
+        cost_function_value) = fit_formula_to_table_data(\
+                                                 formula,
+                                                 current_observable_table,
+                                                 current_observable_names,
+                                                 current_parameter_position_table,
+                                                 current_parameter_names,
+                                                 individual_parameter_min_max_tables)
+            
+        # fill out parameter tables with estimates of space invariant parameters
+        for current_column_idx,current_parameter_idx in enumerate(np.where(parameters_in_formula & space_invariant_parameters)[0]):
+            current_rows = (current_lut_all_parameters[:,1]==current_column_idx) & \
+                (np.abs(current_lut_all_parameters[:,-2]-current_lut_all_parameters[:,-1])>1e-4)
+            parameter_tables[np.int32(current_parameter_idx)][np.int32(current_lut_all_parameters[current_rows,2]),-number_of_subsets+subset_idx] = \
+                current_lut_all_parameters[current_rows,-1]
+            
+     
+        
+        
+    # %% ESTIMATE AGB FOR SUBSETS
+    
+    # loop through calibration subsets
+    for subset_idx in range(number_of_subsets):
+        
+        logging.info("AGB: estimating space-variant parameters using space-invariant parameter set {} out of {}...".format(subset_idx+1,number_of_subsets))
+        
+        # table with all space invariant parameters
+        current_space_invariant_parameter_table = []
+        current_space_invariant_parameter_table_column_names = []
+        for space_invariant_column in np.where(space_invariant_parameters & parameters_in_formula)[0]:
+            current_parameter_table = parameter_tables[space_invariant_column]
+            current_parameter_position_vector = np.int32(parameter_position_table[:,space_invariant_column])
+            current_column_in_parameter_table = -number_of_subsets+subset_idx
+            current_space_invariant_parameter_table.append(current_parameter_table[current_parameter_position_vector,current_column_in_parameter_table])
+            current_space_invariant_parameter_table_column_names.append(parameter_names[space_invariant_column])
+            
+        current_space_invariant_parameter_table = np.column_stack(current_space_invariant_parameter_table)
+        
+        
+        new_observable_table = np.column_stack((
+            observable_table[:,observables_in_formula & ~observables_in_parameters],
+            current_space_invariant_parameter_table))
+        new_observable_names = []
+        for observable_name,is_ok in zip(observable_names,observables_in_formula & ~observables_in_parameters):
+            if is_ok:
+                new_observable_names.append(observable_name)
+        new_observable_names = new_observable_names+ current_space_invariant_parameter_table_column_names
+        # error
+        new_parameter_position_table = parameter_position_table[:,~space_invariant_parameters & parameters_in_formula]
+        new_parameter_names = []
+        new_individual_parameter_min_max_tables = []
+        for parameter_name,individual_parameter_min_max_table,is_ok in zip(parameter_names,individual_parameter_min_max_tables,~space_invariant_parameters & parameters_in_formula):
+            if is_ok:
+                new_parameter_names.append(parameter_name)
+                new_individual_parameter_min_max_tables.append(individual_parameter_min_max_table)
+        
+        # estimate space variant parameters for all samples
+        (current_lut_space_variant_parameters,
+        current_table_space_variant_parameters,
+        cost_function_value) = fit_formula_to_table_data(\
+                                                 formula,
+                                                 new_observable_table,
+                                                 new_observable_names,
+                                                 new_parameter_position_table,
+                                                 new_parameter_names,
+                                                 new_individual_parameter_min_max_tables)
+                                                         
+        # fill out parameter tables with estimates of space invariant parameters
+        for current_column_idx,current_parameter_idx in enumerate(np.where(parameters_in_formula & ~space_invariant_parameters)[0]):
+            current_rows = (current_lut_space_variant_parameters[:,1]==current_column_idx) & \
+                (np.abs(current_lut_space_variant_parameters[:,-2]-current_lut_space_variant_parameters[:,-1])>1e-4)
+            parameter_tables[np.int32(current_parameter_idx)][np.int32(current_lut_space_variant_parameters[current_rows,2]),-number_of_subsets+subset_idx] = \
+                current_lut_space_variant_parameters[current_rows,-1]
+            
+          
+        
+    # line_number_string = ['row']
+
+    # ### SAVING OBSERVABLE AND PARAMETER TABLES
+    # # select formatting for the output tables
+    # curr_delimiter = '\t'
+    # curr_precision = 3
+    # curr_column_width = 20
+    # all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
+    # all_data_types = ['d','d','d','f','f','f']
+    
+    
+    # for parameter_idx,parameter_name in enumerate(parameter_names):
+    #     curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+    #     np.savetxt(os.path.join(
+    #             temp_agb_folder,
+    #             'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+    #         np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
+    #         fmt=curr_format,
+    #         delimiter=curr_delimiter,
+    #         header=curr_header,
+    #         comments='')
+        
+        # %%
+    
+    logging.info("AGB: estimating space-invariant parameters using space-variant parameter estimate")
+    
+    # table with all space invariant parameters
+    current_space_variant_parameter_table = []
+    current_space_variant_parameter_table_column_names = []
+    for space_variant_column in np.where(~space_invariant_parameters & parameters_in_formula)[0]:
+        current_parameter_table = parameter_tables[space_variant_column]
+        current_parameter_position_vector = np.int32(parameter_position_table[:,space_variant_column])
+        current_columns_in_parameter_table = -number_of_subsets+np.arange(subset_idx)
+        current_space_variant_parameter_table.append(np.mean(current_parameter_table[current_parameter_position_vector,:][:,current_columns_in_parameter_table],axis=1))
+        current_space_variant_parameter_table_column_names.append(parameter_names[space_variant_column])
+        
+    current_space_variant_parameter_table = np.column_stack(current_space_variant_parameter_table)
+    
+    
+    new_observable_table = np.column_stack((
+        observable_table[:,observables_in_formula & ~observables_in_parameters],
+        current_space_variant_parameter_table))
+    new_observable_names = []
+    for observable_name,is_ok in zip(observable_names,observables_in_formula & ~observables_in_parameters):
+        if is_ok:
+            new_observable_names.append(observable_name)
+    new_observable_names = new_observable_names+ current_space_variant_parameter_table_column_names
+    # error
+    new_parameter_position_table = parameter_position_table[:,space_invariant_parameters & parameters_in_formula]
+    new_parameter_names = []
+    new_individual_parameter_min_max_tables = []
+    for parameter_name,individual_parameter_min_max_table,is_ok in zip(parameter_names,individual_parameter_min_max_tables,space_invariant_parameters & parameters_in_formula):
+        if is_ok:
+            new_parameter_names.append(parameter_name)
+            new_individual_parameter_min_max_tables.append(individual_parameter_min_max_table)
+    
+    # estimate space variant parameters for all samples
+    (current_lut_space_invariant_parameters,
+    current_table_space_invariant_parameters,
+    cost_function_value) = fit_formula_to_table_data(\
+                                             formula,
+                                             new_observable_table,
+                                             new_observable_names,
+                                             new_parameter_position_table,
+                                             new_parameter_names,
+                                             new_individual_parameter_min_max_tables)
+    return (
+        parameter_tables,
+        current_table_space_invariant_parameters,
+        current_space_invariant_parameter_table_column_names,
+        current_table_space_variant_parameters,
+        current_space_variant_parameter_table_column_names,
+        )
+            
