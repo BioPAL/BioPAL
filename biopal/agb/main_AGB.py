@@ -1247,7 +1247,7 @@ class AGBCoreProcessing(Task):
                     parameter_position_names,
                     parameter_tables,
                     parameter_table_columns,
-                    ) = sample_and_tabulate_data(
+                ) = sample_and_tabulate_data(
                         current_block_extents, # extent of the current area for which the table is created
                         pixel_axis_east, # east north axes onto which data are interpolated
                         pixel_axis_north,
@@ -1273,7 +1273,7 @@ class AGBCoreProcessing(Task):
                         parameter_limits, # permissible parameter intervals
                         parameter_variabilities, # parameter variabilities across all dimensions
                         number_of_subsets, # number of subsets to use (used to allocate columns in parameter tables)
-                                )
+                )
                 
                 
     
@@ -1291,27 +1291,27 @@ class AGBCoreProcessing(Task):
                 
                 
                 (
-                parameter_tables,
-                current_table_space_invariant_parameters,
-                current_space_invariant_parameter_table_column_names,
-                current_table_space_variant_parameters,
-                current_space_variant_parameter_table_column_names,
-                    ) = fit_formula_to_random_subsets(
-                formula,
-                number_of_subsets,
-                observable_table,
-                observable_names,
-                identifier_table,
-                identifier_names,
-                parameter_position_table,
-                parameter_names,
-                parameter_tables,
-                parameter_table_columns,
-                parameter_variabilities,
-                proc_conf.AGB.fraction_of_cal_per_test/100*0.5,
-                proc_conf.AGB.fraction_of_roi_per_test/100*0.5,
-                proc_conf.AGB.min_number_of_cals_per_test,
-                proc_conf.AGB.min_number_of_rois_per_test,
+                    parameter_tables,
+                    current_table_space_invariant_parameters,
+                    current_space_invariant_parameter_table_column_names,
+                    current_table_space_variant_parameters,
+                    current_space_variant_parameter_table_column_names,
+                ) = fit_formula_to_random_subsets(
+                        formula,
+                        number_of_subsets,
+                        observable_table,
+                        observable_names,
+                        identifier_table,
+                        identifier_names,
+                        parameter_position_table,
+                        parameter_names,
+                        parameter_tables,
+                        parameter_table_columns,
+                        parameter_variabilities,
+                        proc_conf.AGB.fraction_of_cal_per_test/100*0.5,
+                        proc_conf.AGB.fraction_of_roi_per_test/100*0.5,
+                        proc_conf.AGB.min_number_of_cals_per_test,
+                        proc_conf.AGB.min_number_of_rois_per_test,
                 )
                 
                       
@@ -1396,28 +1396,28 @@ class AGBCoreProcessing(Task):
                     space_invariant_parameters_3d,
                     space_invariant_parameters_3d_names,
                     identifiers_3d,
-                    identifiers_3d_names
+                    identifiers_3d_names,
                 ) = read_and_organise_3d_data(
-                            current_block_extents,
-                            block_has_data,
-                            pixel_axis_north,
-                            pixel_axis_east,
-                            stack_info_table,
-                            stack_info_table_columns,
-                            subset_iterable(observable_names,valid_observables,False),
-                            subset_iterable(observable_is_stacked,valid_observables,True),
-                            subset_iterable(observable_source_paths,valid_observables,False),
-                            subset_iterable(observable_source_bands,valid_observables,False),
-                            subset_iterable(observable_transforms,valid_observables,False),
-                            subset_iterable(observable_averaging_methods,valid_observables,False),
-                            subset_iterable(observable_ranges,valid_observables,False),
-                            self.lut_fnf_paths,
-                            self.lut_fnf,
-                            identifier_table[:,2],
-                            identifier_table[:,1],
-                            current_table_space_invariant_parameters,
-                            current_space_invariant_parameter_table_column_names,
-                    )
+                        current_block_extents,
+                        block_has_data,
+                        pixel_axis_north,
+                        pixel_axis_east,
+                        stack_info_table,
+                        stack_info_table_columns,
+                        subset_iterable(observable_names,valid_observables,False),
+                        subset_iterable(observable_is_stacked,valid_observables,True),
+                        subset_iterable(observable_source_paths,valid_observables,False),
+                        subset_iterable(observable_source_bands,valid_observables,False),
+                        subset_iterable(observable_transforms,valid_observables,False),
+                        subset_iterable(observable_averaging_methods,valid_observables,False),
+                        subset_iterable(observable_ranges,valid_observables,False),
+                        self.lut_fnf_paths,
+                        self.lut_fnf,
+                        identifier_table[:,2],
+                        identifier_table[:,1],
+                        current_table_space_invariant_parameters,
+                        current_space_invariant_parameter_table_column_names,
+                )
                     
                 # %%        
                           
@@ -1427,15 +1427,20 @@ class AGBCoreProcessing(Task):
                 space_variant_parameters_3d_names = subset_iterable(parameter_names,valid_parameters,False)
                 space_variant_parameters_3d_initial = np.mean(space_variant_parameters_3d_limits[0])*np.ones((
                     len(pixel_axis_north),len(pixel_axis_east),1))
+                
+                
                 (
-                            space_variant_parameters_3d,
-                            space_variant_parameters_3d_names,
-                            ) = map_space_variant_parameters(
+                    space_variant_parameters_3d,
+                    space_variant_parameters_3d_names,
+                ) = map_space_variant_parameters(
                         formula,
+                        forest_class_3d,
                         observables_3d,
                         observables_3d_names,
                         space_invariant_parameters_3d,
                         space_invariant_parameters_3d_names,
+                        identifiers_3d,
+                        identifiers_3d_names,
                         space_variant_parameters_3d_initial,
                         space_variant_parameters_3d_names,
                         space_variant_parameters_3d_variabilities,
@@ -1446,6 +1451,190 @@ class AGBCoreProcessing(Task):
             except Exception as e:
                 logging.error('AGB: error during creation of maps.' + str(e), exc_info=True)
                 raise
+                
+                
+                
+            # this is saving maps
+            
+            
+            try:
+                
+                
+                #### ARESYS HELPS OUT FROM HERE
+                
+                ## look through parameter_names, all parameters should be saved
+                ## space-variant parameters (or )
+                
+                ## save the agb map in space_variant_parameters_3d[0][:,:,0]
+                ## for now, just save zeros as the other parameters
+                
+                        
+                    # output_file_path = os.path.join(
+                    #     temp_agb_folder, 'agb_est_block_{}.tif'.format(current_block_index)
+                    # )
+                    # geotransform_curr = [pixel_axis_east[0], pixel_size_east, 0, pixel_axis_north[0], 0, pixel_size_north]
+        
+                    # output_file_path = tiff_formatter(
+                    #     [space_variant_parameters_3d[0][:,:,0].flatten(), space_variant_parameters_3d[0][:,:,0].flatten()*0],
+                    #     output_file_path,
+                    #     geotransform_curr,
+                    #     gdal_data_format=gdal.GDT_Float32,
+                    #     projection=projection_curr,
+                    #     multi_layers_tiff=True,
+                    # )
+        
+                    # # [(left, lower), (right, upper)]
+                    # try:
+                    #     lon_min, lat_min = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
+                    #         min(pixel_axis_east), min(pixel_axis_north)
+                    #     )
+                    #     lon_max, lat_max = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
+                    #         max(pixel_axis_east), max(pixel_axis_north)
+                    #     )
+                    # except Exception as e:
+                    #     logging.error(
+                    #         'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(
+                    #             subgrid_code
+                    #         )
+                    #         + str(e),
+                    #         exc_info=True,
+                    #     )
+                    #     raise
+        
+                    # bbox = [(lon_min, lat_min), (lon_max, lat_max)]
+                    # ftiles = e7g_product.search_tiles_in_roi(bbox=bbox)
+        
+                    # equi7_agb_est_outdir_curr = os.path.join(
+                    #     temp_agb_folder, 'eq7_agb_est_block_{}'.format(current_block_index)
+                    # )
+                    # os.makedirs(equi7_agb_est_outdir_curr)
+                    # equi7_agb_est_outdir_temp = image2equi7grid(
+                    #     e7g_product,
+                    #     output_file_path,
+                    #     equi7_agb_est_outdir_curr,
+                    #     gdal_path=self.gdal_path,
+                    #     ftiles=ftiles,
+                    #     accurate_boundary=False,
+                    #     tile_nodata=np.nan,
+                    # )
+        
+                    # for idx, equi7_tiff_name in enumerate(equi7_agb_est_outdir_temp):
+        
+                    #     driver = gdal.Open(equi7_tiff_name, GA_ReadOnly)
+                    #     data = driver.ReadAsArray()
+                    #     driver = None
+        
+                    #     if np.sum(np.isnan(data)) == data.shape[0] * data.shape[1]:
+                    #         shutil.rmtree(os.path.dirname(equi7_tiff_name))
+                    #     else:
+                    #         equi7_agb_est_out_tif_names_not_merged.append(equi7_tiff_name)
+                    
+                    
+                    
+                    
+                #### ARESYS HELPS OUT TO HERE
+
+                ## PREPARING NEXT TILE
+                # swap flag
+                block_finished_flag[current_block_index] = True
+                # remove current par block from list
+                block_order = block_order[block_order != current_block_index]
+                # select next par block
+                if len(block_order) > 0:
+                    # if there is at least one left, just take the next closest to CALdata
+                    current_block_index = block_order[0]
+                else:
+                    break
+      
+            except Exception as e:
+                logging.error('AGB: error during map saving and next block preparation.' + str(e), exc_info=True)
+                raise
+                
+        ####################### FINAL  EQUI7 TILES MERGING ########################
+        logging.info('AGB: final step, merging equi7 blocks togeter...')
+        equi7_agb_est_out_tif_names_per_tile = {}
+        for equi7_agb_est_out_tif_name in equi7_agb_est_out_tif_names_not_merged:
+
+            tile_name = os.path.basename(os.path.dirname(equi7_agb_est_out_tif_name))
+
+            if tile_name in equi7_agb_est_out_tif_names_per_tile.keys():
+                equi7_agb_est_out_tif_names_per_tile[tile_name].append(equi7_agb_est_out_tif_name)
+            else:
+                equi7_agb_est_out_tif_names_per_tile[tile_name] = [equi7_agb_est_out_tif_name]
+
+        for (
+            tile_name,
+            equi7_agb_est_out_tif_names_curr_tile,
+        ) in equi7_agb_est_out_tif_names_per_tile.items():
+
+            driver = gdal.Open(equi7_agb_est_out_tif_names_curr_tile[0], GA_ReadOnly)
+            data_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
+            quality_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
+            driver = None
+
+            for idx_tile, equi7_agb_est_out_tif_name_curr_tile in enumerate(
+                equi7_agb_est_out_tif_names_curr_tile
+            ):
+
+                # merging current tile blocks togeter:
+                driver = gdal.Open(equi7_agb_est_out_tif_name_curr_tile, GA_ReadOnly)
+
+                if idx_tile == 0:
+                    geotransform_out = driver.GetGeoTransform()
+                elif geotransform_out != driver.GetGeoTransform():
+                    err_str = 'Same equi7 tiles cannot have different geotrasform'
+                    logging.error(err_str)
+                    raise ValueError(err_str)
+
+                data_merged = np.nanmean(
+                    np.dstack((data_merged, driver.GetRasterBand(1).ReadAsArray())), axis=2
+                )
+                quality_merged = np.sqrt(
+                    np.nanmean(
+                        np.dstack(
+                            (quality_merged ** 2, driver.GetRasterBand(2).ReadAsArray() ** 2)
+                        ),
+                        axis=2,
+                    )
+                )
+                driver = None
+
+            invalid_values_mask = np.logical_or(
+                data_merged < proc_conf.AGB.estimation_valid_values_limits[0],
+                data_merged > proc_conf.AGB.estimation_valid_values_limits[-1],
+            )
+            data_merged[invalid_values_mask] = np.nan
+            quality_merged[invalid_values_mask] = np.nan
+
+            sub_grid_folder_name = os.path.basename(
+                os.path.dirname(os.path.dirname(equi7_agb_est_out_tif_names_curr_tile[0]))
+            )
+            output_folder_curr_tile = os.path.join(
+                global_agb_folder,
+                sub_grid_folder_name,
+                tile_name,
+                'agb_est_' + tile_name + sub_grid_folder_name + '.tif',
+            )
+            if not os.path.exists(os.path.dirname(output_folder_curr_tile)):
+                os.makedirs(os.path.dirname(output_folder_curr_tile))
+            output_folder_curr_tile = tiff_formatter(
+                [data_merged, quality_merged],
+                output_folder_curr_tile,
+                geotransform_out,
+                gdal_data_format=gdal.GDT_Float32,
+                projection=projection_curr,
+                multi_layers_tiff=True,
+            )
+            logging.info(
+                '    equi7 tile blocks merged and savad to file{}'.format(output_folder_curr_tile)
+            )
+
+        if proc_conf.delete_temporary_files:
+            try:
+                shutil.rmtree(temp_proc_folder)
+            except:
+                pass
+        logging.info('AGB: estimation ended correctly.\n')
                                 # %%
 
                 # space_invariant_parameter_variabilities = []

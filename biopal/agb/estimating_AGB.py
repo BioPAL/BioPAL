@@ -1079,10 +1079,13 @@ def subset_iterable(iterable_to_subset,validity_mask,return_array=False):
 # %%
 def map_space_variant_parameters(
         formula,
+        forest_class_3d,
         observables_3d,
         observables_3d_names,
         space_invariant_parameters_3d,
         space_invariant_parameters_3d_names,
+        identifiers_3d,
+        identifiers_3d_names,
         space_variant_parameters_3d_initial,
         space_variant_parameters_3d_names,
         space_variant_parameters_3d_variabilities,
