@@ -82,8 +82,12 @@ from biopal.agb.estimating_AGB import (
     match_string_lists,
     sample_and_tabulate_data,
     fit_formula_to_random_subsets,
+    save_human_readable_table,
+    read_and_organise_3d_data,
+    subset_iterable,
+    map_space_variant_parameters,
 )
-
+# %%
 class AboveGroundBiomass(Task):
     def __init__(
         self,
@@ -1270,81 +1274,18 @@ class AGBCoreProcessing(Task):
                         parameter_variabilities, # parameter variabilities across all dimensions
                         number_of_subsets, # number of subsets to use (used to allocate columns in parameter tables)
                                 )
-                    #     :
-                    # stack_info_table,
-                    # stack_info_table_columns,
-                    # number_of_subsets,
-                    # block_has_data,
-                    # self.lut_stacks_paths, # self.lut_stacks_pathsself.lut_stacks_paths
-                    # self.lut_fnf_paths, # self.lut_fnf_paths
-                    # self.lut_fnf, # self.lut_fnf
-                    # pixel_axis_east,
-                    # pixel_axis_north,
-                    # sampling_axis_east,
-                    # sampling_axis_north,
-                    # sample_size_east,
-                    # sample_size_north,
-                    # current_block_extents,
-                    # block_has_cal,
-                    # self.lut_cal_paths,#self.lut_cal_paths
-                    # additional_sampling_polygons,
-                    # observable_names,
-                    # observable_sources,
-                    # observable_ranges,
-                    # observable_transforms,
-                    # observable_averaging_methods,
-                    # parameter_names,
-                    # parameter_limits,
-                    # parameter_variabilities,
-                    # )
-                    
-                    
-                parameter_property_names = parameter_table_columns[0][-number_of_subsets-4:]
-                    
-                line_number_string = ['row']
-
-                ### SAVING OBSERVABLE AND PARAMETER TABLES
-                # select formatting for the output tables
-                curr_delimiter = '\t'
-                curr_precision = 3
-                curr_column_width = 20
-                all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
-                all_data_types = ['d','d','d','f','f','f']
                 
                 
-                # curr_format,curr_header = get_fmt_and_header(line_number_string + identifier_names + observable_names + parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                # np.savetxt(os.path.join(
-                #         temp_agb_folder,
-                #         'observable_table_block_{}.txt'.format(current_block_index)),
-                #     np.column_stack((np.arange(number_of_rows_in_observable_table),identifier_table,observable_table,parameter_position_table)),
-                #     fmt=curr_format,
-                #     delimiter=curr_delimiter,
-                #     header=curr_header,
-                #     comments='')
+    
                 
                     
-                    
-                curr_format,curr_header = get_fmt_and_header(
-                    line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                np.savetxt(os.path.join(
-                        temp_agb_folder,
-                        'observable_table_block_{}.txt'.format(current_block_index)),
-                    np.column_stack((np.arange(observable_table.shape[0]),
-                                     identifier_table,
-                                     observable_table,
-                                     parameter_position_table)),
-                    fmt=curr_format,
-                    delimiter=curr_delimiter,
-                    header=curr_header,
-                    comments='')
-                
-                        # %%
+                 
             except Exception as e:
                 logging.error('AGB: error during data sampling and tabulating.' + str(e), exc_info=True)
                 raise
             
+            # this is inversion
             try:
-                # %%
                 
                 
                 
@@ -1373,34 +1314,322 @@ class AGBCoreProcessing(Task):
                 proc_conf.AGB.min_number_of_rois_per_test,
                 )
                 
+                      
+                # # add one last column with the final parameter estimate
+                # for parameter_idx,parameter_table in enumerate(parameter_tables):
+                #     # parameter_tables[parameter_idx] = np.column_stack((parameter_table,np.mean(parameter_table[:,-number_of_subsets:],axis=1)))
+                #     parameter_table_columns[parameter_idx] = np.concatenate((parameter_table_columns[parameter_idx],
+                #                                                              np.array(['estimate_final'])))
                         
+                ### SAVING OBSERVABLE AND PARAMETER TABLES
+                   
+                parameter_property_names = parameter_table_columns[0][-number_of_subsets-4:]
+                line_number_string = ['row']
+                # select formatting for the output tables
+                table_delimiter = '\t'
+                table_precision = 3
+                table_column_width = 20
+                data_type_lut = [[line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names],
+                                 ['d','d','d','f','f','f']]
+                    
+                curr_path = os.path.join(
+                        temp_agb_folder,
+                        'observable_table_block_{}.txt'.format(current_block_index))
+                curr_table = np.column_stack((
+                    np.arange(observable_table.shape[0]),
+                    identifier_table,
+                    observable_table,
+                    parameter_position_table))
+                curr_column_names = line_number_string+identifier_names+observable_names+parameter_position_names
+                save_human_readable_table(curr_path,curr_table,curr_column_names,data_type_lut,table_delimiter,table_precision,table_column_width)                
+                
+                curr_path = os.path.join(
+                        temp_agb_folder,
+                        'results_table_block_{}.txt'.format(current_block_index))
+                curr_table = np.column_stack((
+                    np.arange(observable_table.shape[0]),
+                    identifier_table,
+                    observable_table,
+                    current_table_space_invariant_parameters,
+                    current_table_space_variant_parameters,
+                    parameter_position_table))
+                curr_column_names = line_number_string+identifier_names+observable_names+current_space_invariant_parameter_table_column_names+current_space_variant_parameter_table_column_names+parameter_position_names
+                save_human_readable_table(curr_path,curr_table,curr_column_names,data_type_lut,table_delimiter,table_precision,table_column_width)                
                 
                 for parameter_idx,parameter_name in enumerate(parameter_names):
-                    curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                    np.savetxt(os.path.join(
-                            temp_agb_folder,
-                            'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
-                        np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
-                        fmt=curr_format,
-                        delimiter=curr_delimiter,
-                        header=curr_header,
-                        comments='')
-                    
-                curr_format,curr_header = get_fmt_and_header(
-                    line_number_string+identifier_names+observable_names+current_space_invariant_parameter_table_column_names+current_space_variant_parameter_table_column_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
-                np.savetxt(os.path.join(
+                    curr_path = os.path.join(
                         temp_agb_folder,
-                        'results_table_block_{}.txt'.format(current_block_index)),
-                    np.column_stack((np.arange(observable_table.shape[0]),
-                                     identifier_table,
-                                     observable_table,
-                                     current_table_space_invariant_parameters,
-                                     current_table_space_variant_parameters,
-                                     parameter_position_table)),
-                    fmt=curr_format,
-                    delimiter=curr_delimiter,
-                    header=curr_header,
-                    comments='')
+                        'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index))
+                    curr_table = np.column_stack((
+                        np.arange(parameter_tables[parameter_idx].shape[0]),
+                        parameter_tables[parameter_idx]))
+                    curr_column_names = np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx]))
+                    save_human_readable_table(curr_path,curr_table,curr_column_names,data_type_lut,table_delimiter,table_precision,table_column_width)                
+
+
+            except Exception as e:
+                logging.error('AGB: error during parameter estimation and saving.' + str(e), exc_info=True)
+                raise
+
+            # this is creating maps
+            
+            
+            try:
+                
+                # %%
+                
+                
+                
+
+                # take out the observables that are in formula and not among space variant parameters
+                valid_observables = np.any(match_string_lists(formula,observable_names)>=0,axis=0) & \
+                            ~np.any(match_string_lists(current_space_variant_parameter_table_column_names,observable_names)>=0,axis=0)
+                # take out the observables that are in formula and not among space variant parameters
+                valid_parameters = np.any(match_string_lists(formula,parameter_names)>=0,axis=0) & \
+                            ~np.any(match_string_lists(current_space_invariant_parameter_table_column_names,parameter_names)>=0,axis=0)
+                
+                
+                (
+                    forest_class_3d,
+                    observables_3d,
+                    observables_3d_names,
+                    space_invariant_parameters_3d,
+                    space_invariant_parameters_3d_names,
+                    identifiers_3d,
+                    identifiers_3d_names
+                ) = read_and_organise_3d_data(
+                            current_block_extents,
+                            block_has_data,
+                            pixel_axis_north,
+                            pixel_axis_east,
+                            stack_info_table,
+                            stack_info_table_columns,
+                            subset_iterable(observable_names,valid_observables,False),
+                            subset_iterable(observable_is_stacked,valid_observables,True),
+                            subset_iterable(observable_source_paths,valid_observables,False),
+                            subset_iterable(observable_source_bands,valid_observables,False),
+                            subset_iterable(observable_transforms,valid_observables,False),
+                            subset_iterable(observable_averaging_methods,valid_observables,False),
+                            subset_iterable(observable_ranges,valid_observables,False),
+                            self.lut_fnf_paths,
+                            self.lut_fnf,
+                            identifier_table[:,2],
+                            identifier_table[:,1],
+                            current_table_space_invariant_parameters,
+                            current_space_invariant_parameter_table_column_names,
+                    )
+                    
+                # %%        
+                          
+
+                space_variant_parameters_3d_limits = subset_iterable(parameter_limits,valid_parameters,False)
+                space_variant_parameters_3d_variabilities = subset_iterable(parameter_variabilities,valid_parameters,False)
+                space_variant_parameters_3d_names = subset_iterable(parameter_names,valid_parameters,False)
+                space_variant_parameters_3d_initial = np.mean(space_variant_parameters_3d_limits[0])*np.ones((
+                    len(pixel_axis_north),len(pixel_axis_east),1))
+                (
+                            space_variant_parameters_3d,
+                            space_variant_parameters_3d_names,
+                            ) = map_space_variant_parameters(
+                        formula,
+                        observables_3d,
+                        observables_3d_names,
+                        space_invariant_parameters_3d,
+                        space_invariant_parameters_3d_names,
+                        space_variant_parameters_3d_initial,
+                        space_variant_parameters_3d_names,
+                        space_variant_parameters_3d_variabilities,
+                        space_variant_parameters_3d_limits)
+                                
+                                
+                                
+            except Exception as e:
+                logging.error('AGB: error during creation of maps.' + str(e), exc_info=True)
+                raise
+                                # %%
+
+                # space_invariant_parameter_variabilities = []
+                # space_invariant_parameter_limits = []
+                # for parameter_variability,parameter_name,parameter_limit in zip(parameter_variabilities,parameter_names,parameter_limits):
+                #     if parameter_name in current_space_invariant_parameter_table_column_names:
+                #         space_invariant_parameter_variabilities.append(parameter_variability)
+                #         space_invariant_parameter_limits.append(parameter_limit)
+                # space_variant_parameter_variabilities = []
+                # space_variant_parameter_limits = []
+                # for parameter_variability,parameter_name,parameter_limit in zip(parameter_variabilities,parameter_names,parameter_limits):
+                #     if parameter_name in current_space_variant_parameter_table_column_names:
+                #         space_variant_parameter_variabilities.append(parameter_variability)
+                #         space_variant_parameter_limits.append(parameter_limit)
+                
+                
+                
+                 # (
+                 #    observable_maps,
+                 #    observable_names,
+                 #    identifier_maps,
+                 #    identifier_names,
+                 #    parameter_position_table,
+                 #    parameter_position_names,
+                 #    parameter_tables,
+                 #    parameter_table_columns,
+                 #    ) = sample_and_tabulate_data(
+                 #        current_block_extents, # extent of the current area for which the table is created
+                 #        pixel_axis_east, # east north axes onto which data are interpolated
+                 #        pixel_axis_north,
+                 #        sampling_axis_east,
+                 #        sampling_axis_north,
+                 #        sample_size_east, # east north extents of the samples
+                 #        sample_size_north,
+                 #        additional_sampling_polygons, # additional arbitrarily shaped polygons
+                 #        block_has_data, # flags whether each stack is in current block
+                 #        stack_info_table, # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
+                 #        stack_info_table_columns, # column names for the abovementioned table
+                 #        self.lut_fnf,#lut_forest_class, # self.lut_fnf
+                 #        self.lut_fnf_paths,#lut_forest_class_paths, # self.lut_fnf_paths
+                 #        observable_names, # observable names in formula
+                 #        observable_is_stacked, # flags whether the observable comes from SAR and should be interpreted with stack_info_table or should be replicated across stacks
+                 #        observable_is_required,
+                 #        observable_source_paths, # paths to equi7 tiles or files to read for each observable
+                 #        observable_source_bands, # which band in the tiff file to read (1 = first band)
+                 #        observable_transforms, # transform function to apply to observable
+                 #        observable_averaging_methods, # averaging method (most commonly 'mean', but could be other if required (e.g., for slope aspect angle))
+                 #        observable_ranges, # permitted ranges, outside those the observable is set to nan
+                 #        parameter_names, # parameter names in formula
+                 #        parameter_limits, # permissible parameter intervals
+                 #        parameter_variabilities, # parameter variabilities across all dimensions
+                 #        number_of_subsets, # number of subsets to use (used to allocate columns in parameter tables)
+                 #                )
+                
+                # %%
+    
+                
+                            
+                
+                # bio_map = create_maps(
+                #     current_block_extents,
+                #     block_has_data,
+                #     pixel_axis_north,
+                #     pixel_axis_east,
+                #     stack_info_table,
+                #     observable_names,
+                #     observable_is_stacked,
+                #     observable_source_paths,
+                #     observable_source_bands,
+                #     observable_transforms,
+                #     observable_averaging_methods,
+                #     observable_ranges,
+                #     self.lut_fnf_paths,
+                #     self.lut_fnf,
+                #     current_space_invariant_parameter_table_column_names,
+                #     current_table_space_invariant_parameters,
+                #     space_invariant_parameter_variabilities,
+                #     space_invariant_parameter_limits,
+                #     current_space_variant_parameter_table_column_names,
+                #     current_table_space_variant_parameters,
+                #     space_variant_parameter_variabilities,
+                #     space_variant_parameter_limits,
+                #     identifier_table,
+                #     formula,
+                #     )
+                    
+                  #%%
+                    
+                
+                
+                
+                # # mark rows in observable data table that have negative identifiers, nan-valued sar observables, infinite sar observables, or negative agb values
+                # invalid_rows = np.any(identifier_table<0,axis=1) | \
+                #     np.any(np.isnan(observable_table[:,observable_is_required]),axis=1) | \
+                #     np.any(~np.isfinite(observable_table[:,observable_is_required]),axis=1)
+                # # exclude invalid rows
+                # observable_table = observable_table[~invalid_rows,:]
+                # identifier_table = identifier_table[~invalid_rows,:]
+                # # number of rows in data table
+                # number_of_rows_in_observable_table = observable_table.shape[0]
+                        
+                        
+                # ### PREPARING PARAMETER TABLES
+                # parameter_property_names = ['lower_limit','upper_limit','initial_value']+['estimate_%d' % (ii) for ii in np.arange(number_of_subsets)+1]
+                # parameter_position_names = ['row_'+parameter_name for parameter_name in parameter_names]
+                # parameter_tables = []
+                # parameter_table_columns = []
+                # parameter_position_table = np.nan * np.zeros((
+                #     number_of_rows_in_observable_table,number_of_parameters))
+                # # creating parameter matrices
+                # for parameter_idx,parameter_variability in enumerate(parameter_variabilities):
+                #     # take out only the relevant identifiers (the ones that change as per parameter variability)
+                #     # and create column names by adding four additional columns: min, max and initial value, and estimated value (later set to NaN)
+                #     parameter_table_columns.append(np.concatenate((np.array(identifier_names)[parameter_variability],
+                #                                                    np.array(parameter_property_names))))
+                #     # create the minimal ID table (without unnecessary columns for those dimension across which the parameter doesn't change)
+                #     temp_ids_table = identifier_table[:,np.where(parameter_variability)[0]]
+                #     # create the last four columns
+                #     temp_minmax_table = np.array([parameter_limits[parameter_idx]]) * np.ones((number_of_rows_in_observable_table,1))
+                #     temp_initial_table = np.mean(temp_minmax_table,axis=1)
+                #     temp_estimated_table = np.kron(np.ones((1,number_of_subsets)),np.array([np.mean(temp_minmax_table,axis=1)]).transpose())
+                #     # create the full table
+                #     # note: this table has initially the same shape as the observable table
+                #     temp_full_table = np.column_stack((
+                #             temp_ids_table,
+                #             temp_minmax_table,
+                #             temp_initial_table,
+                #             temp_estimated_table))
+                #     # take out unique rows and the inverse vector recreating the rows of the observable table
+                #     # the inverse vector is critical as it relates the positions in the observable table to positions in each parameter table
+                #     temp_full_table,temp_position_in_observable_table = np.unique(temp_full_table,axis=0,return_inverse=True)
+                #     # set the last colum of the full table to nan (estimated value unavailable now)
+                #     temp_full_table[:,-number_of_subsets:] = np.nan
+                #     # append the table
+                #     parameter_tables.append(temp_full_table)
+                #     # include the inverse vector in the observable data table at the correct position
+                #     parameter_position_table[:,parameter_idx] = temp_position_in_observable_table
+                
+                
+                
+                
+                
+                
+
+
+            
+                #             curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                #             np.savetxt(os.path.join(
+                #                     temp_agb_folder,
+                #                     'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+                #                 np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
+                #                 fmt=curr_format,
+                #                 delimiter=curr_delimiter,
+                #                 header=curr_header,
+                #                 comments='')
+                                    
+                    
+                    
+                # for parameter_idx,parameter_name in enumerate(parameter_names):
+                #     curr_format,curr_header = get_fmt_and_header(np.concatenate((np.array(line_number_string),parameter_table_columns[parameter_idx])),all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                #     np.savetxt(os.path.join(
+                #             temp_agb_folder,
+                #             'parameter_{}_table_block_{}.txt'.format(parameter_name,current_block_index)),
+                #         np.column_stack((np.arange(parameter_tables[parameter_idx].shape[0]),parameter_tables[parameter_idx])),
+                #         fmt=curr_format,
+                #         delimiter=curr_delimiter,
+                #         header=curr_header,
+                #         comments='')
+                    
+                # curr_format,curr_header = get_fmt_and_header(
+                #     line_number_string+identifier_names+observable_names+current_space_invariant_parameter_table_column_names+current_space_variant_parameter_table_column_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                # np.savetxt(os.path.join(
+                #         temp_agb_folder,
+                #         'results_table_block_{}.txt'.format(current_block_index)),
+                #     np.column_stack((np.arange(observable_table.shape[0]),
+                #                      identifier_table,
+                #                      observable_table,
+                #                      current_table_space_invariant_parameters,
+                #                      current_table_space_variant_parameters,
+                #                      parameter_position_table)),
+                #     fmt=curr_format,
+                #     delimiter=curr_delimiter,
+                #     header=curr_header,
+                #     comments='')
                 
                 # curr_format,curr_header = get_fmt_and_header(
                 #     line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
@@ -1622,10 +1851,10 @@ class AGBCoreProcessing(Task):
                     
                     
                     
-                    # %%
-            except Exception as e:
-                logging.error('AGB: error during parameter estimation from tables.' + str(e), exc_info=True)
-                raise
+            #         # %%
+            # except Exception as e:
+            #     logging.error('AGB: error during parameter estimation from tables.' + str(e), exc_info=True)
+            #     raise
                     
                 
 #                 # curr_format,curr_header = get_fmt_and_header(line_number_string+identifier_names+observable_names+parameter_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
@@ -1982,7 +2211,7 @@ class AGBCoreProcessing(Task):
 #                         #         projection_prev = projection_curr
 
 #                         #     # masking the stack:
-#                         #     stack_angle_interp[forest_class_map_interp == 0] = np.NaN
+#                         #     stack_angle_interp[forest_class_map == 0] = np.NaN
     
 #                         #     # theta_tab_pixels[counter_stacks, :] = stack_theta_interp.flatten()
     
