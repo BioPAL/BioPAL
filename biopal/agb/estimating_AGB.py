@@ -825,4 +825,360 @@ def fit_formula_to_random_subsets(
         current_table_space_variant_parameters,
         current_space_variant_parameter_table_column_names,
         )
+
+
+# %%
+def save_human_readable_table(path,table,column_names,data_type_lut,table_delimiter,table_precision,table_column_width):
+    table_format,table_header = get_fmt_and_header(
+                    column_names,data_type_lut[0],data_type_lut[1],table_delimiter,table_precision,table_column_width)
+                
+    np.savetxt(path,
+        table,
+        fmt=table_format,
+        delimiter=table_delimiter,
+        header=table_header,
+        comments='')  
+    np.save(path+'.npy',table)
+    
+
+# %%
+def read_and_organise_3d_data(
+        current_block_extents,
+        block_has_data,
+        pixel_axis_north,
+        pixel_axis_east,
+        stack_info_table,
+        stack_info_table_column_names,
+        observable_names,
+        observable_is_stacked,
+        observable_source_paths,
+        observable_source_bands,
+        observable_transforms,
+        observable_averaging_methods,
+        observable_ranges,
+        forest_class_paths,
+        forest_class_boundaries,
+        stack_id_vector,
+        forest_class_id_vector,
+        current_table_space_invariant_parameters,
+        current_space_invariant_parameter_table_column_names,
+        ):
+    
+    def apply_look_up_table(lut_x,lut_y,output_xs):
+        output_y = np.nan * np.zeros(np.prod(output_xs).shape)
+        for row_in_lut in range(len(lut_y)):
+            positions_in_output = np.prod([lut_x[row_in_lut,column_in_lut]==output_xs[column_in_lut] for column_in_lut in range(len(output_xs))])==1
+            output_y[positions_in_output] = lut_y[row_in_lut]
+        return output_y
+ 
+    # # derived parameters
+    number_of_stacks = stack_info_table.shape[0]
+    number_of_observables = len(observable_names)
+    # number_of_space_invariant_parameters = len(current_space_invariant_parameter_table_column_names)
+    
+    ### READING AND SAMPLING FOREST CLASS DATA
+    logging.info('reading forest class map')
+    # get equi7 information
+    # equi7_grid_name = os.listdir(os.path.join(stack_paths[0], 'sigma0_hh'))[0]
+    # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
+    # loaded masks needs to be re-interpolated over the pixels grid (pixel_axis_east, pixel_axis_north)
+    forest_class_3d = np.zeros(
+        (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
+    )
+
+    counter_forest_class_maps = 0
+    for forest_class_map_idx, forest_class_map_path in enumerate(forest_class_paths):
+
+        forest_class_map_boundaries = forest_class_boundaries[forest_class_map_idx]
+
+        forest_class_map_is_inside = check_intersection(
+            forest_class_map_boundaries[0],
+            forest_class_map_boundaries[1],
+            forest_class_map_boundaries[2],
+            forest_class_map_boundaries[3],
+            current_block_extents[0],
+            current_block_extents[1],
+            current_block_extents[3],
+            current_block_extents[2],
+        )
+        if forest_class_map_is_inside:
+
+            forest_class_map_curr = np.round(
+                interp2d_wrapper(
+                    forest_class_map_path, 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
+                )
+            )
+
+            # mean all the fnf tiles
+            forest_class_3d = np.ceil(
+                merge_agb_intermediate(
+                    forest_class_3d, forest_class_map_curr, method='nan_mean'
+                )
+            )
             
+            # set all unrealistic values to 0 = non-forest
+            forest_class_3d[(forest_class_3d <= 0) | np.isnan(forest_class_3d)] = 0
+            
+            counter_forest_class_maps = counter_forest_class_maps + 1
+
+    if counter_forest_class_maps == 0:
+
+        err_str = 'Cannot find any forest class map falling in current block coordinates.'
+        logging.error(err_str)
+        raise ImportError(err_str)
+    
+    
+    # repeat forest class mask across the third dimension (stacks)
+    # (if forest class changes, this is where this could be implemented)
+    forest_class_3d = np.kron(np.array([forest_class_3d]).transpose([1,2,0]),np.ones((1,1,number_of_stacks)))
+    
+    
+    ### READING OBSERVABLE DATA
+    # allocate observable tables (one table in a list for each observable)
+    observables_3d = []
+    # cycle through observable sources in the stack
+    for observable_idx in range(number_of_observables):
+        observables_3d.append(np.nan * np.zeros((
+            len(pixel_axis_north),len(pixel_axis_east),number_of_stacks)))
+        # check if observable is stacked (if yes, cycle through stacks)
+        if observable_is_stacked[observable_idx]:
+                
+            # cycle over stacks
+            for stack_idx in range(number_of_stacks):
+                
+        
+                # go ahead only if current stack is (at least partially) contained in the current parameter block:
+                if block_has_data[stack_idx]:
+                    
+                    # extracting various parts of the path
+                    equi7_tiles_names = os.listdir(observable_source_paths[observable_idx][stack_idx])
+                    current_head,equi7_grid_name = os.path.split(observable_source_paths[observable_idx][stack_idx])
+                    current_head,source_name = os.path.split(current_head)
+                    base_name = os.path.split(current_head)[1]
+                    
+                    
+                    # cycle over all the equi7 tiles, interpolate over pixel grid and average
+                    source_data_interp = np.NaN * np.zeros(
+                        (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
+                    )
+                    for equi7_tile_name in equi7_tiles_names:
+                        
+                        
+                        source_tiff_name = os.path.join(
+                            observable_source_paths[observable_idx][stack_idx],
+                            equi7_tile_name,
+                            source_name 
+                            + '_'
+                            + base_name
+                            + '_'
+                            + equi7_grid_name[6:]
+                            + '_'
+                            + equi7_tile_name
+                            + '.tif',
+                        )
+
+                        source_data_interp_curr = interp2d_wrapper(
+                            source_tiff_name,
+                            observable_source_bands[observable_idx],
+                            pixel_axis_east,
+                            pixel_axis_north,
+                            fill_value=np.NaN,
+                        )
+
+                        source_data_interp = merge_agb_intermediate(
+                            source_data_interp, source_data_interp_curr, method='nan_mean'
+                        )
+
+
+                    logging.info("reading and transforming data in file (band {}): \n\t'{}'\nto observable '{}' using transform '{}' and averaging method '{}' (mean value: {})".format(
+                        observable_source_bands[observable_idx],
+                        source_tiff_name,
+                        observable_names[observable_idx],
+                        observable_transforms[observable_idx],
+                        observable_averaging_methods[observable_idx],
+                        np.nanmean(source_data_interp)))
+                    
+                    
+                    # fill out the table
+                    observables_3d[observable_idx][:,:,stack_idx] = transform_function(source_data_interp,
+                                                                                       observable_ranges[observable_idx],
+                                                                                       observable_transforms[observable_idx])
+
+        
+        # otherwise, do not cycle through stacks  
+        # simply read the specified files or list of files
+        else:
+    
+            source_data_interp = np.nan * np.zeros(
+                (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
+            )
+            
+        
+            for file_idx,file_path in enumerate(observable_source_paths[observable_idx]):
+
+                source_data_interp_curr = interp2d_wrapper(
+                    file_path, observable_source_bands[observable_idx], pixel_axis_east, pixel_axis_north, fill_value=np.NaN
+                )
+                # mean all the equi7 tiles
+                source_data_interp = merge_agb_intermediate(
+                    source_data_interp, source_data_interp_curr, method='nan_mean'
+                )
+                
+                logging.info("reading and transforming data in file (band {})): \n\t'{}'\nto observable '{}' using transform '{}' and averaging method '{}' (mean value: {})".format(
+                    observable_source_bands[observable_idx],
+                    file_path,
+                    observable_names[observable_idx],
+                    observable_transforms[observable_idx],
+                    observable_averaging_methods[observable_idx],
+                    np.nanmean(source_data_interp)))
+            
+            observables_3d[observable_idx] = np.kron(
+                np.array([transform_function(source_data_interp,
+                    observable_ranges[observable_idx],
+                    observable_transforms[observable_idx])]).transpose([1,2,0]),
+                np.ones((1,1,number_of_stacks)))
+    
+    
+    identifiers_3d = []
+    for identifier_idx in range(stack_info_table.shape[1]):
+        identifiers_3d.append(np.array([[stack_info_table[:,identifier_idx]]]))
+    
+    
+    
+            
+    # create maps for the space invariant parameters
+    space_invariant_parameters_3d = []
+    for parameter_idx,parameter_name in enumerate(current_space_invariant_parameter_table_column_names):
+        current_lut = np.column_stack((forest_class_id_vector,stack_id_vector,
+                                                 current_table_space_invariant_parameters[:,parameter_idx]))
+        current_lut = np.unique(current_lut,axis=0)
+        space_invariant_parameters_3d.append(apply_look_up_table(current_lut[:,:-1],
+                                                                           current_lut[:,-1],
+                                                 (forest_class_3d,identifiers_3d[0])))
+    
+    
+    # return maps
+    return (
+        forest_class_3d,
+        observables_3d,
+        observable_names,
+        space_invariant_parameters_3d,
+        current_space_invariant_parameter_table_column_names,
+        identifiers_3d,
+        stack_info_table_column_names)
+
+# %%
+
+def subset_iterable(iterable_to_subset,validity_mask,return_array=False):
+    out = [value for value,flag in zip(iterable_to_subset,validity_mask) if flag]
+    if return_array:
+        return np.array(out)
+    else:
+        return out
+        
+# %%
+def map_space_variant_parameters(
+        formula,
+        observables_3d,
+        observables_3d_names,
+        space_invariant_parameters_3d,
+        space_invariant_parameters_3d_names,
+        space_variant_parameters_3d_initial,
+        space_variant_parameters_3d_names,
+        space_variant_parameters_3d_variabilities,
+        space_variant_parameters_3d_limits):
+        
+    #% swap variable names in formulas to slices of an array
+    def swap_names_and_merge_formula_3d(original_formulas,observable_names,parameter_names,new_table_name,use_observable_if_repeated_and_available = True):
+        original_variable_names = observable_names + parameter_names
+        unique_variable_names,name_counts = np.unique(np.array(original_variable_names),return_counts = True)
+        new_formula = '0'
+        for current_formula in original_formulas:
+            for unique_variable_name,name_count in zip(unique_variable_names,name_counts):
+                if name_count==1:
+                    position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][0]
+                elif name_count==2:
+                    position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][np.int32(~use_observable_if_repeated_and_available)]
+                current_formula = current_formula.replace(unique_variable_name,new_table_name + ('[%d]' % (position_in_variable_names_vector)))
+            new_formula = new_formula + ' + (%s)**2' % (current_formula)
+        return new_formula.replace('0 + ','')
+    
+    
+    
+    def small_change_in_intermediate_parameters_3d(intermediate_parameter,additional_arguments,small_step):
+        def cost_function_3d(intermediate_parameter,additional_arguments):
+            # print(np.nanmean(intermediate_parameter))
+            (converted_formula,
+             all_observables_3d,
+             transfer_function,
+             space_variant_parameter_limits,
+             data_list_name) = additional_arguments
+            space_variant_parameter = np.kron(
+                np.ones((1,1,all_observables_3d[0].shape[2])),
+                transfer_function(intermediate_parameter,
+                                  space_variant_parameter_limits[0],
+                                  space_variant_parameter_limits[1],
+                                  False))
+            data_list = all_observables_3d + [space_variant_parameter]
+            return np.sqrt(np.nanmean(eval(converted_formula,{data_list_name:data_list}),axis=2))
+        
+        cost_function_value = cost_function_3d(intermediate_parameter,additional_arguments)
+        cost_function_value_after = cost_function_3d(intermediate_parameter+small_step,additional_arguments)
+        cost_function_value_before = cost_function_3d(intermediate_parameter-small_step,additional_arguments)
+        small_change = small_step*(
+            cost_function_value_after-cost_function_value_before
+                                   )/(2*(
+                                       cost_function_value_after-2*cost_function_value+cost_function_value_before
+                                       ))
+        return np.array([small_change]).transpose([1,2,0]),cost_function_value
+                
+                
+                
+                
+    
+    if (not len(space_variant_parameters_3d_names)==1) or (np.any(space_variant_parameters_3d_variabilities[0][1:])):
+        logging.error('AGB: map creation is currently not implemented for multiple space-variant parameters or space-variant parameters that change in time or with forest class.', exc_info=False)
+    else:    
+        data_list_name = 'data_list'
+        all_observables_3d_names = observables_3d_names + space_invariant_parameters_3d_names
+        converted_formula = swap_names_and_merge_formula_3d(formula,all_observables_3d_names,
+                                                            space_variant_parameters_3d_names,
+                                                            data_list_name,
+                                                            use_observable_if_repeated_and_available = True)       
+        all_observables_3d = observables_3d + space_invariant_parameters_3d
+                
+        # intermediate_parameters_3d = np.pi/4+np.zeros((len(pixel_axis_north),len(pixel_axis_east),1))
+        intermediate_parameters_3d = parameter_transfer_function(space_variant_parameters_3d_initial,
+                                                                 space_variant_parameters_3d_limits[0][0],
+                                                                    space_variant_parameters_3d_limits[0][1],
+                                                                    True)
+        
+                            
+        additional_arguments = (converted_formula,
+                                all_observables_3d,
+                                parameter_transfer_function,
+                                space_variant_parameters_3d_limits[0],
+                                data_list_name)
+        small_step = 0.001
+        maximal_change_magnitude = 0.03
+        number_of_iterations = 100
+        scaling_factor = 0.8
+        for ii in np.arange(number_of_iterations):
+            small_change,cost_function_value = small_change_in_intermediate_parameters_3d(intermediate_parameters_3d,additional_arguments,small_step)
+            intermediate_parameters_3d = intermediate_parameters_3d - np.maximum(
+                -maximal_change_magnitude,
+                np.minimum(
+                    maximal_change_magnitude,
+                    scaling_factor*small_change))
+            
+        space_variant_parameters_3d = parameter_transfer_function(
+            intermediate_parameters_3d,
+            space_variant_parameters_3d_limits[0][0],
+            space_variant_parameters_3d_limits[0][1],
+            False)
+        logging.info('AGB: map creation successful with a final cost function value {}.'.format(np.nanmean(cost_function_value)))
+        
+        return (
+            [space_variant_parameters_3d],
+            space_variant_parameters_3d_names,
+            )
