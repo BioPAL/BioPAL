@@ -267,6 +267,7 @@ def sample_and_tabulate_data(
         observable_names, # observable names in formula
         observable_is_stacked, # flags whether the observable comes from SAR and should be interpreted with stack_info_table or should be replicated across stacks
         observable_is_required, # flags whether the observable must exist in each table row
+        observable_path_is_tif,
         observable_source_paths, # paths to equi7 tiles or files to read for each observable
         observable_source_bands, # which band in the tiff file to read (1 = first band)
         observable_transforms, # transform function to apply to observable
@@ -388,7 +389,7 @@ def sample_and_tabulate_data(
     for observable_idx in range(number_of_observables):
         
         # check if observable is stacked (if yes, cycle through stacks)
-        if observable_is_stacked[observable_idx]:
+        if observable_is_stacked[observable_idx] and not observable_path_is_tif[observable_idx]:
                 
             # cycle over stacks
             for stack_idx in range(number_of_stacks):
@@ -471,7 +472,7 @@ def sample_and_tabulate_data(
         
         # otherwise, do not cycle through stacks  
         # simply read the specified files or list of files
-        else:
+        elif not observable_is_stacked[observable_idx] and observable_path_is_tif[observable_idx]:
     
             source_data_interp = np.nan * np.zeros(
                 (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
@@ -512,7 +513,8 @@ def sample_and_tabulate_data(
                 observable_transforms[observable_idx])
             # fill out the table
             observable_table[:,observable_idx] = np.kron(temp_transformed_sampled_data,np.ones(number_of_stacks))
-            
+        else:
+            logging.error('AGB: observable data cannot be read...')
     
     # mark rows in observable data table that have negative identifiers, nan-valued sar observables, infinite sar observables, or negative agb values
     invalid_rows = np.any(identifier_table<0,axis=1) | \
@@ -686,7 +688,9 @@ def fit_formula_to_random_subsets(
                                                  individual_parameter_min_max_tables)
             
         # fill out parameter tables with estimates of space invariant parameters
-        for current_column_idx,current_parameter_idx in enumerate(np.where(parameters_in_formula & space_invariant_parameters)[0]):
+        
+        for current_parameter_idx in np.where(parameters_in_formula & space_invariant_parameters)[0]:
+            current_column_idx = np.where(np.array(current_parameter_names)==np.array(parameter_names[current_parameter_idx]))[0][0]
             current_rows = (current_lut_all_parameters[:,1]==current_column_idx) & \
                 (np.abs(current_lut_all_parameters[:,-2]-current_lut_all_parameters[:,-1])>1e-4)
             parameter_tables[np.int32(current_parameter_idx)][np.int32(current_lut_all_parameters[current_rows,2]),-number_of_subsets+subset_idx] = \
@@ -727,10 +731,10 @@ def fit_formula_to_random_subsets(
         new_parameter_position_table = parameter_position_table[:,~space_invariant_parameters & parameters_in_formula]
         new_parameter_names = []
         new_individual_parameter_min_max_tables = []
-        for parameter_name,individual_parameter_min_max_table,is_ok in zip(parameter_names,individual_parameter_min_max_tables,~space_invariant_parameters & parameters_in_formula):
+        for parameter_idx,parameter_name,is_ok in zip(range(len(parameter_names)),parameter_names,~space_invariant_parameters & parameters_in_formula):
             if is_ok:
                 new_parameter_names.append(parameter_name)
-                new_individual_parameter_min_max_tables.append(individual_parameter_min_max_table)
+                new_individual_parameter_min_max_tables.append(parameter_tables[parameter_idx][:,-number_of_subsets-3:-number_of_subsets-1])
         
         # estimate space variant parameters for all samples
         (current_lut_space_variant_parameters,
@@ -744,7 +748,9 @@ def fit_formula_to_random_subsets(
                                                  new_individual_parameter_min_max_tables)
                                                          
         # fill out parameter tables with estimates of space invariant parameters
-        for current_column_idx,current_parameter_idx in enumerate(np.where(parameters_in_formula & ~space_invariant_parameters)[0]):
+        for current_parameter_idx in np.where(parameters_in_formula & ~space_invariant_parameters)[0]:
+            current_column_idx = np.where(np.array(new_parameter_names)==np.array(parameter_names[current_parameter_idx]))[0][0]
+        # for current_column_idx,current_parameter_idx in enumerate(np.where(parameters_in_formula & ~space_invariant_parameters)[0]):
             current_rows = (current_lut_space_variant_parameters[:,1]==current_column_idx) & \
                 (np.abs(current_lut_space_variant_parameters[:,-2]-current_lut_space_variant_parameters[:,-1])>1e-4)
             parameter_tables[np.int32(current_parameter_idx)][np.int32(current_lut_space_variant_parameters[current_rows,2]),-number_of_subsets+subset_idx] = \
@@ -803,10 +809,15 @@ def fit_formula_to_random_subsets(
     new_parameter_position_table = parameter_position_table[:,space_invariant_parameters & parameters_in_formula]
     new_parameter_names = []
     new_individual_parameter_min_max_tables = []
-    for parameter_name,individual_parameter_min_max_table,is_ok in zip(parameter_names,individual_parameter_min_max_tables,space_invariant_parameters & parameters_in_formula):
-        if is_ok:
-            new_parameter_names.append(parameter_name)
-            new_individual_parameter_min_max_tables.append(individual_parameter_min_max_table)
+    for parameter_idx,parameter_name,is_ok in zip(range(len(parameter_names)),parameter_names,space_invariant_parameters & parameters_in_formula):
+            if is_ok:
+                new_parameter_names.append(parameter_name)
+                new_individual_parameter_min_max_tables.append(parameter_tables[parameter_idx][:,-number_of_subsets-3:-number_of_subsets-1])
+        
+    # for parameter_name,individual_parameter_min_max_table,is_ok in zip(parameter_names,individual_parameter_min_max_tables,space_invariant_parameters & parameters_in_formula):
+    #     if is_ok:
+    #         new_parameter_names.append(parameter_name)
+    #         new_individual_parameter_min_max_tables.append(individual_parameter_min_max_table)
     
     # estimate space variant parameters for all samples
     (current_lut_space_invariant_parameters,
