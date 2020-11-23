@@ -1029,7 +1029,7 @@ class AGBCoreProcessing(Task):
             for current_path in self.lut_stacks_paths:
                 current_list.append(os.path.join(current_path,observable_source,equi7_grid_name))
             observable_source_paths.append(current_list)
-        observable_source_paths = observable_source_paths + 4*[self.lut_cal_paths]
+        observable_source_paths = observable_source_paths + [self.lut_cal_paths]+3*[self.lut_cal_paths]
         observable_source_paths = observable_source_paths+[
             [r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif'],
             [r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif'],
@@ -1586,11 +1586,13 @@ class AGBCoreProcessing(Task):
                         else:
                             equi7_agb_est_out_tif_names_not_merged.append(equi7_tiff_name)
                     
+                    for observable_idx,observable_name in enumerate(observable_names):
+                        if parameter_name == observable_name:
+                            print(observable_name)
+                            self.lut_cal_paths.append(output_file_path)
+                            self.lut_cal = np.row_stack((self.lut_cal, np.concatenate((current_block_extents[np.array([0,1,3,2])],np.zeros(1)))))
                     
                     
-                    
-                #### ARESYS HELPS OUT TO HERE
-
                 ## PREPARING NEXT TILE
                 # swap flag
                 block_finished_flag[current_block_index] = True
@@ -1606,92 +1608,92 @@ class AGBCoreProcessing(Task):
             except Exception as e:
                 logging.error('AGB: error during map saving and next block preparation.' + str(e), exc_info=True)
                 raise
-                
-        ####################### FINAL  EQUI7 TILES MERGING ########################
-        logging.info('AGB: final step, merging equi7 blocks togeter...')
-        equi7_agb_est_out_tif_names_per_tile = {}
-        for equi7_agb_est_out_tif_name in equi7_agb_est_out_tif_names_not_merged:
+        
+        # ####################### FINAL  EQUI7 TILES MERGING ########################
+        # logging.info('AGB: final step, merging equi7 blocks togeter...')
+        # equi7_agb_est_out_tif_names_per_tile = {}
+        # for equi7_agb_est_out_tif_name in equi7_agb_est_out_tif_names_not_merged:
 
-            tile_name = os.path.basename(os.path.dirname(equi7_agb_est_out_tif_name))
+        #     tile_name = os.path.basename(os.path.dirname(equi7_agb_est_out_tif_name))
 
-            if tile_name in equi7_agb_est_out_tif_names_per_tile.keys():
-                equi7_agb_est_out_tif_names_per_tile[tile_name].append(equi7_agb_est_out_tif_name)
-            else:
-                equi7_agb_est_out_tif_names_per_tile[tile_name] = [equi7_agb_est_out_tif_name]
+        #     if tile_name in equi7_agb_est_out_tif_names_per_tile.keys():
+        #         equi7_agb_est_out_tif_names_per_tile[tile_name].append(equi7_agb_est_out_tif_name)
+        #     else:
+        #         equi7_agb_est_out_tif_names_per_tile[tile_name] = [equi7_agb_est_out_tif_name]
 
-        for (
-            tile_name,
-            equi7_agb_est_out_tif_names_curr_tile,
-        ) in equi7_agb_est_out_tif_names_per_tile.items():
+        # for (
+        #     tile_name,
+        #     equi7_agb_est_out_tif_names_curr_tile,
+        # ) in equi7_agb_est_out_tif_names_per_tile.items():
 
-            driver = gdal.Open(equi7_agb_est_out_tif_names_curr_tile[0], GA_ReadOnly)
-            data_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
-            quality_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
-            driver = None
+        #     driver = gdal.Open(equi7_agb_est_out_tif_names_curr_tile[0], GA_ReadOnly)
+        #     data_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
+        #     quality_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
+        #     driver = None
 
-            for idx_tile, equi7_agb_est_out_tif_name_curr_tile in enumerate(
-                equi7_agb_est_out_tif_names_curr_tile
-            ):
+        #     for idx_tile, equi7_agb_est_out_tif_name_curr_tile in enumerate(
+        #         equi7_agb_est_out_tif_names_curr_tile
+        #     ):
 
-                # merging current tile blocks togeter:
-                driver = gdal.Open(equi7_agb_est_out_tif_name_curr_tile, GA_ReadOnly)
+        #         # merging current tile blocks togeter:
+        #         driver = gdal.Open(equi7_agb_est_out_tif_name_curr_tile, GA_ReadOnly)
 
-                if idx_tile == 0:
-                    geotransform_out = driver.GetGeoTransform()
-                elif geotransform_out != driver.GetGeoTransform():
-                    err_str = 'Same equi7 tiles cannot have different geotrasform'
-                    logging.error(err_str)
-                    raise ValueError(err_str)
+        #         if idx_tile == 0:
+        #             geotransform_out = driver.GetGeoTransform()
+        #         elif geotransform_out != driver.GetGeoTransform():
+        #             err_str = 'Same equi7 tiles cannot have different geotrasform'
+        #             logging.error(err_str)
+        #             raise ValueError(err_str)
 
-                data_merged = np.nanmean(
-                    np.dstack((data_merged, driver.GetRasterBand(1).ReadAsArray())), axis=2
-                )
-                quality_merged = np.sqrt(
-                    np.nanmean(
-                        np.dstack(
-                            (quality_merged ** 2, driver.GetRasterBand(2).ReadAsArray() ** 2)
-                        ),
-                        axis=2,
-                    )
-                )
-                driver = None
+        #         data_merged = np.nanmean(
+        #             np.dstack((data_merged, driver.GetRasterBand(1).ReadAsArray())), axis=2
+        #         )
+        #         quality_merged = np.sqrt(
+        #             np.nanmean(
+        #                 np.dstack(
+        #                     (quality_merged ** 2, driver.GetRasterBand(2).ReadAsArray() ** 2)
+        #                 ),
+        #                 axis=2,
+        #             )
+        #         )
+        #         driver = None
 
-            invalid_values_mask = np.logical_or(
-                data_merged < proc_conf.AGB.estimation_valid_values_limits[0],
-                data_merged > proc_conf.AGB.estimation_valid_values_limits[-1],
-            )
-            data_merged[invalid_values_mask] = np.nan
-            quality_merged[invalid_values_mask] = np.nan
+        #     invalid_values_mask = np.logical_or(
+        #         data_merged < proc_conf.AGB.estimation_valid_values_limits[0],
+        #         data_merged > proc_conf.AGB.estimation_valid_values_limits[-1],
+        #     )
+        #     data_merged[invalid_values_mask] = np.nan
+        #     quality_merged[invalid_values_mask] = np.nan
 
-            sub_grid_folder_name = os.path.basename(
-                os.path.dirname(os.path.dirname(equi7_agb_est_out_tif_names_curr_tile[0]))
-            )
-            output_folder_curr_tile = os.path.join(
-                global_agb_folder,
-                sub_grid_folder_name,
-                tile_name,
-                'agb_est_' + tile_name + sub_grid_folder_name + '.tif',
-            )
-            if not os.path.exists(os.path.dirname(output_folder_curr_tile)):
-                os.makedirs(os.path.dirname(output_folder_curr_tile))
-            output_folder_curr_tile = tiff_formatter(
-                [data_merged, quality_merged],
-                output_folder_curr_tile,
-                geotransform_out,
-                gdal_data_format=gdal.GDT_Float32,
-                projection=projection_curr,
-                multi_layers_tiff=True,
-            )
-            logging.info(
-                '    equi7 tile blocks merged and savad to file{}'.format(output_folder_curr_tile)
-            )
+        #     sub_grid_folder_name = os.path.basename(
+        #         os.path.dirname(os.path.dirname(equi7_agb_est_out_tif_names_curr_tile[0]))
+        #     )
+        #     output_folder_curr_tile = os.path.join(
+        #         global_agb_folder,
+        #         sub_grid_folder_name,
+        #         tile_name,
+        #         'agb_est_' + tile_name + sub_grid_folder_name + '.tif',
+        #     )
+        #     if not os.path.exists(os.path.dirname(output_folder_curr_tile)):
+        #         os.makedirs(os.path.dirname(output_folder_curr_tile))
+        #     output_folder_curr_tile = tiff_formatter(
+        #         [data_merged, quality_merged],
+        #         output_folder_curr_tile,
+        #         geotransform_out,
+        #         gdal_data_format=gdal.GDT_Float32,
+        #         projection=projection_curr,
+        #         multi_layers_tiff=True,
+        #     )
+        #     logging.info(
+        #         '    equi7 tile blocks merged and savad to file{}'.format(output_folder_curr_tile)
+        #     )
 
-        if proc_conf.delete_temporary_files:
-            try:
-                shutil.rmtree(temp_proc_folder)
-            except:
-                pass
-        logging.info('AGB: estimation ended correctly.\n')
+        # if proc_conf.delete_temporary_files:
+        #     try:
+        #         shutil.rmtree(temp_proc_folder)
+        #     except:
+        #         pass
+        # logging.info('AGB: estimation ended correctly.\n')
                                 # %%
 
                 # space_invariant_parameter_variabilities = []
