@@ -14,7 +14,8 @@ from biopal.agb.processing_AGB import (
     mean_on_rois,
     check_intersection,
     interp2d_wrapper,
-    merge_agb_intermediate
+    merge_agb_intermediate,
+    compute_processing_blocs_order
 )
 
 
@@ -128,11 +129,12 @@ def fit_formula_to_table_data(original_formula,
         
         # fit the model
         fitted_model = sp.optimize.minimize(cost_function,x_initial,cost_function_arguments,method='BFGS')
-        print(fitted_model.message)
         if fitted_model.success:
+            logging.info(' ... finished with success.')
             p_estimated = parameter_transfer_function(fitted_model.x,p_lower,p_upper,False)
             break
         else:
+            logging.info(' ... finished with failure (message: {}). Rerunning with different initial values...'.format(fitted_model.message))
             p_estimated = np.nan * np.zeros(length_of_p_vector)
     return (
         np.column_stack((columnwise_to_unique_index_lut,p_initial,p_estimated)),
@@ -310,7 +312,7 @@ def sample_and_tabulate_data(
     
     
     ### READING AND SAMPLING FOREST CLASS DATA
-    logging.info('reading & sampling forest class data')
+    logging.info('AGB: sampling forest class data')
     # get equi7 information
     # equi7_grid_name = os.listdir(os.path.join(stack_paths[0], 'sigma0_hh'))[0]
     # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
@@ -440,13 +442,11 @@ def sample_and_tabulate_data(
                     # masking the stack:
                     source_data_interp[forest_class_map_interp == 0] = np.NaN
 
-                    logging.info("sampling and transforming data in file (band {}): \n\t'{}'\nto observable '{}' using transform '{}' and averaging method '{}' (mean value: {})".format(
-                        observable_source_bands[observable_idx],
-                        source_tiff_name,
+                    logging.info("AGB: sampling and transforming data for observable '{}' (stack {})".format(
                         observable_names[observable_idx],
-                        observable_transforms[observable_idx],
-                        observable_averaging_methods[observable_idx],
-                        np.nanmean(source_data_interp)))
+                        np.int32(stack_id_vector[stack_idx])
+                        )
+                    )
                     
                     # calculate sample statistics
                     temp_transformed_sampled_data = transform_function(
@@ -489,13 +489,11 @@ def sample_and_tabulate_data(
                     source_data_interp, source_data_interp_curr, method='nan_mean'
                 )
                 
-                logging.info("sampling and transforming data in file (band {})): \n\t'{}'\nto observable '{}' using transform '{}' and averaging method '{}' (mean value: {})".format(
-                    observable_source_bands[observable_idx],
-                    file_path,
-                    observable_names[observable_idx],
-                    observable_transforms[observable_idx],
-                    observable_averaging_methods[observable_idx],
-                    np.nanmean(source_data_interp)))
+                logging.info("AGB: sampling and transforming data for observable '{}' (file {})".format(
+                        observable_names[observable_idx],
+                        file_idx+1
+                        )
+                    )
             # statistics over samples
             temp_transformed_sampled_data = transform_function(
                 stats_on_all_samples(
@@ -687,6 +685,7 @@ def fit_formula_to_random_subsets(
                                                  current_parameter_names,
                                                  individual_parameter_min_max_tables)
             
+        
         # fill out parameter tables with estimates of space invariant parameters
         
         for current_parameter_idx in np.where(parameters_in_formula & space_invariant_parameters)[0]:
@@ -849,7 +848,8 @@ def save_human_readable_table(path,table,column_names,data_type_lut,table_delimi
         delimiter=table_delimiter,
         header=table_header,
         comments='')  
-    np.save(path+'.npy',table)
+    path_npy = '.'.join(path.split('.')[:-1]) + '.npy'
+    np.save(path_npy,table)
     
 
 # %%
@@ -873,7 +873,16 @@ def read_and_organise_3d_data(
         forest_class_id_vector,
         current_table_space_invariant_parameters,
         current_space_invariant_parameter_table_column_names,
+        mask_out_area_outside_block = False,
         ):
+    
+    
+    # create mask for current block
+    current_block_mask = np.zeros((len(pixel_axis_north),len(pixel_axis_east)),dtype='bool')
+    # set areas within block to true
+    current_block_mask[np.array([np.where((pixel_axis_north>current_block_extents[3]) & (pixel_axis_north<current_block_extents[2]))[0]]).transpose(),
+                       np.array([np.where((pixel_axis_east>current_block_extents[0]) & (pixel_axis_east<current_block_extents[1]))[0]])] = True
+    
     
     def apply_look_up_table(lut_x,lut_y,output_xs):
         output_y = np.nan * np.zeros(np.prod(output_xs).shape)
@@ -888,7 +897,7 @@ def read_and_organise_3d_data(
     # number_of_space_invariant_parameters = len(current_space_invariant_parameter_table_column_names)
     
     ### READING AND SAMPLING FOREST CLASS DATA
-    logging.info('reading forest class map')
+    logging.info('AGB: reading forest class map')
     # get equi7 information
     # equi7_grid_name = os.listdir(os.path.join(stack_paths[0], 'sigma0_hh'))[0]
     # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
@@ -929,6 +938,7 @@ def read_and_organise_3d_data(
             
             # set all unrealistic values to 0 = non-forest
             forest_class_3d[(forest_class_3d <= 0) | np.isnan(forest_class_3d)] = 0
+            
             
             counter_forest_class_maps = counter_forest_class_maps + 1
 
@@ -1001,13 +1011,10 @@ def read_and_organise_3d_data(
                         )
 
 
-                    logging.info("reading and transforming data in file (band {}): \n\t'{}'\nto observable '{}' using transform '{}' and averaging method '{}' (mean value: {})".format(
-                        observable_source_bands[observable_idx],
-                        source_tiff_name,
+                    logging.info("AGB: sampling and transforming data for observable '{}' (stack {})".format(
                         observable_names[observable_idx],
-                        observable_transforms[observable_idx],
-                        observable_averaging_methods[observable_idx],
-                        np.nanmean(source_data_interp)))
+                        np.int32(stack_id_vector[stack_idx])
+                        ))
                     
                     
                     # fill out the table
@@ -1035,14 +1042,11 @@ def read_and_organise_3d_data(
                     source_data_interp, source_data_interp_curr, method='nan_mean'
                 )
                 
-                logging.info("reading and transforming data in file (band {})): \n\t'{}'\nto observable '{}' using transform '{}' and averaging method '{}' (mean value: {})".format(
-                    observable_source_bands[observable_idx],
-                    file_path,
+                logging.info("AGB: sampling and transforming data for observable '{}' (file {})".format(
                     observable_names[observable_idx],
-                    observable_transforms[observable_idx],
-                    observable_averaging_methods[observable_idx],
-                    np.nanmean(source_data_interp)))
-            
+                    np.int32(file_idx+1)
+                    ))
+                
             observables_3d[observable_idx] = np.kron(
                 np.array([transform_function(source_data_interp,
                     observable_ranges[observable_idx],
@@ -1063,9 +1067,13 @@ def read_and_organise_3d_data(
         current_lut = np.column_stack((forest_class_id_vector,stack_id_vector,
                                                  current_table_space_invariant_parameters[:,parameter_idx]))
         current_lut = np.unique(current_lut,axis=0)
-        space_invariant_parameters_3d.append(apply_look_up_table(current_lut[:,:-1],
-                                                                           current_lut[:,-1],
-                                                 (forest_class_3d,identifiers_3d[0])))
+        current_parameter_map_3d = apply_look_up_table(
+            current_lut[:,:-1],
+            current_lut[:,-1],
+            (forest_class_3d,identifiers_3d[0]))
+        if mask_out_area_outside_block:
+            current_parameter_map_3d[~current_block_mask] = np.nan
+        space_invariant_parameters_3d.append(current_parameter_map_3d)
     
     
     # return maps
@@ -1097,7 +1105,6 @@ def map_space_variant_parameters(
         space_invariant_parameters_3d_names,
         identifiers_3d,
         identifiers_3d_names,
-        space_variant_parameters_3d_initial,
         space_variant_parameters_3d_names,
         space_variant_parameters_3d_variabilities,
         space_variant_parameters_3d_limits):
@@ -1162,6 +1169,7 @@ def map_space_variant_parameters(
         all_observables_3d = observables_3d + space_invariant_parameters_3d
                 
         # intermediate_parameters_3d = np.pi/4+np.zeros((len(pixel_axis_north),len(pixel_axis_east),1))
+        space_variant_parameters_3d_initial = np.mean(space_variant_parameters_3d_limits[0]) * np.ones((observables_3d[0].shape[0],observables_3d[0].shape[1],1))
         intermediate_parameters_3d = parameter_transfer_function(space_variant_parameters_3d_initial,
                                                                  space_variant_parameters_3d_limits[0][0],
                                                                     space_variant_parameters_3d_limits[0][1],
@@ -1196,3 +1204,77 @@ def map_space_variant_parameters(
             [space_variant_parameters_3d],
             space_variant_parameters_3d_names,
             )
+# %%
+
+
+## in the future, improve this so it can handle polygons etc
+def check_block_for_data_and_cal(
+        block_extents,
+        stack_boundaries,
+        calibration_boundaries):
+    
+
+    # cycle through stacks and check that there are some data within current block
+    block_has_data = np.zeros(stack_boundaries.shape[0], dtype='bool')
+    for stack_idx, stack_boundary in enumerate(stack_boundaries):
+
+        # go ahead only if current parameter block is at least partially contained in the data stack:
+        block_has_data[stack_idx] = check_intersection(
+            stack_boundary[0],
+            stack_boundary[1],
+            stack_boundary[2],
+            stack_boundary[3],
+            block_extents[0],
+            block_extents[1],
+            block_extents[3],
+            block_extents[2],
+        )
+    
+
+    # cycle through cals and see that there are some cals within current block
+    block_has_cal = np.zeros(calibration_boundaries.shape[0], dtype='bool')
+    for calibration_idx, calibration_boundary in enumerate(calibration_boundaries):
+
+        # go ahead only if current parameter block is at least partially contained in the data stack:
+        block_has_cal[calibration_idx] = check_intersection(
+            calibration_boundary[0],
+            calibration_boundary[1],
+            calibration_boundary[2],
+            calibration_boundary[3],
+            block_extents[0],
+            block_extents[1],
+            block_extents[3],
+            block_extents[2],
+        )
+
+
+    return block_has_data,block_has_cal
+# %%
+
+def continue_with_next_block(current_block_index,block_finished_flag,block_order):
+     # swap the flag
+    block_finished_flag[current_block_index] = True
+    # remove current par block from list
+    block_order = block_order[block_order != current_block_index]
+    # select next par block
+    if (len(block_order) > 0):
+        # if there is at least one left, just take the next closest to CALdata
+        current_block_index = block_order[0]
+    else:
+        current_block_index = -1
+    return current_block_index,block_finished_flag,block_order
+        
+    # %%
+def compute_block_processing_order(
+        block_corner_coordinates_east,
+        block_corner_coordinates_north, 
+        block_size_east, 
+        block_size_north,
+        calibration_area_coordinates,
+        stack_data_coordinates,
+        ):
+        # in the future, this should be capable of reading polygons for both calibration areas and stack data
+        # now, it's just a wrapper around an old function
+        return compute_processing_blocs_order(
+            calibration_area_coordinates, block_corner_coordinates_east, block_size_east, block_corner_coordinates_north, block_size_north
+        )
