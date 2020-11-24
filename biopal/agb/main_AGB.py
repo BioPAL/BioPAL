@@ -984,10 +984,13 @@ class AGBCoreProcessing(Task):
         #   3 - +: addition
         #   4 - *: multiplication
         #   The formula is split based on the order above and the mathematical operations are done in the opposite order
-        #     here, we hardcode this before the xml and xml reading function above are updated
-        formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_tomo_theta_db + neg_cov_hh_30_db + k_cp * tomo_h_db',
-                                'l_hv + a_hv * agb_1_db + n_hv * cos_tomo_theta_db + neg_cov_hv_30_db + k_xp * tomo_h_db',
-                                'l_vv + a_vv * agb_1_db + n_vv * cos_tomo_theta_db + neg_cov_vv_30_db + k_cp * tomo_h_db']
+        # #     here, we hardcode this before the xml and xml reading function above are updated
+        # formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_tomo_theta_db + neg_cov_hh_30_db + k_cp * tomo_h_db',
+        #                         'l_hv + a_hv * agb_1_db + n_hv * cos_tomo_theta_db + neg_cov_hv_30_db + k_xp * tomo_h_db',
+        #                         'l_vv + a_vv * agb_1_db + n_vv * cos_tomo_theta_db + neg_cov_vv_30_db + k_cp * tomo_h_db']
+        formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db',
+                                'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db',
+                                'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db']
         
             
         ### then, the user has to define each of the elements of the formula
@@ -1345,8 +1348,8 @@ class AGBCoreProcessing(Task):
                         parameter_tables,
                         parameter_table_columns,
                         parameter_variabilities,
-                        proc_conf.AGB.fraction_of_cal_per_test/100,
-                        proc_conf.AGB.fraction_of_roi_per_test/100,
+                        proc_conf.AGB.fraction_of_cal_per_test/100*0.4,
+                        proc_conf.AGB.fraction_of_roi_per_test/100*0.4,
                         proc_conf.AGB.min_number_of_cals_per_test,
                         proc_conf.AGB.min_number_of_rois_per_test,
                 )
