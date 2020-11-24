@@ -86,6 +86,9 @@ from biopal.agb.estimating_AGB import (
     read_and_organise_3d_data,
     subset_iterable,
     map_space_variant_parameters,
+    check_block_for_data_and_cal,
+    continue_with_next_block,
+    compute_block_processing_order,
 )
 # %%
 class AboveGroundBiomass(Task):
@@ -982,9 +985,9 @@ class AGBCoreProcessing(Task):
         #   4 - *: multiplication
         #   The formula is split based on the order above and the mathematical operations are done in the opposite order
         #     here, we hardcode this before the xml and xml reading function above are updated
-        formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_cov_hh_30_db + k_cp * tomo_h_db',
-                                'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_cov_hv_30_db + k_xp * tomo_h_db',
-                                'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_cov_vv_30_db + k_cp * tomo_h_db']
+        formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_tomo_theta_db + neg_cov_hh_30_db + k_cp * tomo_h_db',
+                                'l_hv + a_hv * agb_1_db + n_hv * cos_tomo_theta_db + neg_cov_hv_30_db + k_xp * tomo_h_db',
+                                'l_vv + a_vv * agb_1_db + n_vv * cos_tomo_theta_db + neg_cov_vv_30_db + k_cp * tomo_h_db']
         
             
         ### then, the user has to define each of the elements of the formula
@@ -1029,7 +1032,7 @@ class AGBCoreProcessing(Task):
             for current_path in self.lut_stacks_paths:
                 current_list.append(os.path.join(current_path,observable_source,equi7_grid_name))
             observable_source_paths.append(current_list)
-        observable_source_paths = observable_source_paths + [self.lut_cal_paths]+3*[self.lut_cal_paths]
+        observable_source_paths = observable_source_paths + [self.lut_cal_paths]*4
         observable_source_paths = observable_source_paths+[
             [r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif'],
             [r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif'],
@@ -1112,12 +1115,28 @@ class AGBCoreProcessing(Task):
        ###################### END OF PREPARING INPUT 
         
         
+
+        ### MANAGING ADDITIONAL SAMPLING POLYGONS (NOT ON REGULAR GRID)
+        # (to be implemented in the future)
+        # define or/and load additional, arbitrarily shaped sampling polygons,
+        # typically representing calibration data
+        additional_sampling_polygons = []
+        number_of_polygon_samples = len(additional_sampling_polygons)
+       
             
+
+        ### PREPARING STACK INFO
+        # read acquisition info table
+        stack_info_table = self.lut_progressive_stacks
+        stack_info_table_columns = ['stack_id','global_cycle_id','heading_degrees','swath_id','subswath_id','azimuth_id']
         
+        
+        
+        ### INITIALISING EQUI7
         # initialize the equi7 sampling grid or output product
         e7g_product = Equi7Grid(geographic_grid_sampling)
         logging.info(
-            'EQUI7 Grid sampling used for final products: {}'.format(geographic_grid_sampling)
+            'AGB: EQUI7 Grid sampling used for final products: {}'.format(geographic_grid_sampling)
         )
 
         equi7_subgrid_names_list = []
@@ -1133,10 +1152,10 @@ class AGBCoreProcessing(Task):
         subgrid_code = equi7_subgrid_names_list[0][6:8]
         # projection_prev = ''
         equi7_agb_est_out_tif_names_not_merged = []
+        # get projection (ugly fix)
+        projection_string = get_projection_from_path(observable_source_paths[np.where(observable_path_is_tif)[0][0]][0])
 
-       
-
-
+        ### PREPARING PARAMETER GRID
         # parameter block mesh and flattened coordinate vectors
         block_mesh_east, block_mesh_north = np.meshgrid(np.arange(first_pixel_east, last_pixel_east, block_spacing_east), np.arange(first_pixel_north, last_pixel_north, block_spacing_north))
         block_corner_coordinates_east, block_corner_coordinates_north = [
@@ -1146,159 +1165,127 @@ class AGBCoreProcessing(Task):
         number_of_blocks = len(block_corner_coordinates_east.flatten())
         block_finished_flag = np.zeros((number_of_blocks), dtype='bool')
         
-        # read acquisition info table
-        stack_info_table = self.lut_progressive_stacks
-        stack_info_table_columns = ['stack_id','global_cycle_id','heading_degrees','swath_id','subswath_id','azimuth_id']
-        
-        
         # Compute the starting block and the nblock processing order
-        # proposed improvement: use SAR image boundaries in this
-        current_block_index, block_order = compute_processing_blocs_order(
-            self.lut_cal, block_corner_coordinates_east, block_size_east, block_corner_coordinates_north, block_size_north
-        )
+        (
+            current_block_index,
+            block_order
+            ) = compute_block_processing_order(
+                block_corner_coordinates_east,
+                block_corner_coordinates_north, 
+                block_size_east, 
+                block_size_north,
+                self.lut_cal, # right now, this uses boundaries but in the future it should be capable of using polygons (including additional_sampling_polygons)
+                self.lut_stacks_boundaries # right now, this uses boundaries but in the future it should be capable of using polygons
+            )
 
-        
+        ### RUNNING PARAMETER BLOCKS
         # run as long as not all blocks are finished
         counter_blocks_run = 0
-        while ~np.all(block_finished_flag):
+        while (~np.all(block_finished_flag)) and (current_block_index >= 0):
 
             # show status
             counter_blocks_run = counter_blocks_run + 1
             logging.info('AGB: Running block {} out of {} (block ID: {})'.format(counter_blocks_run, number_of_blocks, current_block_index))
             
             
+            # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             
-            
-            # extent of current block # [min_east, max_east, min_north, max_north]
-            current_block_extents = np.array(
-                [
-                    block_corner_coordinates_east[current_block_index],
-                    block_corner_coordinates_east[current_block_index] + block_size_east,
-                    block_corner_coordinates_north[current_block_index],
-                    block_corner_coordinates_north[current_block_index] + block_size_north,
-                ]
-            )  
-
-            # sampling axes and meshes for current block
-            sampling_axis_east = np.arange(current_block_extents[0], current_block_extents[1], sample_spacing_east)
-            sampling_axis_north = np.arange(current_block_extents[2], current_block_extents[3], sample_spacing_north)
-            sampling_mesh_east, sampling_mesh_north = np.meshgrid( sampling_axis_east,
-                                                                  sampling_axis_north)
-            number_of_samples_on_grid = len(sampling_mesh_east.flatten())
-            
-            ### to be implemented:
-            # define or/and load additional, arbitrarily shaped sampling polygons
-            additional_sampling_polygons = []
-            number_of_polygon_samples = len(additional_sampling_polygons)
-            
-            # calculate the total number of samples
-            number_of_samples = number_of_samples_on_grid + number_of_polygon_samples
-            
-            # checking the number of samples
-            if number_of_samples_on_grid < proc_conf.AGB.min_number_of_rois:
-                logging.info(
-                    'skipping block #{} because the number of samples #{} cannot be less than #{}'.format(
-                        current_block_index, number_of_samples_on_grid, proc_conf.AGB.min_number_of_rois
-                    )
-                )
-                # swap the flag
-                block_finished_flag[current_block_index] = True
-                # remove current block from list
-                block_order = block_order[block_order != current_block_index]
-                # select next block
-                if len(block_order) > 0:
-                    # if there is at least one left, just take the next closest to CALdata
-                    current_block_index = block_order[0]
-                    continue
-                else:
-                    break
-
-            # pixel axes for current block
-            pixel_axis_east = np.arange(current_block_extents[0], current_block_extents[1], pixel_size_east)
-            pixel_axis_north = np.arange(current_block_extents[2], current_block_extents[3], pixel_size_north)
-            
-            
-            ## THE FOLLOWING PART IS TABULATING
-            # could be moved to a separate function
             try:
+                logging.info('AGB: Creating sampling grid and checking for data.')
+            
+                # extent of current block # [min_east, max_east, min_north, max_north]
+                current_block_extents = np.array(
+                    [
+                        block_corner_coordinates_east[current_block_index],
+                        block_corner_coordinates_east[current_block_index] + block_size_east,
+                        block_corner_coordinates_north[current_block_index],
+                        block_corner_coordinates_north[current_block_index] + block_size_north,
+                    ]
+                )  
+    
+                # sampling axes and meshes for current block
+                sampling_axis_east = np.arange(current_block_extents[0], current_block_extents[1], sample_spacing_east)
+                sampling_axis_north = np.arange(current_block_extents[2], current_block_extents[3], sample_spacing_north)
+                sampling_mesh_east, sampling_mesh_north = np.meshgrid( sampling_axis_east,
+                                                                      sampling_axis_north)
+                number_of_samples_on_grid = len(sampling_mesh_east.flatten())
                 
                 
-
-                # cycle through stacks and check that there are some data within current block
-                block_has_data = np.zeros(len(stack_info_table[:,0]), dtype='bool')
-                for stack_idx, stack_path in enumerate(self.lut_stacks_paths):
-
-                    # go ahead only if current parameter block is at least partially contained in the data stack:
-                    block_has_data[stack_idx] = check_intersection(
-                        self.lut_stacks_boundaries[stack_idx, 0],
-                        self.lut_stacks_boundaries[stack_idx, 1],
-                        self.lut_stacks_boundaries[stack_idx, 2],
-                        self.lut_stacks_boundaries[stack_idx, 3],
-                        current_block_extents[0],
-                        current_block_extents[1],
-                        current_block_extents[3],
-                        current_block_extents[2],
-                    )
-                number_of_stacks_inside = np.sum(block_has_data == True)
-                if (number_of_stacks_inside == 0):
+                # calculate the total number of samples
+                number_of_samples = number_of_samples_on_grid + number_of_polygon_samples
+                
+                # checking the number of samples
+                if number_of_samples < proc_conf.AGB.min_number_of_rois:
                     logging.info(
-                        'skipping block #{} due to lack of valid data points'.format(
-                            current_block_index
+                        '... skipping block #{} because the number of samples #{} cannot be less than #{}'.format(
+                            current_block_index, number_of_samples_on_grid, proc_conf.AGB.min_number_of_rois
                         )
                     )
-                    # swap the flag
-                    block_finished_flag[current_block_index] = True
-                    # remove current par block from list
-                    block_order = block_order[block_order != current_block_index]
-                    # select next par block
-                    if len(block_order) > 0:
-                        # if there is at least one left, just take the next closest to CALdata
-                        current_block_index = block_order[0]
+                    
+                            
+                    (
+                        current_block_index,
+                        block_finished_flag,
+                        block_order
+                        ) = continue_with_next_block(
+                             current_block_index,
+                             block_finished_flag,
+                             block_order)
+                            
+                    if current_block_index>=0:
                         continue
                     else:
                         break
-
-                # cycle through cals and see that there are some cals within current block
-                block_has_cal = np.zeros(len(self.lut_cal_paths), dtype='bool')
-                for cal_idx, cal_path in enumerate(self.lut_cal_paths):
-
-                    # go ahead only if current parameter block is at least partially contained in the data stack:
-                    block_has_cal[cal_idx] = check_intersection(
-                        self.lut_cal[cal_idx, 0],
-                        self.lut_cal[cal_idx, 1],
-                        self.lut_cal[cal_idx, 2],
-                        self.lut_cal[cal_idx, 3],
-                        current_block_extents[0],
-                        current_block_extents[1],
-                        current_block_extents[3],
-                        current_block_extents[2],
-                    )
-
-                if not np.any(block_has_cal):
-                    logging.info(
-                        'skipping block #{} due to lack of calibration data'.format(
-                            current_block_index
-                        )
-                    )
-                    # swap the flag
-                    block_finished_flag[current_block_index] = True
-                    # remove current par block from list
-                    block_order = block_order[block_order != current_block_index]
-                    # select next par block
-                    if len(block_order) > 0:
-                        # if there is at least one left, just take the next closest to CALdata
-                        current_block_index = block_order[0]
+                    
+                
+                # examine stack and calibration data
+                (
+                    block_has_data,
+                    block_has_cal
+                    ) = check_block_for_data_and_cal(
+                        current_block_extents,
+                        self.lut_stacks_boundaries,
+                        self.lut_cal)
+                        
+                
+                # checking availability of calibration and stack data        
+                if ~np.any(block_has_data) or ~np.any(block_has_cal):
+                    logging.info('... skipping block #{} due to lack of valid data or calibration points'.format(
+                            current_block_index))
+                    
+                    (
+                        current_block_index,
+                        block_finished_flag,
+                        block_order
+                        ) = continue_with_next_block(
+                             current_block_index,
+                             block_finished_flag,
+                             block_order)
+                    if current_block_index>=0:
                         continue
                     else:
                         break
-                # %%    
+                    
+            except Exception as e:
+                logging.error('AGB: error during sampling grid preparation.' + str(e), exc_info=True)
+                raise
+                
+            # %% ### TABULATING DATA
+            try:
+                logging.info('AGB: tabulating data...')
+                
+                # pixel axes for current block
+                pixel_axis_east = np.arange(current_block_extents[0], current_block_extents[1], pixel_size_east)
+                pixel_axis_north = np.arange(current_block_extents[2], current_block_extents[3], pixel_size_north)
+                
+                # tabulation
                 (
                     observable_table,
                     observable_names,
                     identifier_table,
                     identifier_names,
                     parameter_position_table,
-                    parameter_position_names,
+                    parameter_position_table_columns,
                     parameter_tables,
                     parameter_table_columns,
                 ) = sample_and_tabulate_data(
@@ -1330,27 +1317,22 @@ class AGBCoreProcessing(Task):
                         number_of_subsets, # number of subsets to use (used to allocate columns in parameter tables)
                 )
                 
-                
-    
-                
-                    
                  
             except Exception as e:
-                logging.error('AGB: error during data sampling and tabulating.' + str(e), exc_info=True)
+                logging.error('AGB: error during data sampling and tabulation.' + str(e), exc_info=True)
                 raise
             
-            # this is inversion
+            # %% ### FITTING MODEL TO TABULATED DATA 
             try:
                 
-                
-                
+                logging.info('AGB: fitting model to data...')
                 
                 (
                     parameter_tables,
-                    current_table_space_invariant_parameters,
-                    current_space_invariant_parameter_table_column_names,
-                    current_table_space_variant_parameters,
-                    current_space_variant_parameter_table_column_names,
+                    space_invariant_parameter_table,
+                    space_invariant_parameter_names,
+                    space_variant_parameter_table,
+                    space_variant_parameter_names,
                 ) = fit_formula_to_random_subsets(
                         formula,
                         number_of_subsets,
@@ -1358,33 +1340,33 @@ class AGBCoreProcessing(Task):
                         observable_names,
                         identifier_table,
                         identifier_names,
-                        parameter_position_table,
+                        parameter_position_table, 
                         parameter_names,
                         parameter_tables,
                         parameter_table_columns,
                         parameter_variabilities,
-                        proc_conf.AGB.fraction_of_cal_per_test/100*0.5,
-                        proc_conf.AGB.fraction_of_roi_per_test/100*0.5,
+                        proc_conf.AGB.fraction_of_cal_per_test/100,
+                        proc_conf.AGB.fraction_of_roi_per_test/100,
                         proc_conf.AGB.min_number_of_cals_per_test,
                         proc_conf.AGB.min_number_of_rois_per_test,
                 )
+                       
+            except Exception as e:
+                logging.error('AGB: error during parameter estimation.' + str(e), exc_info=True)
+                raise
+            
+            # %% ### SAVING THE RESULTS
+            try:
                 
-                      
-                # # add one last column with the final parameter estimate
-                # for parameter_idx,parameter_table in enumerate(parameter_tables):
-                #     # parameter_tables[parameter_idx] = np.column_stack((parameter_table,np.mean(parameter_table[:,-number_of_subsets:],axis=1)))
-                #     parameter_table_columns[parameter_idx] = np.concatenate((parameter_table_columns[parameter_idx],
-                #                                                              np.array(['estimate_final'])))
-                        
-                ### SAVING OBSERVABLE AND PARAMETER TABLES
-                   
+                logging.info('AGB: saving data to tables.')
+                # save data
                 parameter_property_names = parameter_table_columns[0][-number_of_subsets-4:]
                 line_number_string = ['row']
                 # select formatting for the output tables
                 table_delimiter = '\t'
                 table_precision = 3
                 table_column_width = 25
-                data_type_lut = [[line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names],
+                data_type_lut = [[line_number_string,identifier_names,parameter_position_table_columns,parameter_property_names,observable_names,parameter_names],
                                  ['d','d','d','f','f','f']]
                     
                 curr_path = os.path.join(
@@ -1395,7 +1377,7 @@ class AGBCoreProcessing(Task):
                     identifier_table,
                     observable_table,
                     parameter_position_table))
-                curr_column_names = line_number_string+identifier_names+observable_names+parameter_position_names
+                curr_column_names = line_number_string+identifier_names+observable_names+parameter_position_table_columns
                 save_human_readable_table(curr_path,curr_table,curr_column_names,data_type_lut,table_delimiter,table_precision,table_column_width)                
                 
                 curr_path = os.path.join(
@@ -1405,10 +1387,9 @@ class AGBCoreProcessing(Task):
                     np.arange(observable_table.shape[0]),
                     identifier_table,
                     observable_table,
-                    current_table_space_invariant_parameters,
-                    current_table_space_variant_parameters,
-                    parameter_position_table))
-                curr_column_names = line_number_string+identifier_names+observable_names+current_space_invariant_parameter_table_column_names+current_space_variant_parameter_table_column_names+parameter_position_names
+                    space_invariant_parameter_table,
+                    space_variant_parameter_table))
+                curr_column_names = line_number_string+identifier_names+observable_names+space_invariant_parameter_names+space_variant_parameter_names
                 save_human_readable_table(curr_path,curr_table,curr_column_names,data_type_lut,table_delimiter,table_precision,table_column_width)                
                 
                 for parameter_idx,parameter_name in enumerate(parameter_names):
@@ -1423,25 +1404,17 @@ class AGBCoreProcessing(Task):
 
 
             except Exception as e:
-                logging.error('AGB: error during parameter estimation and saving.' + str(e), exc_info=True)
+                logging.error('AGB: error during tabular data saving to text files.' + str(e), exc_info=True)
                 raise
 
-            # this is creating maps
-            
-            
+            # %% ### READING IMAGE DATA
             try:
                 
-                # %%
+                logging.info('AGB: reading data images (only necessary files).')
                 
-                
-                
-
                 # take out the observables that are in formula and not among space variant parameters
-                valid_observables = np.any(match_string_lists(formula,observable_names)>=0,axis=0) & \
-                            ~np.any(match_string_lists(current_space_variant_parameter_table_column_names,observable_names)>=0,axis=0)
-                # take out the observables that are in formula and not among space variant parameters
-                valid_parameters = np.any(match_string_lists(formula,parameter_names)>=0,axis=0) & \
-                            ~np.any(match_string_lists(current_space_invariant_parameter_table_column_names,parameter_names)>=0,axis=0)
+                observables_for_mapping = np.any(match_string_lists(formula,observable_names)>=0,axis=0) & \
+                            ~np.any(match_string_lists(space_variant_parameter_names,observable_names)>=0,axis=0)
                 
                 
                 (
@@ -1459,30 +1432,34 @@ class AGBCoreProcessing(Task):
                         pixel_axis_east,
                         stack_info_table,
                         stack_info_table_columns,
-                        subset_iterable(observable_names,valid_observables,False),
-                        subset_iterable(observable_is_stacked,valid_observables,True),
-                        subset_iterable(observable_source_paths,valid_observables,False),
-                        subset_iterable(observable_source_bands,valid_observables,False),
-                        subset_iterable(observable_transforms,valid_observables,False),
-                        subset_iterable(observable_averaging_methods,valid_observables,False),
-                        subset_iterable(observable_ranges,valid_observables,False),
+                        subset_iterable(observable_names,observables_for_mapping,False),
+                        subset_iterable(observable_is_stacked,observables_for_mapping,True),
+                        subset_iterable(observable_source_paths,observables_for_mapping,False),
+                        subset_iterable(observable_source_bands,observables_for_mapping,False),
+                        subset_iterable(observable_transforms,observables_for_mapping,False),
+                        subset_iterable(observable_averaging_methods,observables_for_mapping,False),
+                        subset_iterable(observable_ranges,observables_for_mapping,False),
                         self.lut_fnf_paths,
                         self.lut_fnf,
                         identifier_table[:,2],
                         identifier_table[:,1],
-                        current_table_space_invariant_parameters,
-                        current_space_invariant_parameter_table_column_names,
+                        space_invariant_parameter_table,
+                        space_invariant_parameter_names,
+                        mask_out_area_outside_block = True
                 )
                     
-                # %%        
+            except Exception as e:
+                logging.error('AGB: error during image reading.' + str(e), exc_info=True)
+                raise
+            # %% ### ESTIMATING SPACE-VARIANT PARAMTERS
+            
+            try:
                           
+                logging.info('AGB: creating space variant parameter images.')
 
-                space_variant_parameters_3d_limits = subset_iterable(parameter_limits,valid_parameters,False)
-                space_variant_parameters_3d_variabilities = subset_iterable(parameter_variabilities,valid_parameters,False)
-                space_variant_parameters_3d_names = subset_iterable(parameter_names,valid_parameters,False)
-                space_variant_parameters_3d_initial = np.mean(space_variant_parameters_3d_limits[0])*np.ones((
-                    len(pixel_axis_north),len(pixel_axis_east),1))
-                
+                # take out the observables that are in formula and not among space variant parameters
+                parameters_for_mapping = np.any(match_string_lists(formula,parameter_names)>=0,axis=0) & \
+                            ~np.any(match_string_lists(space_invariant_parameter_names,parameter_names)>=0,axis=0)
                 
                 (
                     space_variant_parameters_3d,
@@ -1496,35 +1473,20 @@ class AGBCoreProcessing(Task):
                         space_invariant_parameters_3d_names,
                         identifiers_3d,
                         identifiers_3d_names,
-                        space_variant_parameters_3d_initial,
-                        space_variant_parameters_3d_names,
-                        space_variant_parameters_3d_variabilities,
-                        space_variant_parameters_3d_limits)
+                        subset_iterable(parameter_names,parameters_for_mapping,False),
+                        subset_iterable(parameter_variabilities,parameters_for_mapping,False),
+                        subset_iterable(parameter_limits,parameters_for_mapping,False))
                                 
-                                
-                                
+                   
             except Exception as e:
-                logging.error('AGB: error during creation of maps.' + str(e), exc_info=True)
+                logging.error('AGB: error during space variant parameter mapping.' + str(e), exc_info=True)
                 raise
-                
-                
-                
-            # this is saving maps
-            
-            
-            try:
-                
-                
-                #### ARESYS HELPS OUT FROM HERE
-                
-                ## look through parameter_names, all parameters should be saved
-                ## space-variant parameters (or )
-                
-                ## save the agb map in space_variant_parameters_3d[0][:,:,0]
-                ## for now, just save zeros as the other parameters
-                
-                # get projection (ugly fix)
-                projection_curr = get_projection_from_path(observable_source_paths[4][0])
+            # %% ### SAVING SPACE-VARIANT PARAMTERStry:
+                 
+            try:         
+                logging.info('AGB: saving space variant parameters to maps and adding these maps to observable list.')         
+                # reshape agb data to match the format of calibration maps
+                space_variant_parameters_3d[0] = np.stack((space_variant_parameters_3d[0],0*space_variant_parameters_3d[0],0*space_variant_parameters_3d[0],0*space_variant_parameters_3d[0]),axis=2).squeeze()
                 for parameter_idx,parameter_name in enumerate(space_variant_parameters_3d_names):
                     output_file_path = os.path.join(
                         temp_agb_folder, 'output_image_parameter_{}_block_{}.tif'.format(parameter_name,current_block_index)
@@ -1536,79 +1498,91 @@ class AGBCoreProcessing(Task):
                         output_file_path,
                         geotransform_curr,
                         gdal_data_format=gdal.GDT_Float32,
-                        projection=projection_curr,
+                        projection=projection_string,
                         multi_layers_tiff=True,
                     )
-        
-                    # [(left, lower), (right, upper)]
-                    try:
-                        lon_min, lat_min = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
-                            min(pixel_axis_east), min(pixel_axis_north)
-                        )
-                        lon_max, lat_max = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
-                            max(pixel_axis_east), max(pixel_axis_north)
-                        )
-                    except Exception as e:
-                        logging.error(
-                            'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(
-                                subgrid_code
-                            )
-                            + str(e),
-                            exc_info=True,
-                        )
-                        raise
-        
-                    bbox = [(lon_min, lat_min), (lon_max, lat_max)]
-                    ftiles = e7g_product.search_tiles_in_roi(bbox=bbox)
-        
-                    equi7_agb_est_outdir_curr = os.path.join(
-                        temp_agb_folder, 'eq7_agb_est_block_{}'.format(current_block_index)
-                    )
-                    os.makedirs(equi7_agb_est_outdir_curr)
-                    equi7_agb_est_outdir_temp = image2equi7grid(
-                        e7g_product,
-                        output_file_path,
-                        equi7_agb_est_outdir_curr,
-                        gdal_path=self.gdal_path,
-                        ftiles=ftiles,
-                        accurate_boundary=False,
-                        tile_nodata=np.nan,
-                    )
-        
-                    for idx, equi7_tiff_name in enumerate(equi7_agb_est_outdir_temp):
-        
-                        driver = gdal.Open(equi7_tiff_name, GA_ReadOnly)
-                        data = driver.ReadAsArray()
-                        driver = None
-        
-                        if np.sum(np.isnan(data)) == data.shape[0] * data.shape[1]:
-                            shutil.rmtree(os.path.dirname(equi7_tiff_name))
-                        else:
-                            equi7_agb_est_out_tif_names_not_merged.append(equi7_tiff_name)
+                    
                     
                     for observable_idx,observable_name in enumerate(observable_names):
                         if parameter_name == observable_name:
-                            print(observable_name)
                             self.lut_cal_paths.append(output_file_path)
                             self.lut_cal = np.row_stack((self.lut_cal, np.concatenate((current_block_extents[np.array([0,1,3,2])],np.zeros(1)))))
+                            # observable_source_paths[observable_idx].append(output_file_path)
+        
+                    # # [(left, lower), (right, upper)]
+                    # try:
+                    #     lon_min, lat_min = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
+                    #         min(pixel_axis_east), min(pixel_axis_north)
+                    #     )
+                    #     lon_max, lat_max = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
+                    #         max(pixel_axis_east), max(pixel_axis_north)
+                    #     )
+                    # except Exception as e:
+                    #     logging.error(
+                    #         'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(
+                    #             subgrid_code
+                    #         )
+                    #         + str(e),
+                    #         exc_info=True,
+                    #     )
+                    #     raise
+        
+                    # bbox = [(lon_min, lat_min), (lon_max, lat_max)]
+                    # ftiles = e7g_product.search_tiles_in_roi(bbox=bbox)
+        
+                    # equi7_agb_est_outdir_curr = os.path.join(
+                    #     temp_agb_folder, 'eq7_agb_est_block_{}'.format(current_block_index)
+                    # )
+                    # os.makedirs(equi7_agb_est_outdir_curr)
+                    # equi7_agb_est_outdir_temp = image2equi7grid(
+                    #     e7g_product,
+                    #     output_file_path,
+                    #     equi7_agb_est_outdir_curr,
+                    #     gdal_path=self.gdal_path,
+                    #     ftiles=ftiles,
+                    #     accurate_boundary=False,
+                    #     tile_nodata=np.nan,
+                    # )
+        
+                    # for idx, equi7_tiff_name in enumerate(equi7_agb_est_outdir_temp):
+        
+                    #     driver = gdal.Open(equi7_tiff_name, GA_ReadOnly)
+                    #     data = driver.ReadAsArray()
+                    #     driver = None
+        
+                    #     if np.sum(np.isnan(data)) == data.shape[0] * data.shape[1]:
+                    #         shutil.rmtree(os.path.dirname(equi7_tiff_name))
+                    #     else:
+                    #         equi7_agb_est_out_tif_names_not_merged.append(equi7_tiff_name)
                     
-                    
-                ## PREPARING NEXT TILE
-                # swap flag
-                block_finished_flag[current_block_index] = True
-                # remove current par block from list
-                block_order = block_order[block_order != current_block_index]
-                # select next par block
-                if len(block_order) > 0:
-                    # if there is at least one left, just take the next closest to CALdata
-                    current_block_index = block_order[0]
+                        
+            except Exception as e:
+                logging.error('AGB: error during saving of maps.' + str(e), exc_info=True)
+                raise
+                
+            
+                # %% ### PREPARING NEXT BLOCK
+            
+            
+            try:
+                (
+                    current_block_index,
+                    block_finished_flag,
+                    block_order
+                    ) = continue_with_next_block(
+                         current_block_index,
+                         block_finished_flag,
+                         block_order)
+                if current_block_index>=0:
+                    continue
                 else:
                     break
-      
+                   
             except Exception as e:
-                logging.error('AGB: error during map saving and next block preparation.' + str(e), exc_info=True)
+                logging.error('AGB: error during preparation of next block' + str(e), exc_info=True)
                 raise
-        
+    # %%
+      
         # ####################### FINAL  EQUI7 TILES MERGING ########################
         # logging.info('AGB: final step, merging equi7 blocks togeter...')
         # equi7_agb_est_out_tif_names_per_tile = {}
@@ -1717,7 +1691,7 @@ class AGBCoreProcessing(Task):
                  #    identifier_maps,
                  #    identifier_names,
                  #    parameter_position_table,
-                 #    parameter_position_names,
+                 #    parameter_position_table_columns,
                  #    parameter_tables,
                  #    parameter_table_columns,
                  #    ) = sample_and_tabulate_data(
@@ -1798,7 +1772,7 @@ class AGBCoreProcessing(Task):
                         
                 # ### PREPARING PARAMETER TABLES
                 # parameter_property_names = ['lower_limit','upper_limit','initial_value']+['estimate_%d' % (ii) for ii in np.arange(number_of_subsets)+1]
-                # parameter_position_names = ['row_'+parameter_name for parameter_name in parameter_names]
+                # parameter_position_table_columns = ['row_'+parameter_name for parameter_name in parameter_names]
                 # parameter_tables = []
                 # parameter_table_columns = []
                 # parameter_position_table = np.nan * np.zeros((
@@ -1864,7 +1838,7 @@ class AGBCoreProcessing(Task):
                 #         comments='')
                     
                 # curr_format,curr_header = get_fmt_and_header(
-                #     line_number_string+identifier_names+observable_names+current_space_invariant_parameter_table_column_names+current_space_variant_parameter_table_column_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                #     line_number_string+identifier_names+observable_names+current_space_invariant_parameter_table_column_names+current_space_variant_parameter_table_column_names+parameter_position_table_columns,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
                 # np.savetxt(os.path.join(
                 #         temp_agb_folder,
                 #         'results_table_block_{}.txt'.format(current_block_index)),
@@ -1880,7 +1854,7 @@ class AGBCoreProcessing(Task):
                 #     comments='')
                 
                 # curr_format,curr_header = get_fmt_and_header(
-                #     line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                #     line_number_string+identifier_names+observable_names+parameter_position_table_columns,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
                 # np.savetxt(os.path.join(
                 #         temp_agb_folder,
                 #         'observable_table_block_{}.txt'.format(current_block_index)),
@@ -1909,7 +1883,7 @@ class AGBCoreProcessing(Task):
                 # ters[current_rows,-1]
                             
                 # line_number_string = ['row']
-                # curr_format,curr_header = get_fmt_and_header(line_number_string+identifier_names+observable_names+parameter_position_names,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
+                # curr_format,curr_header = get_fmt_and_header(line_number_string+identifier_names+observable_names+parameter_position_table_columns,all_column_groups,all_data_types,curr_delimiter,curr_precision,curr_column_width)
                 # np.savetxt(os.path.join(
                 #         temp_agb_folder,
                 #         'observable_data_table_block_{}.txt'.format(current_block_index)),
@@ -2013,7 +1987,7 @@ class AGBCoreProcessing(Task):
             # curr_delimiter = '\t'
             # curr_precision = 3
             # curr_column_width = 20
-            # all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
+            # all_column_groups = [line_number_string,identifier_names,parameter_position_table_columns,parameter_property_names,observable_names,parameter_names]
             # all_data_types = ['d','d','d','f','f','f']
             
             
@@ -2054,7 +2028,7 @@ class AGBCoreProcessing(Task):
             #     curr_delimiter = '\t'
             #     curr_precision = 3
             #     curr_column_width = 20
-            #     all_column_groups = [line_number_string,identifier_names,parameter_position_names,parameter_property_names,observable_names,parameter_names]
+            #     all_column_groups = [line_number_string,identifier_names,parameter_position_table_columns,parameter_property_names,observable_names,parameter_names]
             #     all_data_types = ['d','d','d','f','f','f']
                 
                                 
