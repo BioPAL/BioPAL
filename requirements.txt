@@ -1,0 +1,16 @@
+equi7grid
+GDAL
+lxml
+matplotlib
+namedlist
+numpy
+progressbar2
+scipy
+shapely
+scikit-image
+pandas
+pyproj
+Pytileproj 
+pyxb
+docopt
+

@@ -1,3 +1,13 @@
+"""biopal processor
+
+Usage:
+  biopal <inputfilexml> <conffolder>
+  
+Options:
+  -h --help     Show this screen.
+  --version     Show version.
+"""
+
 import os
 import logging
 import collections
@@ -49,9 +59,9 @@ except:
 # 1) Sets enviriment and logging, parses the main input
 # 2) Chooses data to be processed
 # 3) Launches each activated chain
-def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
+def biomassL2_processor_main(input_file_xml, conf_folder):
 
-    default_configuration_folder = os.path.join(INSTALLATION_FOLDER, 'conf')
+    default_configuration_folder = conf_folder
     check_if_path_exists(default_configuration_folder, 'FOLDER')
 
     biopal_configuration_file_xml = os.path.join(
@@ -84,7 +94,7 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
     # start the main logging
     log_file_name = start_logging(output_folder, main_input_struct.proc_flags, 'DEBUG')
 
-    logging.debug('Installation   folder is {}'.format(INSTALLATION_FOLDER))
+    logging.debug('Configuration   folder is {}'.format(conf_folder))
     logging.info(' Auxiliary data folder is {}'.format(main_input_struct.L1c_aux_data_repository))
     logging.info('Results will be saved into output folder {}'.format(output_folder))
 
@@ -915,12 +925,11 @@ def collect_stacks_to_be_merged(stack_composition):
 
 
 if __name__ == '__main__':
-
-    # INSTALLATION_FOLDER is the folder containing "conf" subfolder
-    biopal_folder = os.path.dirname(os.path.realpath(__file__))
-
+    from docopt import docopt    
+    args = docopt(__doc__)
+	
     # Input file:
-    input_file_xml = os.path.join(os.path.dirname(biopal_folder), 'inputs', 'Input_File.xml')
-
+    input_file_xml = args["<inputfilexml>"]
+    conf_folder = args["<conffolder>"] 
     # run processor:
-    biomassL2_processor_main(input_file_xml, biopal_folder)
+    biomassL2_processor_main(input_file_xml, conf_folder)
