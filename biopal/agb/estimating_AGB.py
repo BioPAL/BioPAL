@@ -36,13 +36,10 @@ def sample_and_tabulate_data(
         stack_info_table, # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
         stack_info_table_column_names, # column names for the abovementioned table
         forest_class_boundaries, 
-        forest_class_paths, 
+        forest_class_sources, 
         observable_names, # observable names in formula
-        observable_is_stacked, # flags whether the observable comes from SAR and should be interpreted with stack_info_table or should be replicated across stacks
         observable_is_required, # flags whether the observable must exist in each table row
-        observable_path_is_tif,
-        observable_source_paths, # paths to equi7 tiles or files to read for each observable
-        observable_source_bands, # which band in the tiff file to read (1 = first band)
+        observable_sources, # paths to equi7 tif files paired with band IDs
         observable_transforms, # transform function to apply to observable
         observable_averaging_methods, # averaging method (most commonly 'mean', but could be other if required (e.g., for slope aspect angle))
         observable_ranges, # permitted ranges, outside those the observable is set to nan
@@ -51,7 +48,6 @@ def sample_and_tabulate_data(
         parameter_variabilities, # parameter variabilities across all dimensions
         number_of_subsets, # number of subsets to use (used to allocate columns in parameter tables)
         ):
-
     
     # derived parameters
     number_of_stacks = stack_info_table.shape[0]
@@ -84,18 +80,15 @@ def sample_and_tabulate_data(
     
     ### READING AND SAMPLING FOREST CLASS DATA
     logging.info('AGB: sampling forest class data')
-    # get equi7 information
-    # equi7_grid_name = os.listdir(os.path.join(stack_paths[0], 'sigma0_hh'))[0]
-    # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
-    # loaded masks needs to be re-interpolated over the pixels grid (pixel_axis_east, pixel_axis_north)
+    
     forest_class_map_interp = np.zeros(
         (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
     )
 
     
-    for forest_class_map_idx, forest_class_map_path in enumerate(forest_class_paths):
+    for file_idx, file_source in enumerate(forest_class_sources):
 
-        forest_class_map_boundaries = forest_class_boundaries[forest_class_map_idx]
+        forest_class_map_boundaries = forest_class_boundaries[file_idx]
 
         forest_class_map_is_inside = check_intersection(
             forest_class_map_boundaries[0],
@@ -111,7 +104,7 @@ def sample_and_tabulate_data(
 
             forest_class_map_interp_curr = np.round(
                 interp2d_wrapper(
-                    forest_class_map_path, 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
+                    file_source[0], file_source[1]+1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
                 )
             )
 
@@ -119,6 +112,12 @@ def sample_and_tabulate_data(
             forest_class_map_interp = np.ceil(
                 merge_agb_intermediate(
                     forest_class_map_interp, forest_class_map_interp_curr, method='nan_mean'
+                )
+            )
+            
+            
+            logging.info("AGB: sampling forest class data (file {}/{})".format(
+                file_idx+1,len(forest_class_sources)
                 )
             )
             
@@ -157,9 +156,11 @@ def sample_and_tabulate_data(
         number_of_observables))
     # cycle through observable sources in the stack
     for observable_idx in range(number_of_observables):
+        # number of stacks in current observable (must be either 1 or number_of_stacks)
+        current_number_of_stacks = len(observable_sources[observable_idx])
         
-        # check if observable is stacked (if yes, cycle through stacks)
-        if observable_is_stacked[observable_idx] and not observable_path_is_tif[observable_idx]:
+        # check if observable is stacked (i.e., the list length equals number of stacks)
+        if current_number_of_stacks==number_of_stacks:
                 
             # cycle over stacks
             for stack_idx in range(number_of_stacks):
@@ -167,37 +168,19 @@ def sample_and_tabulate_data(
         
                 # go ahead only if current stack is (at least partially) contained in the current parameter block:
                 if stack_in_block[stack_idx]:
-                    
-                    # extracting various parts of the path
-                    equi7_tiles_names = os.listdir(observable_source_paths[observable_idx][stack_idx])
-                    current_head,equi7_grid_name = os.path.split(observable_source_paths[observable_idx][stack_idx])
-                    current_head,source_name = os.path.split(current_head)
-                    base_name = os.path.split(current_head)[1]
-                    
-                    
+                     
                     # cycle over all the equi7 tiles, interpolate over pixel grid and average
                     source_data_interp = np.NaN * np.zeros(
                         (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
                     )
-                    for equi7_tile_name in equi7_tiles_names:
+                    
+                    
+                    for file_idx,file_source in enumerate(observable_sources[observable_idx][stack_idx]):
                         
-                        
-                        source_tiff_name = os.path.join(
-                            observable_source_paths[observable_idx][stack_idx],
-                            equi7_tile_name,
-                            source_name 
-                            + '_'
-                            + base_name
-                            + '_'
-                            + equi7_grid_name[6:]
-                            + '_'
-                            + equi7_tile_name
-                            + '.tif',
-                        )
 
                         source_data_interp_curr = interp2d_wrapper(
-                            source_tiff_name,
-                            observable_source_bands[observable_idx],
+                            file_source[0],
+                            file_source[1]+1,
                             pixel_axis_east,
                             pixel_axis_north,
                             fill_value=np.NaN,
@@ -210,9 +193,9 @@ def sample_and_tabulate_data(
                     # masking the stack:
                     source_data_interp[forest_class_map_interp == 0] = np.NaN
 
-                    logging.info("AGB: sampling and transforming data for observable '{}' (stack {})".format(
+                    logging.info("AGB: sampling and transforming stacked data for observable '{}' (stack {}/{}, file {}/{})".format(
                         observable_names[observable_idx],
-                        np.int32(stack_id_vector[stack_idx])
+                        stack_idx+1,number_of_stacks,file_idx+1,len(observable_sources[observable_idx][stack_idx])
                         )
                     )
                     
@@ -237,31 +220,38 @@ def sample_and_tabulate_data(
                     observable_table[current_rows,
                                           observable_idx] = temp_transformed_sampled_data
 
-        
-        # otherwise, do not cycle through stacks  
-        # simply read the specified files or list of files
-        elif not observable_is_stacked[observable_idx] and observable_path_is_tif[observable_idx]:
-    
+        # otherwise, replicate across stacks
+        elif current_number_of_stacks==1:
+                
             source_data_interp = np.nan * np.zeros(
                 (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
             )
             
         
-            for file_idx,file_path in enumerate(observable_source_paths[observable_idx]):
-
+            
+            for file_idx,file_source in enumerate(observable_sources[observable_idx][0]):
+                
+                
+        
                 source_data_interp_curr = interp2d_wrapper(
-                    file_path, observable_source_bands[observable_idx], pixel_axis_east, pixel_axis_north, fill_value=np.NaN
+                    file_source[0],
+                    file_source[1]+1,
+                    pixel_axis_east,
+                    pixel_axis_north,
+                    fill_value=np.NaN,
                 )
-                # mean all the equi7 tiles
+
                 source_data_interp = merge_agb_intermediate(
                     source_data_interp, source_data_interp_curr, method='nan_mean'
                 )
+
                 
-                logging.info("AGB: sampling and transforming data for observable '{}' (file {})".format(
-                        observable_names[observable_idx],
-                        file_idx+1
-                        )
+                logging.info("AGB: sampling and transforming unstacked data for observable '{}' (file {}/{})".format(
+                    observable_names[observable_idx],
+                    file_idx+1,len(observable_sources[observable_idx][0])
                     )
+                )
+                
             # statistics over samples
             temp_transformed_sampled_data = transform_function(
                 stats_on_all_samples(
@@ -361,8 +351,8 @@ def fit_formula_to_random_subsets(
         calibration_areas_per_test,#proc_conf.AGB.min_number_of_cals_per_test
         estimation_areas_per_test,#proc_conf.AGB.min_number_of_rois_per_test
         ):
-
-
+    
+    
     ### CREATE CALIBRATION AND ESTIMATION SUBSETS
     logging.info("AGB: creating {} subsets".format(number_of_subsets))
                 
@@ -623,14 +613,74 @@ def fit_formula_to_random_subsets(
         space_variant_parameter_table,
         space_variant_parameter_names,
         )
-# %% fitting to data table
+
+# %% functions needed for function above
+# swap variable names in formulas to slices of an array
+def swap_names_and_merge_formula(original_formulas,observable_names,parameter_names,new_table_name,use_observable_if_repeated_and_available = True):
+    original_variable_names = observable_names + parameter_names
+    unique_variable_names,name_counts = np.unique(np.array(original_variable_names),return_counts = True)
+    new_formula = '0'
+    for current_formula in original_formulas:
+        for unique_variable_name,name_count in zip(unique_variable_names,name_counts):
+            if name_count==1:
+                position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][0]
+            elif name_count==2:
+                position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][np.int32(~use_observable_if_repeated_and_available)]
+            current_formula = current_formula.replace(unique_variable_name,new_table_name + ('[:,%d]' % (position_in_variable_names_vector)))
+        new_formula = new_formula + ' + (%s)**2' % (current_formula)
+    return new_formula.replace('0 + ','')
+# function for converting columnwise indices (which are repeated within the same column if they represent identical values,
+# but which may be repeated across different columns without meaning that they represent identical values)
+# to unique indices (which are only repeated within the same table if they are to have identical values)
+def regularise_indices(columnwise_index_table):
+    
+    offset = 0
+    unique_index_table = [] # position in a single x-vector
+    columnwise_to_unique_index_lut = [] # lut for converting between parameter id and column and parameter position in x
+    for column_idx,parameter_column in enumerate(columnwise_index_table.transpose()):
+        # add -1 at the beginning to avoid vectors with one element (which will not work with interp1d)
+        old_indices = np.concatenate((-1*np.ones(1),np.unique(parameter_column)))
+        # new indices is a simple sequence from 0 to number of parameters-1 + offset due to previous parameters
+        new_indices = np.arange(len(old_indices))-1+offset
+        # convert parameter indices and add to the list
+        unique_index_table.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(parameter_column))
+        # save the lut, removing the first, unnecessary element
+        columnwise_to_unique_index_lut.append(
+            np.column_stack((new_indices[old_indices>-1],
+                             column_idx+np.zeros(len(old_indices[old_indices>-1])),
+                             old_indices[old_indices>-1],
+                             )))
+        # update offset based on current parameter column
+        offset = np.max(new_indices)+1
+    # convert the list of vectors to an array
+    unique_index_table = np.int32(np.column_stack(unique_index_table))
+    # stack all luts to one lut
+    columnwise_to_unique_index_lut = np.row_stack(columnwise_to_unique_index_lut)
+    # # length of beta vector
+    # length_of_p_vector = columnwise_to_unique_index_lut.shape[0]
+    return unique_index_table,columnwise_to_unique_index_lut
+
+def cost_function(x_vector,converted_formulas,observable_tables,index_tables,name_of_table_in_converted_formula,transfer_function):
+    # number of independent formulas
+    number_of_formulas = len(converted_formulas)
+    # convert unconstrained x vector to constrained p vector
+    p_vector = transfer_function(x_vector)
+    # allocate total cost
+    total_cost = 0
+    # loop through different formulas and associated tables
+    for observable_table,index_table,converted_formula in zip(observable_tables,index_tables,converted_formulas):
+        table_in_converted_formula = np.column_stack((observable_table,p_vector[index_table]))
+        # evaluate the cost function formula, average across different measurements and add to the total cost
+        total_cost += np.mean(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula,'np':np}))
+        # print(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula}))
+    # return weighed with the number of formulas    
+    return np.sqrt(total_cost/number_of_formulas)   
 def fit_formula_to_table_data(original_formula,
                               observable_table,
                               observable_table_column_names,
                               parameter_position_table,
                               parameter_position_table_column_names,
                               individual_parameter_min_max_tables):
-    
     # it is required that observable_table contains no nans in columns that double with parameter_position_table
     # (in terms of columns names)
     # in columns that double, those rows that have observable values are treated as calibration data
@@ -716,6 +766,9 @@ def fit_formula_to_table_data(original_formula,
         p_estimated[unique_index_table],
         cost_function_value)
 
+
+
+
 # %%
 def read_and_organise_3d_data(
         current_block_extents,
@@ -725,13 +778,11 @@ def read_and_organise_3d_data(
         stack_info_table,
         stack_info_table_column_names,
         observable_names,
-        observable_is_stacked,
-        observable_source_paths,
-        observable_source_bands,
+        observable_sources,
         observable_transforms,
         observable_averaging_methods,
         observable_ranges,
-        forest_class_paths,
+        forest_class_sources,
         forest_class_boundaries,
         stack_id_vector,
         forest_class_id_vector,
@@ -760,20 +811,19 @@ def read_and_organise_3d_data(
     number_of_observables = len(observable_names)
     # number_of_space_invariant_parameters = len(space_invariant_parameter_names)
     
+    
+    
     ### READING AND SAMPLING FOREST CLASS DATA
     logging.info('AGB: reading forest class map')
-    # get equi7 information
-    # equi7_grid_name = os.listdir(os.path.join(stack_paths[0], 'sigma0_hh'))[0]
-    # loading all forest class maps that fall inside a block: note, more than one equi7 tile can fall inside
-    # loaded masks needs to be re-interpolated over the pixels grid (pixel_axis_east, pixel_axis_north)
+    
     forest_class_3d = np.zeros(
         (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
     )
 
-    # counter_forest_class_maps = 0
-    for forest_class_map_idx, forest_class_map_path in enumerate(forest_class_paths):
+    
+    for file_idx, file_source in enumerate(forest_class_sources):
 
-        forest_class_map_boundaries = forest_class_boundaries[forest_class_map_idx]
+        forest_class_map_boundaries = forest_class_boundaries[file_idx]
 
         forest_class_map_is_inside = check_intersection(
             forest_class_map_boundaries[0],
@@ -787,35 +837,32 @@ def read_and_organise_3d_data(
         )
         if forest_class_map_is_inside:
 
-            forest_class_map_curr = np.round(
+            forest_class_3d_curr = np.round(
                 interp2d_wrapper(
-                    forest_class_map_path, 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
+                    file_source[0], file_source[1]+1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
                 )
             )
 
             # mean all the fnf tiles
             forest_class_3d = np.ceil(
                 merge_agb_intermediate(
-                    forest_class_3d, forest_class_map_curr, method='nan_mean'
+                    forest_class_3d, forest_class_3d_curr, method='nan_mean'
+                )
+            )
+            
+            
+            logging.info("AGB: reading forest class image data (file {}/{})".format(
+                file_idx+1,len(forest_class_sources)
                 )
             )
             
             # set all unrealistic values to 0 = non-forest
             forest_class_3d[(forest_class_3d <= 0) | np.isnan(forest_class_3d)] = 0
             
-            
-    #         counter_forest_class_maps = counter_forest_class_maps + 1
-
-    # if counter_forest_class_maps == 0:
-
-    #     err_str = 'Cannot find any forest class map falling in current block coordinates.'
-    #     logging.error(err_str)
-    #     raise ImportError(err_str)
+    forest_class_3d = np.array([forest_class_3d]).transpose([1,2,0])
     
     
-    # repeat forest class mask across the third dimension (stacks)
-    # (if forest class changes, this is where this could be implemented)
-    forest_class_3d = np.kron(np.array([forest_class_3d]).transpose([1,2,0]),np.ones((1,1,number_of_stacks)))
+    
     
     
     ### READING OBSERVABLE DATA
@@ -825,8 +872,12 @@ def read_and_organise_3d_data(
     for observable_idx in range(number_of_observables):
         observables_3d.append(np.nan * np.zeros((
             len(pixel_axis_north),len(pixel_axis_east),number_of_stacks)))
-        # check if observable is stacked (if yes, cycle through stacks)
-        if observable_is_stacked[observable_idx]:
+        
+        # number of stacks in current observable (must be either 1 or number_of_stacks)
+        current_number_of_stacks = len(observable_sources[observable_idx])
+        
+        # check if observable is stacked (i.e., the list length equals number of stacks)
+        if current_number_of_stacks==number_of_stacks:
                 
             # cycle over stacks
             for stack_idx in range(number_of_stacks):
@@ -834,37 +885,19 @@ def read_and_organise_3d_data(
         
                 # go ahead only if current stack is (at least partially) contained in the current parameter block:
                 if block_has_data[stack_idx]:
-                    
-                    # extracting various parts of the path
-                    equi7_tiles_names = os.listdir(observable_source_paths[observable_idx][stack_idx])
-                    current_head,equi7_grid_name = os.path.split(observable_source_paths[observable_idx][stack_idx])
-                    current_head,source_name = os.path.split(current_head)
-                    base_name = os.path.split(current_head)[1]
-                    
-                    
+                     
                     # cycle over all the equi7 tiles, interpolate over pixel grid and average
                     source_data_interp = np.NaN * np.zeros(
                         (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
                     )
-                    for equi7_tile_name in equi7_tiles_names:
+                    
+                    
+                    for file_idx,file_source in enumerate(observable_sources[observable_idx][stack_idx]):
                         
-                        
-                        source_tiff_name = os.path.join(
-                            observable_source_paths[observable_idx][stack_idx],
-                            equi7_tile_name,
-                            source_name 
-                            + '_'
-                            + base_name
-                            + '_'
-                            + equi7_grid_name[6:]
-                            + '_'
-                            + equi7_tile_name
-                            + '.tif',
-                        )
 
                         source_data_interp_curr = interp2d_wrapper(
-                            source_tiff_name,
-                            observable_source_bands[observable_idx],
+                            file_source[0],
+                            file_source[1]+1,
                             pixel_axis_east,
                             pixel_axis_north,
                             fill_value=np.NaN,
@@ -874,54 +907,66 @@ def read_and_organise_3d_data(
                             source_data_interp, source_data_interp_curr, method='nan_mean'
                         )
 
+                    # masking the stack:
+                    source_data_interp[forest_class_3d[:,:,0] == 0] = np.NaN
 
-                    logging.info("AGB: reading and transforming image data for observable '{}' (stack {})".format(
+                    logging.info("AGB: sampling and transforming stacked data for observable '{}' (stack {}/{}, file {}/{})".format(
                         observable_names[observable_idx],
-                        np.int32(stack_id_vector[stack_idx])
-                        ))
+                        stack_idx+1,number_of_stacks,file_idx+1,len(observable_sources[observable_idx][stack_idx])
+                        )
+                    )
                     
+                    observables_3d[observable_idx][:,:,stack_idx] = transform_function(
+                            source_data_interp,
+                            observable_ranges[observable_idx],
+                            observable_transforms[observable_idx])
                     
-                    # fill out the table
-                    observables_3d[observable_idx][:,:,stack_idx] = transform_function(source_data_interp,
-                                                                                       observable_ranges[observable_idx],
-                                                                                       observable_transforms[observable_idx])
-
-        
-        # otherwise, do not cycle through stacks  
-        # simply read the specified files or list of files
-        else:
-    
+        # otherwise, replicate across stacks
+        elif current_number_of_stacks==1:
+                
             source_data_interp = np.nan * np.zeros(
                 (len(pixel_axis_north), len(pixel_axis_east)), dtype='float'
             )
             
         
-            for file_idx,file_path in enumerate(observable_source_paths[observable_idx]):
-
+            
+            for file_idx,file_source in enumerate(observable_sources[observable_idx][0]):
+                
+                
+        
                 source_data_interp_curr = interp2d_wrapper(
-                    file_path, observable_source_bands[observable_idx], pixel_axis_east, pixel_axis_north, fill_value=np.NaN
+                    file_source[0],
+                    file_source[1]+1,
+                    pixel_axis_east,
+                    pixel_axis_north,
+                    fill_value=np.NaN,
                 )
-                # mean all the equi7 tiles
+
                 source_data_interp = merge_agb_intermediate(
                     source_data_interp, source_data_interp_curr, method='nan_mean'
                 )
                 
-                logging.info("AGB: reading and transforming image data for observable '{}' (file {})".format(
-                    observable_names[observable_idx],
-                    np.int32(file_idx+1)
-                    ))
-                
-            observables_3d[observable_idx] = np.kron(
-                np.array([transform_function(source_data_interp,
+                # masking the stack:
+                source_data_interp[forest_class_3d[:,:,0] == 0] = np.NaN
+
+            
+            logging.info("AGB: sampling and transforming unstacked data for observable '{}' (file {}/{})".format(
+                observable_names[observable_idx],
+                file_idx+1,len(observable_sources[observable_idx][0])
+                )
+            )
+            temporary_transf_image = transform_function(
+                    source_data_interp,
                     observable_ranges[observable_idx],
-                    observable_transforms[observable_idx])]).transpose([1,2,0]),
-                np.ones((1,1,number_of_stacks)))
-    
-    
+                    observable_transforms[observable_idx])
+            for stack_idx in range(number_of_stacks):
+                observables_3d[observable_idx][:,:,stack_idx] = temporary_transf_image
+                    
+            
+        
     identifiers_3d = []
     for identifier_idx in range(stack_info_table.shape[1]):
         identifiers_3d.append(np.array([[stack_info_table[:,identifier_idx]]]))
-    
     
     
             
@@ -963,21 +1008,6 @@ def map_space_variant_parameters(
         space_variant_parameters_3d_variabilities,
         space_variant_parameters_3d_limits):
         
-    #% swap variable names in formulas to slices of an array
-    def swap_names_and_merge_formula_3d(original_formulas,observable_names,parameter_names,new_table_name,use_observable_if_repeated_and_available = True):
-        original_variable_names = observable_names + parameter_names
-        unique_variable_names,name_counts = np.unique(np.array(original_variable_names),return_counts = True)
-        new_formula = '0'
-        for current_formula in original_formulas:
-            for unique_variable_name,name_count in zip(unique_variable_names,name_counts):
-                if name_count==1:
-                    position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][0]
-                elif name_count==2:
-                    position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][np.int32(~use_observable_if_repeated_and_available)]
-                current_formula = current_formula.replace(unique_variable_name,new_table_name + ('[%d]' % (position_in_variable_names_vector)))
-            new_formula = new_formula + ' + (%s)**2' % (current_formula)
-        return new_formula.replace('0 + ','')
-    
     
     
     def small_change_in_intermediate_parameters_3d(intermediate_parameter,additional_arguments,small_step):
@@ -995,7 +1025,7 @@ def map_space_variant_parameters(
                                   space_variant_parameter_limits[1],
                                   False))
             data_list = all_observables_3d + [space_variant_parameter]
-            return np.sqrt(np.nanmean(eval(converted_formula,{data_list_name:data_list}),axis=2))
+            return np.sqrt(np.nanmean(eval(converted_formula,{data_list_name:data_list,'np':np}),axis=2))
         
         cost_function_value = cost_function_3d(intermediate_parameter,additional_arguments)
         cost_function_value_after = cost_function_3d(intermediate_parameter+small_step,additional_arguments)
@@ -1058,6 +1088,23 @@ def map_space_variant_parameters(
             [space_variant_parameters_3d],
             space_variant_parameters_3d_names,
             )
+    
+#% swap variable names in formulas to slices of an array
+def swap_names_and_merge_formula_3d(original_formulas,observable_names,parameter_names,new_table_name,use_observable_if_repeated_and_available = True):
+    original_variable_names = observable_names + parameter_names
+    unique_variable_names,name_counts = np.unique(np.array(original_variable_names),return_counts = True)
+    new_formula = '0'
+    for current_formula in original_formulas:
+        for unique_variable_name,name_count in zip(unique_variable_names,name_counts):
+            if name_count==1:
+                position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][0]
+            elif name_count==2:
+                position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][np.int32(~use_observable_if_repeated_and_available)]
+            current_formula = current_formula.replace(unique_variable_name,new_table_name + ('[%d]' % (position_in_variable_names_vector)))
+        new_formula = new_formula + ' + (%s)**2' % (current_formula)
+    return new_formula.replace('0 + ','')
+
+
 # %%
 def match_string_lists(ref_string_list,test_string_list):
     is_in = np.zeros((len(ref_string_list),len(test_string_list)))
@@ -1067,53 +1114,53 @@ def match_string_lists(ref_string_list,test_string_list):
     return is_in
 
 
-# %% cost function from formulas and tables
-def cost_function(x_vector,converted_formulas,observable_tables,index_tables,name_of_table_in_converted_formula,transfer_function):
-    # number of independent formulas
-    number_of_formulas = len(converted_formulas)
-    # convert unconstrained x vector to constrained p vector
-    p_vector = transfer_function(x_vector)
-    # allocate total cost
-    total_cost = 0
-    # loop through different formulas and associated tables
-    for observable_table,index_table,converted_formula in zip(observable_tables,index_tables,converted_formulas):
-        table_in_converted_formula = np.column_stack((observable_table,p_vector[index_table]))
-        # evaluate the cost function formula, average across different measurements and add to the total cost
-        total_cost += np.mean(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula}))
-        # print(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula}))
-    # return weighed with the number of formulas    
-    return np.sqrt(total_cost/number_of_formulas)   
-
-#%% function for converting columnwise indices (which are repeated within the same column if they represent identical values,
-# but which may be repeated across different columns without meaning that they represent identical values)
-# to unique indices (which are only repeated within the same table if they are to have identical values)
-def regularise_indices(columnwise_index_table):
+# # %% cost function from formulas and tables
+# def cost_function(x_vector,converted_formulas,observable_tables,index_tables,name_of_table_in_converted_formula,transfer_function):
+#     # number of independent formulas
+#     number_of_formulas = len(converted_formulas)
+#     # convert unconstrained x vector to constrained p vector
+#     p_vector = transfer_function(x_vector)
+#     # allocate total cost
+#     total_cost = 0
+#     # loop through different formulas and associated tables
+#     for observable_table,index_table,converted_formula in zip(observable_tables,index_tables,converted_formulas):
+#         table_in_converted_formula = np.column_stack((observable_table,p_vector[index_table]))
+#         # evaluate the cost function formula, average across different measurements and add to the total cost
+#         total_cost += np.mean(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula,'np':np}))
+#         # print(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula}))
+#     # return weighed with the number of formulas    
+#     return np.sqrt(total_cost/number_of_formulas)   
+# #%% function for converting columnwise indices (which are repeated within the same column if they represent identical values,
+# # but which may be repeated across different columns without meaning that they represent identical values)
+# # to unique indices (which are only repeated within the same table if they are to have identical values)
+# def regularise_indices(columnwise_index_table):
     
-    offset = 0
-    unique_index_table = [] # position in a single x-vector
-    columnwise_to_unique_index_lut = [] # lut for converting between parameter id and column and parameter position in x
-    for column_idx,parameter_column in enumerate(columnwise_index_table.transpose()):
-        # add -1 at the beginning to avoid vectors with one element (which will not work with interp1d)
-        old_indices = np.concatenate((-1*np.ones(1),np.unique(parameter_column)))
-        # new indices is a simple sequence from 0 to number of parameters-1 + offset due to previous parameters
-        new_indices = np.arange(len(old_indices))-1+offset
-        # convert parameter indices and add to the list
-        unique_index_table.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(parameter_column))
-        # save the lut, removing the first, unnecessary element
-        columnwise_to_unique_index_lut.append(
-            np.column_stack((new_indices[old_indices>-1],
-                             column_idx+np.zeros(len(old_indices[old_indices>-1])),
-                             old_indices[old_indices>-1],
-                             )))
-        # update offset based on current parameter column
-        offset = np.max(new_indices)+1
-    # convert the list of vectors to an array
-    unique_index_table = np.int32(np.column_stack(unique_index_table))
-    # stack all luts to one lut
-    columnwise_to_unique_index_lut = np.row_stack(columnwise_to_unique_index_lut)
-    # # length of beta vector
-    # length_of_p_vector = columnwise_to_unique_index_lut.shape[0]
-    return unique_index_table,columnwise_to_unique_index_lut
+#     offset = 0
+#     unique_index_table = [] # position in a single x-vector
+#     columnwise_to_unique_index_lut = [] # lut for converting between parameter id and column and parameter position in x
+#     for column_idx,parameter_column in enumerate(columnwise_index_table.transpose()):
+#         # add -1 at the beginning to avoid vectors with one element (which will not work with interp1d)
+#         old_indices = np.concatenate((-1*np.ones(1),np.unique(parameter_column)))
+#         # new indices is a simple sequence from 0 to number of parameters-1 + offset due to previous parameters
+#         new_indices = np.arange(len(old_indices))-1+offset
+#         # convert parameter indices and add to the list
+#         unique_index_table.append(sp.interpolate.interp1d(old_indices,new_indices,kind='nearest')(parameter_column))
+#         # save the lut, removing the first, unnecessary element
+#         columnwise_to_unique_index_lut.append(
+#             np.column_stack((new_indices[old_indices>-1],
+#                              column_idx+np.zeros(len(old_indices[old_indices>-1])),
+#                              old_indices[old_indices>-1],
+#                              )))
+#         # update offset based on current parameter column
+#         offset = np.max(new_indices)+1
+#     # convert the list of vectors to an array
+#     unique_index_table = np.int32(np.column_stack(unique_index_table))
+#     # stack all luts to one lut
+#     columnwise_to_unique_index_lut = np.row_stack(columnwise_to_unique_index_lut)
+#     # # length of beta vector
+#     # length_of_p_vector = columnwise_to_unique_index_lut.shape[0]
+#     return unique_index_table,columnwise_to_unique_index_lut
+
 
 # %% define parameter transfer functions
 def parameter_transfer_function(in_vector,p_lower,p_upper,in_vector_is_p=False):
@@ -1128,6 +1175,7 @@ def parameter_transfer_function(in_vector,p_lower,p_upper,in_vector_is_p=False):
 
 # %%
 def save_human_readable_table(path,table,column_names,data_type_lut,table_delimiter,table_precision,table_column_width):
+    
     table_format,table_header = get_fmt_and_header(
                     column_names,data_type_lut[0],data_type_lut[1],table_delimiter,table_precision,table_column_width)
                 
@@ -1141,6 +1189,20 @@ def save_human_readable_table(path,table,column_names,data_type_lut,table_delimi
     np.save(path_npy,table)
     
 
+# function for creating list of format strings and a header for subsequent saving of tables into text files
+def get_fmt_and_header(column_names,all_column_groups,all_data_types,delimiter='\t',precision=2,column_width=10):
+    out_format = []
+    out_header = []
+    for curr_column in column_names:
+        for curr_column_group,curr_data_type in zip(all_column_groups,all_data_types):
+            if curr_column in curr_column_group:
+                if curr_data_type == 'd':
+                    out_format.append('%s%dd' % (r'%',column_width))
+                elif curr_data_type == 'f':
+                    out_format.append('%s%d.%df' % (r'%',column_width,precision))
+                break
+        out_header.append('%s%ds' % (r'%',column_width) % curr_column)
+    return out_format,delimiter.join(out_header)
 
 # %%
 
@@ -1197,20 +1259,20 @@ def check_block_for_data_and_cal(
 
 
     return block_has_data,block_has_cal
-# %%
+# # %%
 
-def continue_with_next_block(current_block_index,block_finished_flag,block_order):
-     # swap the flag
-    block_finished_flag[current_block_index] = True
-    # remove current par block from list
-    block_order = block_order[block_order != current_block_index]
-    # select next par block
-    if (len(block_order) > 0):
-        # if there is at least one left, just take the next closest to CALdata
-        current_block_index = block_order[0]
-    else:
-        current_block_index = -1
-    return current_block_index,block_finished_flag,block_order
+# def continue_with_next_block(current_block_index,block_finished_flag,block_order):
+#      # swap the flag
+#     block_finished_flag[current_block_index] = True
+#     # remove current par block from list
+#     block_order = block_order[block_order != current_block_index]
+#     # select next par block
+#     if (len(block_order) > 0):
+#         # if there is at least one left, just take the next closest to CALdata
+#         current_block_index = block_order[0]
+#     else:
+#         current_block_index = -1
+#     return current_block_index,block_finished_flag,block_order
         
     # %%
 def compute_block_processing_order(
@@ -1273,34 +1335,34 @@ def stats_on_all_samples(data,pixel_axis_east,pixel_axis_north,sample_axis_east,
         stats = np.concatenate((stats,stats_polygons))
     return stats
 
-# %%
-# function for creating list of format strings and a header for subsequent saving of tables into text files
-def get_fmt_and_header(column_names,all_column_groups,all_data_types,delimiter='\t',precision=2,column_width=10):
-    out_format = []
-    out_header = []
-    for curr_column in column_names:
-        for curr_column_group,curr_data_type in zip(all_column_groups,all_data_types):
-            if curr_column in curr_column_group:
-                if curr_data_type == 'd':
-                    out_format.append('%s%dd' % (r'%',column_width))
-                elif curr_data_type == 'f':
-                    out_format.append('%s%d.%df' % (r'%',column_width,precision))
-                break
-        out_header.append('%s%ds' % (r'%',column_width) % curr_column)
-    return out_format,delimiter.join(out_header)
+# # %%
+# # function for creating list of format strings and a header for subsequent saving of tables into text files
+# def get_fmt_and_header(column_names,all_column_groups,all_data_types,delimiter='\t',precision=2,column_width=10):
+#     out_format = []
+#     out_header = []
+#     for curr_column in column_names:
+#         for curr_column_group,curr_data_type in zip(all_column_groups,all_data_types):
+#             if curr_column in curr_column_group:
+#                 if curr_data_type == 'd':
+#                     out_format.append('%s%dd' % (r'%',column_width))
+#                 elif curr_data_type == 'f':
+#                     out_format.append('%s%d.%df' % (r'%',column_width,precision))
+#                 break
+#         out_header.append('%s%ds' % (r'%',column_width) % curr_column)
+#     return out_format,delimiter.join(out_header)
 
-#%% swap variable names in formulas to slices of an array
-def swap_names_and_merge_formula(original_formulas,observable_names,parameter_names,new_table_name,use_observable_if_repeated_and_available = True):
-    original_variable_names = observable_names + parameter_names
-    unique_variable_names,name_counts = np.unique(np.array(original_variable_names),return_counts = True)
-    new_formula = '0'
-    for current_formula in original_formulas:
-        for unique_variable_name,name_count in zip(unique_variable_names,name_counts):
-            if name_count==1:
-                position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][0]
-            elif name_count==2:
-                position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][np.int32(~use_observable_if_repeated_and_available)]
-            current_formula = current_formula.replace(unique_variable_name,new_table_name + ('[:,%d]' % (position_in_variable_names_vector)))
-        new_formula = new_formula + ' + (%s)**2' % (current_formula)
-    return new_formula.replace('0 + ','')
+# #%% swap variable names in formulas to slices of an array
+# def swap_names_and_merge_formula(original_formulas,observable_names,parameter_names,new_table_name,use_observable_if_repeated_and_available = True):
+#     original_variable_names = observable_names + parameter_names
+#     unique_variable_names,name_counts = np.unique(np.array(original_variable_names),return_counts = True)
+#     new_formula = '0'
+#     for current_formula in original_formulas:
+#         for unique_variable_name,name_count in zip(unique_variable_names,name_counts):
+#             if name_count==1:
+#                 position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][0]
+#             elif name_count==2:
+#                 position_in_variable_names_vector = np.where(np.array(original_variable_names)==unique_variable_name)[0][np.int32(~use_observable_if_repeated_and_available)]
+#             current_formula = current_formula.replace(unique_variable_name,new_table_name + ('[:,%d]' % (position_in_variable_names_vector)))
+#         new_formula = new_formula + ' + (%s)**2' % (current_formula)
+#     return new_formula.replace('0 + ','')
 # %%
