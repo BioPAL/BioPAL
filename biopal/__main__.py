@@ -1,7 +1,12 @@
 """biopal processor
 
 Usage:
-  biopal <inputfilexml> <conffolder>
+  python -m biopal <inputfilexml> <conffolder>
+  
+  "-m" is the option to execute the __main__.py (inside biopal project) as a script
+  
+  inputfilexml: path of the BioPAL xml input file
+  conffolder:   path of the folder containing BioPAL xml configuration files
   
 Options:
   -h --help     Show this screen.
@@ -926,7 +931,7 @@ def collect_stacks_to_be_merged(stack_composition):
 
 if __name__ == '__main__':
     from docopt import docopt    
-    args = docopt(__doc__)
+    args = docopt(__doc__, version='0.0.1')
 	
     # Input file:
     input_file_xml = args["<inputfilexml>"]
