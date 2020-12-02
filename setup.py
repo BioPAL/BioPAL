@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="biopal",
-    version="1.0.0",
+    version="0.0.1",
     #author="the BioPAL team",
     #author_email="biopal@esa.int",
     description="BIOMASS Product Algorithm Laboratory",
