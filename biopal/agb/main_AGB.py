@@ -84,7 +84,7 @@ class AboveGroundBiomass(Task):
     def _run(self, input_file_xml):
 
         # Main APP #1: Stack Based Processing
-        stack_based_processing_obj = StackBasedProcessing(
+        stack_based_processing_obj = StackBasedProcessingAGB(
             self.configuration_file_xml,
             self.geographic_boundaries,
             self.geographic_boundaries_per_stack,
@@ -97,7 +97,7 @@ class AboveGroundBiomass(Task):
         )
 
         # Main APP #2: AGB Core Processing
-        agb_processing_obj = AGBCoreProcessing(
+        agb_processing_obj = CoreProcessingAGB(
             self.configuration_file_xml,
             self.geographic_boundaries,
             self.gdal_path,
@@ -111,7 +111,7 @@ class AboveGroundBiomass(Task):
         agb_processing_obj.run(input_file_xml)
 
 
-class StackBasedProcessing(Task):
+class StackBasedProcessingAGB(Task):
     def __init__(
         self,
         configuration_file_xml,
@@ -822,7 +822,7 @@ class StackBasedProcessing(Task):
         )
 
 
-class AGBCoreProcessing(Task):
+class CoreProcessingAGB(Task):
     def __init__(
         self,
         configuration_file_xml,
@@ -872,10 +872,6 @@ class AGBCoreProcessing(Task):
     def _run(self, input_file_xml):
 
         # AGB: Reading chains configuration files
-        check_if_path_exists(self.configuration_file_xml, 'FILE')
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
-
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_conf = parse_chains_configuration_file(self.configuration_file_xml)

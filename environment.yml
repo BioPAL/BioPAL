@@ -1,0 +1,20 @@
+name: biopal
+dependencies:
+  - python=3.6
+  - pip
+  - GDAL
+  - lxml
+  - matplotlib
+  - numpy
+  - scipy
+  - shapely
+  - scikit-image
+  - pandas
+  - pyproj
+  - pip:
+    - equi7grid
+    - Pytileproj
+    - progressbar2
+    - namedlist
+    - pyxb
+    - docopt

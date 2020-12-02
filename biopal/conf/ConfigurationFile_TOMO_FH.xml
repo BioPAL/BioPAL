@@ -1,0 +1,25 @@
+<ConfigurationL2TOMO_FH version="1.0">
+	<ProductResolution unit="m">200</ProductResolution>
+	<VerticalRange unit="m">
+		<MaximumHeight>80</MaximumHeight>
+		<MinimumHeight>-10</MinimumHeight>
+		<sampling>5</sampling>
+	</VerticalRange>
+	<EstimateFH>
+		<EstimationValidValuesLimits unit='m'>
+			<min>5</min>
+			<max>100</max>
+		</EstimationValidValuesLimits>
+		<EnableSuperResolution>False</EnableSuperResolution>
+		<RegularizationNoiseFactor>1e-3</RegularizationNoiseFactor>
+		<PowerThreshold>0.8</PowerThreshold>
+		<MedianFactor>5</MedianFactor>
+	</EstimateFH>
+	<EnableResampling>False</EnableResampling>
+	<ComputeGeometry>False</ComputeGeometry>
+	<ApplyCalibrationScreen>False</ApplyCalibrationScreen>
+	<DEMflattening>False</DEMflattening>
+	<MultilookHeadingCorrection>True</MultilookHeadingCorrection>
+	<SaveBreakpoints>True</SaveBreakpoints>
+	<DeleteTemporaryFiles>False</DeleteTemporaryFiles>
+</ConfigurationL2TOMO_FH>
