@@ -11,6 +11,7 @@ dependencies:
   - scikit-image
   - pandas
   - pyproj
+  - setuptools
   - pip:
     - equi7grid
     - Pytileproj
