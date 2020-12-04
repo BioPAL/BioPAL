@@ -909,21 +909,22 @@ class CoreProcessingAGB(Task):
         os.makedirs(temp_agb_folder)
         
         
-        ### don't think we need those - it's not reasonable to average with previous estimates
-        # sigma_tab_pixel_folder = os.path.join(temp_agb_folder, 'sigma_tab')
-        # os.makedirs(sigma_tab_pixel_folder)
-        # theta_tab_pixel_folder = os.path.join(temp_agb_folder, 'theta_tab')
-        # os.makedirs(theta_tab_pixel_folder)
-        # acq_tab_pixel_folder = os.path.join(temp_agb_folder, 'acq_tab')
-        # os.makedirs(acq_tab_pixel_folder)
-        # polid_tab_pixel_folder = os.path.join(temp_agb_folder, 'polid_tab')
-        # os.makedirs(polid_tab_pixel_folder)
-
-        # # parameter text file path
-        # par_path = os.path.join(global_agb_folder, 'par_est.txt')
-
+        
+        
+        
+        ### THIS PART READS THE SETUP
+        
+        '''
+        
+        Note: the xml file with setup and the associated reading function must
+        be updated so that the formula, observables, and parameters all are defined
+        
+        
+        '''
+        
+        
+        
         # read and initialize all the parameters needed for the inversion
-        ### future improvement: update the function below and the xml file to incorporate the new structure
         (
             _,
             first_pixel_north,
@@ -955,29 +956,77 @@ class CoreProcessingAGB(Task):
             proc_conf.AGB,
         )
         
-        ### new functions, to be moved out of this method
 
+        #### Residual function defined as a list of function strings
+        # (move this out of this code and into the xml file)
+        
+        formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db',
+                                'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db',
+                                'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db']
+        
+        # experimental: testing the use of height
+        # formula = ['l_hh + a_hh * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_hh_db',
+        #         'l_hv + a_hv * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_hv_db',
+        #         'l_vv + a_vv * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_vv_db']
         
         
-        ########## PREPARING INPUT
-        # this should be in the xml file and come out from the new version of the xml read function
         
         
-        ### in this proposed new version, the user defines the residual function formula as a list of formula strings,
-        # one for each cost function
-        # formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_tomo_theta_db + neg_cov_hh_30_db + k_cp * tomo_h_db',
-        #                         'l_hv + a_hv * agb_1_db + n_hv * cos_tomo_theta_db + neg_cov_hv_30_db + k_xp * tomo_h_db',
-        #                         'l_vv + a_vv * agb_1_db + n_vv * cos_tomo_theta_db + neg_cov_vv_30_db + k_cp * tomo_h_db']
-        formula = ['l_hh + a_hh * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_hh_db',
-                'l_hv + a_hv * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_hv_db',
-                'l_vv + a_vv * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_vv_db']
         
-        # conv = np.cos(45*np.pi/180)/50/10/np.log10(np.exp(1))
-        # np.array([0,30])*conv
         
-        ### then, the user has to define each of the elements of the formula
-        # first, the names of the observables in formula are included
-        # all elements of formula that serve as observables (knowns) need to be included
+        #### parameter names matching the unknown elements in the formula
+        #   these are the elements of the formula that will be estimated
+        parameter_names = ['l_hh','l_hv','l_vv',
+                           'a_hh','a_hv','a_vv',
+                           'n_hh','n_hv','n_vv',
+                           'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
+                           'k_hh','k_hv','k_vv']
+        
+        
+        #### parameter limits
+        # for now, simply re-organise existing input
+        parameter_limits = [parameter_limits_l,parameter_limits_l,parameter_limits_l,
+                            parameter_limits_a,parameter_limits_a,parameter_limits_a,
+                            parameter_limits_n,parameter_limits_n,parameter_limits_n,
+                            parameter_limits_w,[0,10],[0,10],[0,10],
+                            [0,30*0.033],[0,30*0.033],[0,30*0.033]]
+        
+        #### flag indicating whether the parameters should be saved as a map
+        parameter_save_as_map = [False,False,False,
+                                 False,False,False,
+                                 False,False,False,
+                                 True,True,True,True,
+                                 False,False,False]
+        
+        #### parameter variabilities 
+        #  Defined over eight different dimensions (in this particular order):
+        #   spatial - between samples
+        #   forest class - between forest classes
+        #   stack - between stacks, independent from where they come (equivalent to flagging all remaining flags)
+        #   global cycle - between stacks if they come from different global cycle (equivalent to temporal of multiple months)
+        #   heading - between stacks if they come from different headings
+        #   swath - between stacks if they come from different 150-km swaths (equivalent to temporal of several weeks)
+        #   subswath - between stacks if they come from different 50-km subswaths (equivalent to temporal of several days)
+        #   azimuth - betwen stacks if they come from different 150-km images overlapping in azimuth (equivalent to temporal of a few seconds)
+        # for now, simply re-organise existing input
+        parameter_variabilities_orig = np.column_stack((np.ones((3,2))==0,np.array(parameter_variabilities_orig)[:,1:]))
+        parameter_variabilities_orig = parameter_variabilities_orig[np.array([0,0,0,1,1,1,2,2,2]),:]
+        parameter_variabilities = []
+        for parameter_variability in parameter_variabilities_orig:
+            parameter_variabilities.append(parameter_variability)
+        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
+        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
+        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
+        
+        
+        
+        
+        
+        #### Names for all elements of the formula that will be read from disk
         observable_names = ['neg_sigma0_hh_db','neg_sigma0_hv_db','neg_sigma0_vv_db',
                             'cos_local_db',
                             'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
@@ -985,7 +1034,14 @@ class CoreProcessingAGB(Task):
                             'neg_cov_hh_30_db','neg_cov_hv_30_db','neg_cov_vv_30_db',
                             'neg_cov_hh_40_db','neg_cov_hv_40_db','neg_cov_vv_40_db',
                             'cos_tomo_theta_db']
-        # flag indicating whether the current observable is required for the sample to be included or is optional (as AGB, where available AGB values are used for calibration)
+        # note that agb is special: it is defined as both "observable" and "parameter", so it will be 
+        # both read from external data and estimated 
+        
+        
+        
+        #### flag indicating whether these observables are compulsory
+        # if so, samples without this observable are rejected
+        # (order of elements must match that in observable_names)
         observable_is_required = [True,True,True,
                                   True,
                                   False,False,False,False,
@@ -994,17 +1050,20 @@ class CoreProcessingAGB(Task):
                                   True,True,True,
                                   True]
         
+        #### list with sources for observable data
+        # this part connects the observables to actual data
+        # for now, it is assumed to consist of nested lists of two elements: 
+        # path to a tiff file and band number
+        # this may need to beorganised to make the code more user-friendly
         
+        # current structure:
+        #  observable_sources = [observable_1_sources,...,observable_n_sources,...]
+        #   observable_n_sources = [stack_1_sources,...,stack_m_sources,...]
+        #    stack_m_sources = [source_1,...,source_x,...]
+        #     source_x = [tiff_file_path,band_id]
         
-        # the following contains a list with sources of observable data
-        # observable_sources = [observable_1_sources,...,observable_n_sources,...]
-        # observable_n_sources = [stack_1_sources,...,stack_m_sources,...]
-        # stack_m_sources = [tile_1_sources,...,tile_x_sources,...]
-        # tile_x_sources = [tiff_file_path,band]
-        
-        
+        # for now, simply re-organise existing input
         observable_sources = []
-        
         for current_observable in ['sigma0_hh','sigma0_vh','sigma0_vv','theta']:
             stack_sources = []
             for current_stack in range(len(self.lut_stacks_paths)):
@@ -1018,14 +1077,11 @@ class CoreProcessingAGB(Task):
                             file_sources.append([os.path.join(current_path2,current_file),0])
                 stack_sources.append(file_sources)
             observable_sources.append(stack_sources)
-                    
         for current_observable_idx in range(4):
             file_sources = []
             for current_file in self.lut_cal_paths:
                 file_sources.append([current_file,current_observable_idx])
-            
             observable_sources.append([file_sources])
-        
         observable_sources = observable_sources+[
             [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif',0]]],
             [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif',0]]],
@@ -1039,7 +1095,8 @@ class CoreProcessingAGB(Task):
             ]
         
         
-        # permissible intervals for sources
+        
+        #### permissible intervals for source data (before transformation)
         observable_ranges = [[1e-8,20],[1e-8,20],[1e-8,20],
                              [20*np.pi/180,60*np.pi/180],
                              [1,700],[0,10],[0,10],[0,10],
@@ -1047,7 +1104,8 @@ class CoreProcessingAGB(Task):
                              [1e-8,20],[1e-8,20],[1e-8,20],
                              [1e-8,20],[1e-8,20],[1e-8,20],
                              [20*np.pi/180,60*np.pi/180]]
-        # then, the applied transforms are selected above)
+        
+        #### data transforms (here: tags indicating one of predefined functions)
         observable_transforms = ['-db','-2db','-db',
                                  'cosdb',
                                  'db','none','none','none',
@@ -1055,9 +1113,11 @@ class CoreProcessingAGB(Task):
                                  '-db','-2db','-db',
                                  '-db','-2db','-db',
                                  'cosdb']
-        # finally, averaging methods are selected (for averaging pixels within samples)
-        # although oftentimes 'mean' is used, this may not always be the case 
-        # e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) is a better averaging method as it is not as susceptible to 2pi ambiguities
+        
+        ### averaging method within current sampling area and stack
+        #   although oftentimes 'mean' is used, this may not always be the case 
+        #   e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) 
+        #   is a better averaging method as it is not as susceptible to 2pi ambiguities
         observable_averaging_methods = ['mean','mean','mean',
                                         'mean',
                                         'mean','mean','mean','mean',
@@ -1067,83 +1127,22 @@ class CoreProcessingAGB(Task):
                                         'mean'] 
         
         
-        # then, the names of parameters are specified (should match those in formula)
-        # note that agb is special: it is defined as both "observable" and "parameter", so it will be 
-        # both read from external data and estimated 
-        parameter_names = ['l_hh','l_hv','l_vv',
-                           'a_hh','a_hv','a_vv',
-                           'n_hh','n_hv','n_vv',
-                           'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
-                           'k_hh','k_hv','k_vv']
-        # then, parameter limits are selected; we here simply reorganise the limits in xml to the selected format
-        parameter_limits_w[1] = 10*np.log10(700)
-        parameter_limits = [parameter_limits_l,parameter_limits_l,parameter_limits_l,
-                            parameter_limits_a,parameter_limits_a,parameter_limits_a,
-                            parameter_limits_n,parameter_limits_n,parameter_limits_n,
-                            parameter_limits_w,[0,10],[0,10],[0,10],
-                            [0,30*0.033],[0,30*0.033],[0,30*0.033]]
-        # flag indicating whether the parameters should be saved as a map
-        parameter_save_as_map = [False,False,False,
-                                 False,False,False,
-                                 False,False,False,
-                                 True,True,True,True,
-                                 False,False,False]
-        # lists with paths to files that will be merged
-        parameter_map_pathlists = [[],[],[],
-                                   [],[],[],
-                                   [],[],[],
-                                   [],[],[],[],
-                                   [],[],[]]
-        # parameter variabilities are defined over eight different dimensions:
-        #   spatial - between samples
-        #   forest class - between forest classes
-        #   stack - between stacks, independent from where they come (equivalent to flagging all remaining flags)
-        #   global cycle - between stacks if they come from different global cycle (equivalent to temporal of multiple months)
-        #   heading - between stacks if they come from different headings
-        #   swath - between stacks if they come from different 150-km swaths (equivalent to temporal of several weeks)
-        #   subswath - between stacks if they come from different 50-km subswaths (equivalent to temporal of several days)
-        #   azimuth - betwen stacks if they come from different 150-km images overlapping in azimuth (equivalent to temporal of a few seconds)
-        # as before, some of the new things will be hardcoded for now, but they should come from the xml
-        # compared with before, we need to add two extra columns (spatial and forest class variability) and remove the polarisation column,
-        parameter_variabilities_orig = np.column_stack((np.ones((3,2))==0,np.array(parameter_variabilities_orig)[:,1:]))
-        # moreover, we need to repeat each parameter three times to represent the three polarisations (which now can have different cost functions)
-        parameter_variabilities_orig = parameter_variabilities_orig[np.array([0,0,0,1,1,1,2,2,2]),:]
-        # then, we convert from array to list
-        parameter_variabilities = []
-        for parameter_variability in parameter_variabilities_orig:
-            parameter_variabilities.append(parameter_variability)
-        # finally, we add variability vector for agb1db so that it matches the order from above
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
-        # # setting first three parameters to variable across stacks
-        # for parameter_idx in range(3):
-        #     parameter_variabilities[parameter_idx][2] = True
         
         
         
+
+        ### read additional polygons (e.q., cals not on a grid)
+        # (read from xml file or external shapefiles?)
+        additional_sampling_polygons = []
         
         
+        
+        ### DERIVED QUANTITIES
         
         # some vectors flagging different types of observables
         observables_in_formula = np.any(match_string_lists(formula,observable_names)>=0,axis=0)
         observables_in_parameters = np.any(match_string_lists(parameter_names,observable_names)>=0,axis=0)
         observables_in_formula_or_parameters = observables_in_formula | observables_in_parameters
-        # take out the observables that are within formula or within the defined parameters
-        observable_names = subset_iterable(observable_names,observables_in_formula_or_parameters,False)
-        observable_averaging_methods = subset_iterable(observable_averaging_methods,observables_in_formula_or_parameters,False)
-        observable_transforms = subset_iterable(observable_transforms,observables_in_formula_or_parameters,False)
-        observable_ranges = subset_iterable(observable_ranges,observables_in_formula_or_parameters,False)
-        observable_sources = subset_iterable(observable_sources,observables_in_formula_or_parameters,False)
-        observable_is_required = subset_iterable(observable_is_required,observables_in_formula_or_parameters,False)
-        
-        # change the number of subsets
-        # (with the current setting, the subset size is 100% anyway)
-        number_of_subsets = 1
         
         
         
@@ -1152,19 +1151,31 @@ class CoreProcessingAGB(Task):
         parameter_position_in_observable_vector = -1 * np.ones(len(parameter_names),dtype='int32')
         parameter_position_in_observable_vector[positions_in_parameter_list] = positions_in_observable_list
         
+        # lists with paths to files that will be merged
+        parameter_map_pathlists = [[],[],[],
+                                   [],[],[],
+                                   [],[],[],
+                                   [],[],[],[],
+                                   [],[],[]]
+        
+        ### SOME MANIPULATIONS TO SPEED  UP THE INVERSION
+        # (remove in final version)
+        
+        # take out the observables and parameters that are within formula or within the defined observables
+        # (no need for now to read unnecessary data)
+        observable_names = subset_iterable(observable_names,observables_in_formula_or_parameters,False)
+        observable_averaging_methods = subset_iterable(observable_averaging_methods,observables_in_formula_or_parameters,False)
+        observable_transforms = subset_iterable(observable_transforms,observables_in_formula_or_parameters,False)
+        observable_ranges = subset_iterable(observable_ranges,observables_in_formula_or_parameters,False)
+        observable_sources = subset_iterable(observable_sources,observables_in_formula_or_parameters,False)
+        observable_is_required = subset_iterable(observable_is_required,observables_in_formula_or_parameters,False)
+        
+        # change the number of subsets
+        # (with the current setting, the subset size is 100% anyway, so no point running 5 subsets)
+        number_of_subsets = 1
         
         
         
-        ###################### END OF PREPARING INPUT 
-        
-        
-
-        ### MANAGING ADDITIONAL SAMPLING POLYGONS (NOT ON REGULAR GRID)
-        # (to be implemented in the future)
-        # define or/and load additional, arbitrarily shaped sampling polygons,
-        # typically representing calibration data
-        additional_sampling_polygons = []
-        number_of_polygon_samples = len(additional_sampling_polygons)
        
             
 
@@ -1173,31 +1184,7 @@ class CoreProcessingAGB(Task):
         stack_info_table = self.lut_progressive_stacks
         stack_info_table_columns = ['stack_id','global_cycle_id','heading_degrees','swath_id','subswath_id','azimuth_id']
         
-        
-        
-        # ### INITIALISING EQUI7
-        # # initialize the equi7 sampling grid or output product
-        # e7g_product = Equi7Grid(geographic_grid_sampling)
-        # logging.info(
-        #     'AGB: EQUI7 Grid sampling used for final products: {}'.format(geographic_grid_sampling)
-        # )
-
-        # equi7_subgrid_names_list = []
-        # for lut_stacks_path in self.lut_stacks_paths:
-        #     for equi7_subgrid_name_curr in os.listdir(os.path.join(lut_stacks_path, 'sigma0_hh')):
-
-        #         equi7_subgrid_names_list.append(equi7_subgrid_name_curr)
-
-        # if len(set(equi7_subgrid_names_list)) > 1:
-        #     err_str = 'AGB: biomass L2 prototype does not support multiple equi7 sub grid regions'
-        #     logging.error(err_str)
-        #     raise
-        # subgrid_code = equi7_subgrid_names_list[0][6:8]
-        # # projection_prev = ''
-        # equi7_agb_est_out_tif_names_not_merged = []
-        # # get projection (ugly fix)
-        # projection_string = get_projection_from_path(observable_source_paths[np.where(observable_path_is_tif)[0][0]][0])
-
+       
         ### PREPARING PARAMETER GRID
         # parameter block mesh and flattened coordinate vectors
         block_mesh_east, block_mesh_north = np.meshgrid(np.arange(first_pixel_east, last_pixel_east, block_spacing_east), np.arange(first_pixel_north, last_pixel_north, block_spacing_north))
@@ -1218,6 +1205,10 @@ class CoreProcessingAGB(Task):
                 self.lut_stacks_boundaries # right now, this uses boundaries but in the future it should be capable of using polygons
             )
 
+        
+        
+        
+        
         ### RUNNING PARAMETER BLOCKS
         # block status vector
         block_status = np.zeros(number_of_blocks)
@@ -1238,7 +1229,7 @@ class CoreProcessingAGB(Task):
             
             logging.info('AGB: Running block {} out of {} (block ID: {})'.format(counter_blocks_run+1, number_of_blocks, current_block_index))
             
-            
+        
             # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             try:
                 logging.info('AGB: Creating sampling grid and checking for data.')
@@ -1262,7 +1253,7 @@ class CoreProcessingAGB(Task):
                 
                 
                 # calculate the total number of samples
-                number_of_samples = number_of_samples_on_grid + number_of_polygon_samples
+                number_of_samples = number_of_samples_on_grid + len(additional_sampling_polygons)
                 
                 # checking the number of samples
                 if number_of_samples < proc_conf.AGB.min_number_of_rois:
@@ -1306,6 +1297,20 @@ class CoreProcessingAGB(Task):
                 pixel_axis_east = np.arange(current_block_extents[0], current_block_extents[1], pixel_size_east)
                 pixel_axis_north = np.arange(current_block_extents[2], current_block_extents[3], pixel_size_north)
                 
+                
+                # output equi7 projection info
+                #   here, we assume that the output tile and subtile will be that of the first observable source
+                #   that is covered by the current block
+                equi7_info_source_path = observable_sources[0][np.where(block_has_data)[0][0]][0][0]
+                equi7_subtile_name,equi7_tile_name = [x.split('.')[0] for x in equi7_info_source_path.split('_')[-2:]]
+                equi7_subgrid_code = equi7_subtile_name[:2]
+                equi7_projection_string = get_projection_from_path(equi7_info_source_path)
+                current_geotransform = [pixel_axis_east[0], pixel_size_east, 0, pixel_axis_north[0], 0, pixel_size_north]        
+                equi7_product = Equi7Grid(geographic_grid_sampling)
+                
+                
+                
+                
                 # tabulation
                 (
                     observable_table,
@@ -1328,8 +1333,8 @@ class CoreProcessingAGB(Task):
                         block_has_data, # flags whether each stack is in current block
                         stack_info_table, # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
                         stack_info_table_columns, # column names for the abovementioned table
-                        self.lut_fnf,#lut_forest_class, # self.lut_fnf
-                        [[x,0] for x in self.lut_fnf_paths],#lut_forest_class_paths, # self.lut_fnf_paths
+                        self.lut_fnf,
+                        [[x,0] for x in self.lut_fnf_paths],
                         observable_names, # observable names in formula
                         observable_is_required,
                         observable_sources, # paths and band ids
@@ -1461,7 +1466,6 @@ class CoreProcessingAGB(Task):
                 observables_for_mapping = np.any(match_string_lists(formula,observable_names)>=0,axis=0) & \
                             ~np.any(match_string_lists(space_variant_parameter_names,observable_names)>=0,axis=0)
                 
-                
                 (
                     forest_class_3d,
                     observables_3d,
@@ -1478,11 +1482,11 @@ class CoreProcessingAGB(Task):
                         stack_info_table,
                         stack_info_table_columns,
                         subset_iterable(observable_names,observables_for_mapping,False),
-                        subset_iterable(observable_sources,observables_for_mapping,True),
+                        subset_iterable(observable_sources,observables_for_mapping,False),
                         subset_iterable(observable_transforms,observables_for_mapping,False),
                         subset_iterable(observable_averaging_methods,observables_for_mapping,False),
                         subset_iterable(observable_ranges,observables_for_mapping,False),
-                        [[x,0] for x in self.lut_fnf_paths],#lut_forest_class_paths, # self.lut_fnf_paths
+                        [[x,0] for x in self.lut_fnf_paths],
                         self.lut_fnf,
                         identifier_table[:,2],
                         identifier_table[:,1],
@@ -1491,7 +1495,6 @@ class CoreProcessingAGB(Task):
                         mask_out_area_outside_block = True
                 )
                     
-                
                 # skipping to next if all parameters and/or forest class data are missing
                 if np.all(forest_class_3d==0) | np.all(
                         np.array(
@@ -1594,7 +1597,6 @@ class CoreProcessingAGB(Task):
             try:         
                 logging.info('AGB: saving selected parameters to images.')
                 
-                
                 # combine all available mapped parameters
                 all_parameters_3d_names = space_invariant_parameters_3d_names +\
                     space_variant_parameters_3d_names+\
@@ -1604,17 +1606,13 @@ class CoreProcessingAGB(Task):
                         additional_parameters_3d
                         
                 
-                equi7_subtile_name,equi7_tile_name = [x.split('.')[0] for x in observable_sources[0][0][0][0].split('_')[-2:]]
-                equi7_projection_string = get_projection_from_path(observable_sources[0][0][0][0])
-                current_geotransform = [pixel_axis_east[0], pixel_size_east, 0, pixel_axis_north[0], 0, pixel_size_north]        
-                
                 
                 for parameter_idx,parameter_name in enumerate(parameter_names):
                     if parameter_save_as_map[parameter_idx]:
                         
                         current_image_to_write = all_parameters_3d[np.where(np.array(all_parameters_3d_names)==parameter_name)[0][0]]
                         
-                        current_file_name = os.path.join(
+                        current_file_path = os.path.join(
                             temp_agb_folder,parameter_name)
                         
                         # if the parameter is also an observable, we need to apply inverse transform
@@ -1626,15 +1624,16 @@ class CoreProcessingAGB(Task):
                                 observable_transforms[current_position_in_observable_vector],
                                 do_forward = False
                             )
-                            current_file_name += '_backtransf'
+                            current_file_path += '_backtransf'
                             
-                        current_file_name +='_block_%d' % (current_block_index) + '_'+equi7_subtile_name+'_'+equi7_tile_name+'.tif'
+                        current_file_path +='_block_%d' % (current_block_index) + '.tif'# + '_'+equi7_subtile_name+'_'+equi7_tile_name
+                        
                             
                             
                         # save tiff file
-                        output_file_path = tiff_formatter(
+                        current_file_path = tiff_formatter(
                             [x for x in current_image_to_write.transpose([2,0,1])],
-                            current_file_name,
+                            current_file_path,
                             current_geotransform,
                             gdal_data_format=gdal.GDT_Float32,
                             projection=equi7_projection_string,
@@ -1642,10 +1641,39 @@ class CoreProcessingAGB(Task):
                         )
                         
                         
-                        for stack_idx in range(current_image_to_write.shape[2]):
-                            if current_position_in_observable_vector!=-1:
-                                observable_sources[current_position_in_observable_vector][stack_idx].append([output_file_path,stack_idx])
-                            parameter_map_pathlists[parameter_idx].append([output_file_path,stack_idx])
+                        # get extents of the current EQUI7 tile             
+                        # [(left, lower), (right, upper)]
+                        try:
+                            lon_min, lat_min = getattr(self.e7g_intermediate, equi7_subgrid_code).xy2lonlat(
+                                min(pixel_axis_east), min(pixel_axis_north)
+                            )
+                            lon_max, lat_max = getattr(self.e7g_intermediate, equi7_subgrid_code).xy2lonlat(
+                                max(pixel_axis_east), max(pixel_axis_north)
+                            )
+                        except Exception as e:
+                            logging.error(
+                                'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(
+                                    equi7_subgrid_code
+                                )
+                                + str(e),
+                                exc_info=True,
+                            )
+                            raise
+                        
+                        output_equi7_file_path = image2equi7grid(
+                            equi7_product,
+                            current_file_path,
+                            temp_agb_folder,
+                            gdal_path=self.gdal_path,
+                            ftiles=equi7_product.search_tiles_in_roi(bbox=[(lon_min, lat_min), (lon_max, lat_max)]),
+                            accurate_boundary=False,
+                            tile_nodata=np.nan,
+                        )
+                        
+                    
+                        if current_position_in_observable_vector!=-1:
+                            observable_sources[current_position_in_observable_vector][0].append([current_file_path,0])
+                        parameter_map_pathlists[parameter_idx].append([output_equi7_file_path[0],0])
                                 
                                 
                                 
@@ -1659,228 +1687,94 @@ class CoreProcessingAGB(Task):
                 block_status[counter_blocks_run] = 3
                 
                 
-                
-                
-                
             except Exception as e:
                 logging.error('AGB: error during saving of maps.' + str(e), exc_info=True)
                 raise
                     
-                
-               
-                
-
-
-                # # match observables to parameters in the list
-                # position_in_observable_vector,position_in_save_vector = np.where(match_string_lists(observable_names,all_parameters_3d_names)>=0)
-                
-                
-                # # extract paths to first image used in each parameter that is also an observable
-                # source_file_paths = []
-                # source_file_bands = []
-                # for current_position in position_in_observable_vector:
-                #     source_file_paths.append(observable_source_paths[current_position][0])
-                #     source_file_bands.append(observable_source_bands[current_position])
-                # source_file_paths = np.array(source_file_paths)
-                # source_file_bands = np.array(source_file_bands)
-                # # give unique ids to all parameters/observables that have the same source file path
-                # source_file_ids = np.unique(source_file_paths,return_inverse=True)[1]
-                
-                # # loop through parameter/observable groups with the same source file paths (indicating that they are written in the same image/different bands)
-                # for source_file_id in np.unique(source_file_ids):
-                    
-                #     current_positions_in_save_vector = position_in_save_vector[source_file_ids==source_file_id]
-                #     current_positions_in_observable_vector = position_in_observable_vector[source_file_ids==source_file_id]
-                #     # find the number of stacks to save 
-                #     # typically, it will be one if the space-variant parameter doesn't change with stacks
-                #     # if it does, then one image is saved for each stack
-                #     # this is currently not implemented
-                #     current_number_of_stacks = all_parameters_3d[current_positions_in_save_vector[0]].shape[2]
-                #     # extract observable source bands for the current space variant parameter
-                #     current_source_file_bands = source_file_bands[source_file_ids==source_file_id]-1
-                #     # loop through stacks (if the current space-variant parameter varies across stacks, then a new image is saved for each stack)
-                #     for current_stack in range(current_number_of_stacks):
-                #         # prepare the image for current stack by layering the different bands
-                #         current_image_to_save = []
-                #         for current_source_file_band in current_source_file_bands:
-                #             current_image_to_save.append(
-                #                 np.nan * np.zeros((len(pixel_axis_north),len(pixel_axis_east))))
-                #         for current_position_in_save_vector,current_position_in_observable_vector,current_source_file_band in zip(current_positions_in_save_vector,current_positions_in_observable_vector,current_source_file_bands):
-                #             current_image_to_save[current_source_file_band] = \
-                #                 transform_function(all_parameters_3d[current_position_in_save_vector][:,:,current_stack],
-                #                                    observable_ranges[current_position_in_observable_vector],
-                #                                    observable_transforms[current_position_in_observable_vector],
-                #                                    do_forward=False)
-                #             # select file name based on the name of the parameter for the first band
-                #             # and on the number of stacks to be saved
-                #             if current_source_file_band==np.min(current_source_file_bands):
-                                
-                #                 if current_number_of_stacks == 1:
-                #                     output_file_path = os.path.join(
-                #                         temp_agb_folder, '{}_all_stacks_block_{}.tif'.format(observable_names[current_position_in_observable_vector],
-                #                                                                                      current_block_index))
-                                    
-                #                     equi7_agb_est_outdir_curr = os.path.join(
-                #                         temp_agb_folder, 'eq7_{}_all_stacks_block_{}'.format(observable_names[current_position_in_observable_vector],
-                #                                                                              current_block_index)
-                #                     )
-                #                 else:
-                #                     output_file_path = os.path.join(
-                #                         temp_agb_folder, '{}_stack_{}_block_{}.tif'.format(observable_names[current_position_in_observable_vector],
-                #                                                                                      current_stack,
-                #                                                                                      current_block_index))
-                #                     equi7_agb_est_outdir_curr = os.path.join(
-                #                         temp_agb_folder, 'eq7_{}_stack_{}_block_{}'.format(observable_names[current_position_in_observable_vector],
-                #                                                                            current_stack,
-                #                                                                              current_block_index)
-                #                     )
-                        
-                #         # save tiff file
-                #         output_file_path = tiff_formatter(
-                #             current_image_to_save,
-                #             output_file_path,
-                #             current_geotransform,
-                #             gdal_data_format=gdal.GDT_Float32,
-                #             projection=projection_equi7,
-                #             multi_layers_tiff=True,
-                #         )
-                        
-                        
-                #         # save EQUI7 tiles     
-                #         try:
-                #             # [(left, lower), (right, upper)]
-                #             lon_min, lat_min = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
-                #                 min(pixel_axis_east), min(pixel_axis_north)
-                #             )
-                #             lon_max, lat_max = getattr(self.e7g_intermediate, subgrid_code).xy2lonlat(
-                #                 max(pixel_axis_east), max(pixel_axis_north)
-                #             )
-                #         except Exception as e:
-                #             logging.error(
-                #                 'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(
-                #                     subgrid_code
-                #                 )
-                #                 + str(e),
-                #                 exc_info=True,
-                #             )
-                #             raise
-            
-                #         bbox = [(lon_min, lat_min), (lon_max, lat_max)]
-                #         ftiles = e7g_product.search_tiles_in_roi(bbox=bbox)
-            
-                #         os.makedirs(equi7_agb_est_outdir_curr)
-                #         output_equi7_directory = image2equi7grid(
-                #             e7g_product,
-                #             output_file_path,
-                #             equi7_agb_est_outdir_curr,
-                #             gdal_path=self.gdal_path,
-                #             ftiles=ftiles,
-                #             accurate_boundary=False,
-                #             tile_nodata=np.nan,
-                #         )
-            
-                #         for idx, equi7_tiff_name in enumerate(output_equi7_directory):
-            
-                #             driver = gdal.Open(equi7_tiff_name, GA_ReadOnly)
-                #             data = driver.ReadAsArray()
-                #             driver = None
-            
-                #             if np.sum(np.isnan(data)) == data.shape[0] * data.shape[1]:
-                #                 shutil.rmtree(os.path.dirname(equi7_tiff_name))
-                #             else:
-                #                 equi7_agb_est_out_tif_names_not_merged.append(equi7_tiff_name)
-                        
-                        
-                #         # add current block to calibration data
-                #         for current_position_in_observable_vector in current_positions_in_observable_vector:
-                #             observable_source_paths[current_position_in_observable_vector].append(output_file_path)
-                #         # self.lut_cal_paths.append(output_file_path)
-                #         self.lut_cal = np.row_stack((self.lut_cal, np.concatenate((current_block_extents[np.array([0,1,3,2])],np.zeros(1)))))
-                    
-                       
-        # # %%
         
-        # logging.info('AGB: final step, merging blocks...')
-        # equi7_agb_est_out_tif_names_per_tile = {}
-        # for equi7_agb_est_out_tif_name in equi7_agb_est_out_tif_names_not_merged:
-
-        #     tile_name = os.path.basename(os.path.dirname(equi7_agb_est_out_tif_name))
-
-        #     if tile_name in equi7_agb_est_out_tif_names_per_tile.keys():
-        #         equi7_agb_est_out_tif_names_per_tile[tile_name].append(equi7_agb_est_out_tif_name)
-        #     else:
-        #         equi7_agb_est_out_tif_names_per_tile[tile_name] = [equi7_agb_est_out_tif_name]
-
-        # for (
-        #     tile_name,
-        #     equi7_agb_est_out_tif_names_curr_tile,
-        # ) in equi7_agb_est_out_tif_names_per_tile.items():
-
-        #     driver = gdal.Open(equi7_agb_est_out_tif_names_curr_tile[0], GA_ReadOnly)
-        #     data_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
-        #     quality_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
-        #     driver = None
-
-        #     for idx_tile, equi7_agb_est_out_tif_name_curr_tile in enumerate(
-        #         equi7_agb_est_out_tif_names_curr_tile
-        #     ):
-
-        #         # merging current tile blocks togeter:
-        #         driver = gdal.Open(equi7_agb_est_out_tif_name_curr_tile, GA_ReadOnly)
-
-        #         if idx_tile == 0:
-        #             geotransform_out = driver.GetGeoTransform()
-        #         elif geotransform_out != driver.GetGeoTransform():
-        #             err_str = 'Same equi7 tiles cannot have different geotrasform'
-        #             logging.error(err_str)
-        #             raise ValueError(err_str)
-
-        #         data_merged = np.nanmean(
-        #             np.dstack((data_merged, driver.GetRasterBand(1).ReadAsArray())), axis=2
-        #         )
-        #         quality_merged = np.sqrt(
-        #             np.nanmean(
-        #                 np.dstack(
-        #                     (quality_merged ** 2, driver.GetRasterBand(2).ReadAsArray() ** 2)
-        #                 ),
-        #                 axis=2,
-        #             )
-        #         )
-        #         driver = None
-
-        #     invalid_values_mask = np.logical_or(
-        #         data_merged < proc_conf.AGB.estimation_valid_values_limits[0],
-        #         data_merged > proc_conf.AGB.estimation_valid_values_limits[-1],
-        #     )
-        #     data_merged[invalid_values_mask] = np.nan
-        #     quality_merged[invalid_values_mask] = np.nan
-
-        #     sub_grid_folder_name = os.path.basename(
-        #         os.path.dirname(os.path.dirname(equi7_agb_est_out_tif_names_curr_tile[0]))
-        #     )
-        #     output_folder_curr_tile = os.path.join(
-        #         output_folder,
-        #         sub_grid_folder_name,
-        #         tile_name,
-        #         'agb_est_' + tile_name + sub_grid_folder_name + '.tif',
-        #     )
-        #     if not os.path.exists(os.path.dirname(output_folder_curr_tile)):
-        #         os.makedirs(os.path.dirname(output_folder_curr_tile))
-        #     output_folder_curr_tile = tiff_formatter(
-        #         [data_merged, quality_merged],
-        #         output_folder_curr_tile,
-        #         geotransform_out,
-        #         gdal_data_format=gdal.GDT_Float32,
-        #         projection=projection_curr,
-        #         multi_layers_tiff=True,
-        #     )
-        #     logging.info(
-        #         '    equi7 tile blocks merged and savad to file{}'.format(output_folder_curr_tile)
-        #     )
-
-        # if proc_conf.delete_temporary_files:
-        #     try:
-        #         shutil.rmtree(temp_output_folder)
-        #     except:
-        #         pass
-        # logging.info('AGB: estimation ended correctly.\n')
+        # %% FINAL MERGING OF THE IMAGES
+            
+        
+        
+        
+        try:
+            logging.info('AGB: creating wall-to-wall maps...')
+            for parameter_idx,parameter_name in enumerate(parameter_names):
+                if parameter_save_as_map[parameter_idx]:
+                    
+                    tiles_to_save = {}
+                    for current_source in parameter_map_pathlists[parameter_idx]:
+                            subtile_name,tile_name = [x.split('.')[0] for x in current_source[0].split('_')[-2:]]
+                        
+                            if tile_name in tiles_to_save.keys():
+                                tiles_to_save[tile_name].append(current_source)
+                            else:
+                                tiles_to_save[tile_name] = [current_source]
+                    
+                    for tile_name,tile_sources in tiles_to_save.items():
+                    
+                        driver = gdal.Open(tile_sources[0][0], GA_ReadOnly)
+                        data_merged = np.nan * np.zeros((driver.RasterYSize, driver.RasterXSize))
+                        driver = None
+                    
+                        for idx_tile, current_tile_source in enumerate(
+                            tile_sources
+                        ):
+                    
+                            # merging current tile blocks togeter:
+                            driver = gdal.Open(current_tile_source[0], GA_ReadOnly)
+                    
+                            if idx_tile == 0:
+                                geotransform_out = driver.GetGeoTransform()
+                            elif geotransform_out != driver.GetGeoTransform():
+                                err_str = 'Same equi7 tiles cannot have different geotrasform'
+                                logging.error(err_str)
+                                raise ValueError(err_str)
+                    
+                            data_merged = np.nanmean(
+                                np.dstack((data_merged, driver.GetRasterBand(current_tile_source[1]+1).ReadAsArray())), axis=2
+                            )
+                            
+                            driver = None
+                    
+                        
+                        current_merged_file_path = os.path.join(
+                            global_agb_folder,
+                            equi7_subtile_name,
+                            tile_name,
+                            parameter_name,
+                        )
+                        
+                        current_position_in_observable_vector = parameter_position_in_observable_vector[parameter_idx]
+                        if current_position_in_observable_vector!=-1:
+                            current_merged_file_path += '_backtransf_'
+                        current_merged_file_path += tile_name + '_' + equi7_subtile_name + '.tif'
+                        
+                        
+                        
+                        if not os.path.exists(os.path.dirname(current_merged_file_path)):
+                            os.makedirs(os.path.dirname(current_merged_file_path))
+                            
+                        current_merged_file_path = tiff_formatter(
+                            [data_merged],
+                            current_merged_file_path,
+                            geotransform_out,
+                            gdal_data_format=gdal.GDT_Float32,
+                            projection=equi7_projection_string,
+                            multi_layers_tiff=True,
+                        )
+                        logging.info(
+                            "... successful for parameter '{}' and filename '{}'".format(parameter_name, current_merged_file_path)
+                        )
+                    
+                    # if proc_conf.delete_temporary_files:
+                    #     try:
+                    #         shutil.rmtree(temp_proc_folder)
+                    #     except:
+                    #         pass
+            logging.info('AGB: estimation ended correctly.\n')
+        
+        
+        except Exception as e:
+            logging.error('AGB: error during creation of wall-to-wall maps.' + str(e), exc_info=True)
+            raise

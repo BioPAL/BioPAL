@@ -910,7 +910,7 @@ def read_and_organise_3d_data(
                     # masking the stack:
                     source_data_interp[forest_class_3d[:,:,0] == 0] = np.NaN
 
-                    logging.info("AGB: sampling and transforming stacked data for observable '{}' (stack {}/{}, file {}/{})".format(
+                    logging.info("AGB: reading stacked image data for observable '{}' (stack {}/{}, file {}/{})".format(
                         observable_names[observable_idx],
                         stack_idx+1,number_of_stacks,file_idx+1,len(observable_sources[observable_idx][stack_idx])
                         )
@@ -950,7 +950,7 @@ def read_and_organise_3d_data(
                 source_data_interp[forest_class_3d[:,:,0] == 0] = np.NaN
 
             
-            logging.info("AGB: sampling and transforming unstacked data for observable '{}' (file {}/{})".format(
+            logging.info("AGB: reading unstacked image data for observable '{}' (file {}/{})".format(
                 observable_names[observable_idx],
                 file_idx+1,len(observable_sources[observable_idx][0])
                 )
