@@ -964,10 +964,10 @@ class CoreProcessingAGB(Task):
                                 'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db',
                                 'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db']
         
-        # experimental: testing the use of height
-        # formula = ['l_hh + a_hh * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_hh_db',
-        #         'l_hv + a_hv * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_hv_db',
-        #         'l_vv + a_vv * agb_1_db + cos_local_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/10**(0.1*cos_local_db))) + neg_sigma0_vv_db']
+        # experimental: testing the use of tomosar products
+        formula = ['l_hh + a_hh * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/cos_tomo2_theta)) + neg_cov_hh_30_db',
+                'l_hv + a_hv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/cos_tomo2_theta)) + neg_cov_hv_30_db',
+                'l_vv + a_vv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/cos_tomo2_theta)) + neg_cov_vv_30_db']
         
         
         
@@ -1033,7 +1033,7 @@ class CoreProcessingAGB(Task):
                             'lidar_h_db','tomo_h',
                             'neg_cov_hh_30_db','neg_cov_hv_30_db','neg_cov_vv_30_db',
                             'neg_cov_hh_40_db','neg_cov_hv_40_db','neg_cov_vv_40_db',
-                            'cos_tomo_theta_db']
+                            'cos_tomo_theta_db','ref_lidar_agb_db','cos_tomo2_theta']
         # note that agb is special: it is defined as both "observable" and "parameter", so it will be 
         # both read from external data and estimated 
         
@@ -1048,7 +1048,7 @@ class CoreProcessingAGB(Task):
                                   True,True,
                                   True,True,True,
                                   True,True,True,
-                                  True]
+                                  True,True,True]
         
         #### list with sources for observable data
         # this part connects the observables to actual data
@@ -1091,7 +1091,9 @@ class CoreProcessingAGB(Task):
             [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif',0]]],
             [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif',0]]],
             [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif',0]]]
+            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif',0]]],
+            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_AF050M_E045N048T3.tif',0]]],
+            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif',0]]],
             ]
         
         
@@ -1103,6 +1105,8 @@ class CoreProcessingAGB(Task):
                              [0.1,100],[0.1,100],
                              [1e-8,20],[1e-8,20],[1e-8,20],
                              [1e-8,20],[1e-8,20],[1e-8,20],
+                             [20*np.pi/180,60*np.pi/180],
+                             [1,700],
                              [20*np.pi/180,60*np.pi/180]]
         
         #### data transforms (here: tags indicating one of predefined functions)
@@ -1112,7 +1116,8 @@ class CoreProcessingAGB(Task):
                                  'db','none',
                                  '-db','-2db','-db',
                                  '-db','-2db','-db',
-                                 'cosdb']
+                                 'cosdb',
+                                 'db','cos']
         
         ### averaging method within current sampling area and stack
         #   although oftentimes 'mean' is used, this may not always be the case 
@@ -1124,7 +1129,7 @@ class CoreProcessingAGB(Task):
                                         'mean','mean',
                                         'mean','mean','mean',
                                         'mean','mean','mean',
-                                        'mean'] 
+                                        'mean','mean','mean'] 
         
         
         
@@ -1158,23 +1163,37 @@ class CoreProcessingAGB(Task):
                                    [],[],[],[],
                                    [],[],[]]
         
-        ### SOME MANIPULATIONS TO SPEED  UP THE INVERSION
-        # (remove in final version)
+        # ### SOME MANIPULATIONS TO SPEED  UP THE INVERSION
+        # # (remove in final version)
         
-        # take out the observables and parameters that are within formula or within the defined observables
-        # (no need for now to read unnecessary data)
-        observable_names = subset_iterable(observable_names,observables_in_formula_or_parameters,False)
-        observable_averaging_methods = subset_iterable(observable_averaging_methods,observables_in_formula_or_parameters,False)
-        observable_transforms = subset_iterable(observable_transforms,observables_in_formula_or_parameters,False)
-        observable_ranges = subset_iterable(observable_ranges,observables_in_formula_or_parameters,False)
-        observable_sources = subset_iterable(observable_sources,observables_in_formula_or_parameters,False)
-        observable_is_required = subset_iterable(observable_is_required,observables_in_formula_or_parameters,False)
+        # # take out the observables and parameters that are within formula or within the defined observables
+        # # (no need for now to read unnecessary data)
+        # observable_names = subset_iterable(observable_names,observables_in_formula_or_parameters,False)
+        # observable_averaging_methods = subset_iterable(observable_averaging_methods,observables_in_formula_or_parameters,False)
+        # observable_transforms = subset_iterable(observable_transforms,observables_in_formula_or_parameters,False)
+        # observable_ranges = subset_iterable(observable_ranges,observables_in_formula_or_parameters,False)
+        # observable_sources = subset_iterable(observable_sources,observables_in_formula_or_parameters,False)
+        # observable_is_required = subset_iterable(observable_is_required,observables_in_formula_or_parameters,False)
         
-        # change the number of subsets
-        # (with the current setting, the subset size is 100% anyway, so no point running 5 subsets)
-        number_of_subsets = 1
+        # # change the number of subsets
+        # # (with the current setting, the subset size is 100% anyway, so no point running 5 subsets)
+        # number_of_subsets = 1
+        
+        fraction_of_samples = 0.8
         
         
+        
+        # checking that none of observable and parameter names can be contained within each other
+        # (parsing of the formula will fail if this is the case)
+        all_names = parameter_names + observable_names
+        for current_name in all_names:
+            for current_name2 in all_names:
+                if ((current_name!=current_name2) & \
+                    ((current_name.find(current_name2)>=0) | \
+                     (current_name2.find(current_name)>=0))):
+                    logging.error('AGB: parameter and observable names must be unique and cannot contain each other ({} and {} do not fulfill this requirement).'.format(current_name,current_name2))
+            
+                    
         
        
             
@@ -1229,7 +1248,7 @@ class CoreProcessingAGB(Task):
             
             logging.info('AGB: Running block {} out of {} (block ID: {})'.format(counter_blocks_run+1, number_of_blocks, current_block_index))
             
-        
+       
             # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             try:
                 logging.info('AGB: Creating sampling grid and checking for data.')
@@ -1386,8 +1405,8 @@ class CoreProcessingAGB(Task):
                         parameter_tables,
                         parameter_table_columns,
                         parameter_variabilities,
-                        proc_conf.AGB.fraction_of_cal_per_test/100,
-                        proc_conf.AGB.fraction_of_roi_per_test/100,
+                        proc_conf.AGB.fraction_of_cal_per_test/100*fraction_of_samples,
+                        proc_conf.AGB.fraction_of_roi_per_test/100*fraction_of_samples,
                         proc_conf.AGB.min_number_of_cals_per_test,
                         proc_conf.AGB.min_number_of_rois_per_test,
                 )
@@ -1486,6 +1505,7 @@ class CoreProcessingAGB(Task):
                         subset_iterable(observable_transforms,observables_for_mapping,False),
                         subset_iterable(observable_averaging_methods,observables_for_mapping,False),
                         subset_iterable(observable_ranges,observables_for_mapping,False),
+                        subset_iterable(observable_is_required,observables_for_mapping,False),
                         [[x,0] for x in self.lut_fnf_paths],
                         self.lut_fnf,
                         identifier_table[:,2],

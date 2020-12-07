@@ -219,7 +219,9 @@ def sample_and_tabulate_data(
                     # fill out the table
                     observable_table[current_rows,
                                           observable_idx] = temp_transformed_sampled_data
-
+            
+            
+            
         # otherwise, replicate across stacks
         elif current_number_of_stacks==1:
                 
@@ -269,6 +271,12 @@ def sample_and_tabulate_data(
                 observable_transforms[observable_idx])
             # fill out the table
             observable_table[:,observable_idx] = np.kron(temp_transformed_sampled_data,np.ones(number_of_stacks))
+    
+        # break if this is a required observable and all sampled data are nan
+        # (speeds up the reading)
+        if np.all(np.isnan(observable_table[:,observable_idx])) & observable_is_required[observable_idx]:
+            logging.info("AGB: no data for the first required observable, skipping the rest")
+            break
         
     # observable_table = np.nan*observable_table # this is just a dummy thing to check the behaviour of this function in case of lack of data
     
@@ -743,7 +751,8 @@ def fit_formula_to_table_data(original_formula,
         
     
     # iterate a few times with different initial values in case some initial value set fails
-    for counter in range(10):
+    max_count = 10
+    for counter in range(max_count):
         
         # creating initial values by randomising
         p_initial = p_lower+np.random.rand(length_of_p_vector)*(p_upper-p_lower)
@@ -760,7 +769,10 @@ def fit_formula_to_table_data(original_formula,
         else:
             p_estimated = np.nan * np.zeros(length_of_p_vector)
             cost_function_value = np.nan
-            logging.info(' ... finished with failure (message: {}). Rerunning with different initial values...'.format(fitted_model.message))
+            if counter<(max_count-1):
+                logging.info(' ... finished with failure (message: {}). Rerunning with different initial values...'.format(fitted_model.message))
+            else:
+                logging.info(' ... finished with failure (message: {}). Entire estimation failed (this should be troubleshot further)...'.format(fitted_model.message))
     return (
         np.column_stack((columnwise_to_unique_index_lut,p_initial,p_estimated)),
         p_estimated[unique_index_table],
@@ -782,6 +794,7 @@ def read_and_organise_3d_data(
         observable_transforms,
         observable_averaging_methods,
         observable_ranges,
+        observable_is_required,
         forest_class_sources,
         forest_class_boundaries,
         stack_id_vector,
@@ -920,7 +933,7 @@ def read_and_organise_3d_data(
                             source_data_interp,
                             observable_ranges[observable_idx],
                             observable_transforms[observable_idx])
-                    
+            
         # otherwise, replicate across stacks
         elif current_number_of_stacks==1:
                 
@@ -962,6 +975,12 @@ def read_and_organise_3d_data(
             for stack_idx in range(number_of_stacks):
                 observables_3d[observable_idx][:,:,stack_idx] = temporary_transf_image
                     
+            
+        # break if this is a required observable and all sampled data are nan
+        # (speeds up the reading)
+        if np.all(np.isnan(observables_3d[observable_idx])) & observable_is_required[observable_idx]:
+            logging.info("AGB: no data for the first required observable, skipping the rest")
+            break
             
         
     identifiers_3d = []
@@ -1318,6 +1337,11 @@ def transform_function(in_data,interval,kind,do_forward=True):
             out_data = 10*np.log10(np.cos(in_data))
         else:
             out_data = np.arccos(10**(0.1*in_data))
+    elif kind=='cos':
+        if do_forward:
+            out_data = np.cos(in_data)
+        else:
+            out_data = np.arccos(in_data)
     else:
         out_data = np.copy(in_data)
     return out_data
