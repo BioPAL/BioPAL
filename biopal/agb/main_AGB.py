@@ -1179,7 +1179,11 @@ class CoreProcessingAGB(Task):
         # # (with the current setting, the subset size is 100% anyway, so no point running 5 subsets)
         # number_of_subsets = 1
         
+        # remove in final versio
         fraction_of_samples = 0.8
+        
+        
+        
         
         
         
