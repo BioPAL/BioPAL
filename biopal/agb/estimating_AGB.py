@@ -493,7 +493,7 @@ def fit_formula_to_random_subsets(
                 current_rows = (
                                     current_lut_all_parameters[:,1]==current_column_idx
                                 ) & (
-                                    np.abs(current_lut_all_parameters[:,-2]-current_lut_all_parameters[:,-1])>1e-4 # checking if the parameter has changed from the initial value
+                                    np.abs(current_lut_all_parameters[:,-2]-current_lut_all_parameters[:,-1])>1e-10 # checking if the parameter has changed from the initial value
                                 )
                 # write the relevant rows of the parameter table
                 parameter_tables[current_parameter_idx][np.int32(current_lut_all_parameters[current_rows,2]),-number_of_subsets+subset_idx] = current_lut_all_parameters[current_rows,-1]
@@ -564,7 +564,7 @@ def fit_formula_to_random_subsets(
                 current_rows = (
                                     current_lut_space_variant_parameters[:,1]==current_column_idx
                                 ) & (
-                                    np.abs(current_lut_space_variant_parameters[:,-2]-current_lut_space_variant_parameters[:,-1])>1e-4
+                                    np.abs(current_lut_space_variant_parameters[:,-2]-current_lut_space_variant_parameters[:,-1])>1e-10
                                 )
                 # save current estimates to parameter tables
                 parameter_tables[np.int32(current_parameter_idx)][np.int32(current_lut_space_variant_parameters[current_rows,2]),-number_of_subsets+subset_idx] = current_lut_space_variant_parameters[current_rows,-1]
@@ -679,7 +679,7 @@ def cost_function(x_vector,converted_formulas,observable_tables,index_tables,nam
     for observable_table,index_table,converted_formula in zip(observable_tables,index_tables,converted_formulas):
         table_in_converted_formula = np.column_stack((observable_table,p_vector[index_table]))
         # evaluate the cost function formula, average across different measurements and add to the total cost
-        total_cost += np.mean(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula,'np':np}))
+        total_cost += np.nanmean(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula,'np':np}))
         # print(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula}))
     # return weighed with the number of formulas    
     return np.sqrt(total_cost/number_of_formulas)   
