@@ -13,4 +13,5 @@ pyproj
 Pytileproj 
 pyxb
 docopt
+setuptools
 
