@@ -1,21 +1,36 @@
+"""biopal processor
+
+Usage:
+  biopal [--conf=CONFFOLDER] INPUTFILEXML
+  
+Arguments:
+  INPUTFILEXML       Path of the xml input file
+  
+Options:
+  --conf=CONFFOLDER  Set the directory containing the xml configuration files
+  -h --help          Show this screen
+  --version          Show version
+"""
+
 import os
+import pkg_resources
 import logging
 import collections
-from shutil import copyfile
-from shapely.geometry import MultiPoint  
+from shutil import copyfile, which
+from shapely.geometry import MultiPoint
 from biopal.utility.utility_functions import (
     check_if_path_exists,
     format_folder_name,
     getBinaryNameFromChannelIDX,
     decode_unique_acquisition_id_string,
-    )
+)
 from biopal.io.xml_io import (
     parse_biomassL2_main_input_file,
     parse_biopal_configuration_file,
     geographic_boundaries,
     write_chains_input_file,
     input_params,
-    )
+)
 from biopal.io.data_io import readBiomassHeader_core
 
 from arepytools.timing.precisedatetime import PreciseDateTime
@@ -24,15 +39,15 @@ from arepytools.timing.precisedatetime import PreciseDateTime
 # software releases may lack of some libraries, for example when chains are
 # delivered separately
 try:
-    from biopal.agb.main_AGB import main_AGB
+    from biopal.agb.main_AGB import AboveGroundBiomass
 except:
     pass
 try:
-    from biopal.fh.main_FH import main_FH
+    from biopal.fh.main_FH import ForestHeight
 except:
     pass
 try:
-    from biopal.tomo_fh.main_TOMO_FH import main_TOMO_FH
+    from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
 except:
     pass
 try:
@@ -45,25 +60,55 @@ except:
     pass
 
 
-
 # main biopal:
 # 1) Sets enviriment and logging, parses the main input
 # 2) Chooses data to be processed
 # 3) Launches each activated chain
-def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
+def biomassL2_processor_run(input_file_xml, conf_folder=None):
 
-    default_configuration_folder = os.path.join(INSTALLATION_FOLDER, 'conf')
-    check_if_path_exists(default_configuration_folder, 'FOLDER')
+    if conf_folder is None:
+        biopal_configuration_file_xml = pkg_resources.resource_filename(
+            'biopal', 'conf/biopal_configuration.xml')
+        configuration_file_AGB = pkg_resources.resource_filename(
+            'biopal', 'conf/ConfigurationFile_AGB.xml')
+        configuration_file_FH = pkg_resources.resource_filename(
+            'biopal', 'conf/ConfigurationFile_FH.xml')
+        configuration_file_TOMO_FH = pkg_resources.resource_filename(
+            'biopal', 'conf/ConfigurationFile_TOMO_FH.xml')
+    else:
+        default_configuration_folder = conf_folder
+        check_if_path_exists(default_configuration_folder, 'FOLDER')
+
+        biopal_configuration_file_xml = os.path.join(
+            default_configuration_folder, 'biopal_configuration.xml'
+        )
+        configuration_file_AGB = os.path.join(
+            default_configuration_folder, 'ConfigurationFile_AGB.xml')
+        configuration_file_FH = os.path.join(
+            default_configuration_folder, 'ConfigurationFile_FH.xml')
+        configuration_file_TOMO_FH = os.path.join(
+            default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml')
     
-    biopal_configuration_file_xml = os.path.join(default_configuration_folder, 'biopal_configuration.xml')
-    
-    gdal_path, gdal_environment_path = parse_biopal_configuration_file(biopal_configuration_file_xml)
-    
-    print('gdal_path '+gdal_path )
-    print('gdal_environment_path '+gdal_environment_path)
-    # Set the enviroment
-    if gdal_environment_path:
+    gdal_path, gdal_environment_path = parse_biopal_configuration_file(
+        biopal_configuration_file_xml
+    )
+    if gdal_path is None:
+        gdal_info_path = which('gdalinfo')
+        if not gdal_info_path:
+            raise RuntimeError('Missing gdalinfo executable')
+        gdal_path = os.path.dirname(gdal_info_path)
+        
+    if gdal_environment_path is None:
+        gdal_environment_path = os.environ.get('GDAL_DATA')
+        if not gdal_environment_path:
+            raise RuntimeError('Missing GDAL_DATA environment variable')
+    else:
+        # Set the enviroment
         os.environ['GDAL_DATA'] = gdal_environment_path
+
+         
+    print('gdal_path ' + gdal_path)
+    print('gdal_environment_path ' + gdal_environment_path)
 
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
@@ -81,7 +126,7 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
     # start the main logging
     log_file_name = start_logging(output_folder, main_input_struct.proc_flags, 'DEBUG')
 
-    logging.debug('Installation   folder is {}'.format(INSTALLATION_FOLDER))
+    logging.debug('Configuration   folder is {}'.format(conf_folder))
     logging.info(' Auxiliary data folder is {}'.format(main_input_struct.L1c_aux_data_repository))
     logging.info('Results will be saved into output folder {}'.format(output_folder))
 
@@ -91,9 +136,11 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
     logging.info('Research will be done according to user dates and boundaries....\n')
     try:
 
-        stack_composition, geographic_boundaries, geographic_boundaries_per_stack = data_select_by_date_and_boundaries(
-            main_input_struct
-        )
+        (
+            stack_composition,
+            geographic_boundaries,
+            geographic_boundaries_per_stack,
+        ) = data_select_by_date_and_boundaries(main_input_struct)
         if not len(stack_composition):
             logging.error(
                 'Cannot find any data which meets the conditions to run the processing: see the log warnings. \n'
@@ -126,65 +173,39 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
         stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition)
 
     # AGB
-    try:
+    if main_input_struct.proc_flags.AGB:
 
-        if main_input_struct.proc_flags.AGB:
-            configuration_file_xml = os.path.join(default_configuration_folder, 'ConfigurationFile_AGB.xml')
-            main_AGB(
-                AGB_input_file_xml,
-                configuration_file_xml,
-                geographic_boundaries,
-                geographic_boundaries_per_stack,
-                gdal_path,
-            )
-    except Exception as e:
-        logging.error('biopal main: error inside AGB chain: ' + str(e), exc_info=True)
-        raise
+        agb_obj = AboveGroundBiomass(
+            configuration_file_AGB,
+            geographic_boundaries,
+            geographic_boundaries_per_stack,
+            gdal_path,
+        )
 
-    # FD
-    try:
-        if main_input_struct.proc_flags.FD:
-            configuration_file_xml = os.path.join(default_configuration_folder, 'ConfigurationFile_FD.xml')
-            main_FD(FD_input_file_xml, configuration_file_xml, geographic_boundaries, gdal_path)
-
-    except Exception as e:
-        logging.error('biopal main: error inside FD chain: ' + str(e), exc_info=True)
-        raise
+        agb_obj.run(AGB_input_file_xml)
 
     # FH
-    try:
-        if main_input_struct.proc_flags.FH:
+    if main_input_struct.proc_flags.FH:
 
-            configuration_file_xml = os.path.join(default_configuration_folder, 'ConfigurationFile_FH.xml')
-            main_FH(FH_input_file_xml, configuration_file_xml, stacks_to_merge_dict, geographic_boundaries, gdal_path)
+        fh_obj = ForestHeight(
+            configuration_file_FH,
+            geographic_boundaries,
+            stacks_to_merge_dict,
+            gdal_path,
+        )
 
-    except Exception as e:
-        logging.error('biopal main: error inside FH chain: ' + str(e), exc_info=True)
-        raise
+        fh_obj.run(FH_input_file_xml)
 
     # TOMO FH
-    try:
-        if main_input_struct.proc_flags.TOMO_FH:
+    if main_input_struct.proc_flags.TOMO_FH:
 
-            configuration_file_xml = os.path.join(default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml')
-            main_TOMO_FH(
-                TOMO_FH_input_file_xml, configuration_file_xml, stacks_to_merge_dict, geographic_boundaries, gdal_path
-            )
+        tomo_fh_obj = TomoForestHeight(
+            configuration_file_TOMO_FH,
+            stacks_to_merge_dict,
+            gdal_path,
+        )
 
-    except Exception as e:
-        logging.error('biopal main: error inside TOMO FH chain: ' + str(e), exc_info=True)
-        raise
-
-    # TOMO
-    try:
-        if main_input_struct.proc_flags.TOMO:
-            configuration_file_xml = os.path.join(default_configuration_folder, 'ConfigurationFile_TOMO.xml')
-
-            main_TOMO_CUBE(TOMO_input_file_xml, configuration_file_xml, gdal_path)
-
-    except Exception as e:
-        logging.error('biopal main: error inside TOMO chain: ' + str(e), exc_info=True)
-        raise
+        tomo_fh_obj.run(TOMO_FH_input_file_xml)
 
     logging.info('All outputs have been saved into: ' + output_folder + '\n')
     logging.info('BIOMASS L2 Processor ended: see the above log messages for more info.')
@@ -194,45 +215,32 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
         log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'AGB', 'biomassL2.log')
         copyfile(log_file_name, log_file_name_new)
 
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_AGB.xml')
-        conf_file_name_new = os.path.join(os.path.dirname(log_file_name), 'AGB', 'ConfigurationFile.xml')
-        copyfile(conf_file_name_curr, conf_file_name_new)
-
-    if main_input_struct.proc_flags.FD:
-        log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'FD', 'biomassL2.log')
-        copyfile(log_file_name, log_file_name_new)
-
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_FD.xml')
-        conf_file_name_new = os.path.join(os.path.dirname(log_file_name), 'FD', 'ConfigurationFile.xml')
-        copyfile(conf_file_name_curr, conf_file_name_new)
+        conf_file_name_new = os.path.join(
+            os.path.dirname(log_file_name), 'AGB', 'ConfigurationFile.xml'
+        )
+        copyfile(configuration_file_AGB, conf_file_name_new)
 
     if main_input_struct.proc_flags.FH:
         log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'FH', 'biomassL2.log')
         copyfile(log_file_name, log_file_name_new)
 
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_FH.xml')
-        conf_file_name_new = os.path.join(os.path.dirname(log_file_name), 'FH', 'ConfigurationFile.xml')
-        copyfile(conf_file_name_curr, conf_file_name_new)
+        conf_file_name_new = os.path.join(
+            os.path.dirname(log_file_name), 'FH', 'ConfigurationFile.xml'
+        )
+        copyfile(configuration_file_FH, conf_file_name_new)
 
     if main_input_struct.proc_flags.TOMO_FH:
         log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'TOMO_FH', 'biomassL2.log')
         copyfile(log_file_name, log_file_name_new)
 
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml')
-        conf_file_name_new = os.path.join(os.path.dirname(log_file_name), 'TOMO_FH', 'ConfigurationFile.xml')
-        copyfile(conf_file_name_curr, conf_file_name_new)
-
-    if main_input_struct.proc_flags.TOMO:
-        log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'TOMO', 'biomassL2.log')
-        copyfile(log_file_name, log_file_name_new)
-
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_TOMO.xml')
-        conf_file_name_new = os.path.join(os.path.dirname(log_file_name), 'TOMO', 'ConfigurationFile.xml')
-        copyfile(conf_file_name_curr, conf_file_name_new)
+        conf_file_name_new = os.path.join(
+            os.path.dirname(log_file_name), 'TOMO_FH', 'ConfigurationFile.xml'
+        )
+        copyfile(configuration_file_TOMO_FH, conf_file_name_new)
 
     return True
 
- 
+
 def start_logging(output_folder, proc_flags, log_level):
     # CRITICAL 50
     # ERROR 40
@@ -253,7 +261,10 @@ def start_logging(output_folder, proc_flags, log_level):
     log_file_name = os.path.join(output_folder, 'biomassL2.log')
 
     logging.basicConfig(
-        handlers=[logging.FileHandler(log_file_name, mode='w', encoding='utf-8'), logging.StreamHandler()],
+        handlers=[
+            logging.FileHandler(log_file_name, mode='w', encoding='utf-8'),
+            logging.StreamHandler(),
+        ],
         level=level_to_set,
         format='%(asctime)s - %(levelname)s | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
@@ -438,7 +449,9 @@ def write_chains_input_file_main(output_folder, main_input_struct, stack_composi
             write_chains_input_file(input_params_obj, TOMO_FH_input_file_xml)
         else:
             TOMO_FH_input_file_xml = ''
-            logging.warning('cannot find any stack with more than #2 acquisitions: TOMO FH estimation will be disabled')
+            logging.warning(
+                'cannot find any stack with more than #2 acquisitions: TOMO FH estimation will be disabled'
+            )
             main_input_struct.proc_flags.TOMO_FH = False
     else:
         TOMO_FH_input_file_xml = ''
@@ -491,13 +504,21 @@ def write_chains_input_file_main(output_folder, main_input_struct, stack_composi
 
         else:
             TOMO_input_file_xml = ''
-            logging.warning('cannot find any stack with more than #2 acquisitions: TOMO estimation will be disabled')
+            logging.warning(
+                'cannot find any stack with more than #2 acquisitions: TOMO estimation will be disabled'
+            )
             main_input_struct.proc_flags.TOMO = False
 
     else:
         TOMO_input_file_xml = ''
 
-    return AGB_input_file_xml, FD_input_file_xml, FH_input_file_xml, TOMO_FH_input_file_xml, TOMO_input_file_xml
+    return (
+        AGB_input_file_xml,
+        FD_input_file_xml,
+        FH_input_file_xml,
+        TOMO_FH_input_file_xml,
+        TOMO_input_file_xml,
+    )
 
 
 def get_auxiliary_paths(stack_composition, L1c_aux_data_repository):
@@ -515,7 +536,9 @@ def get_auxiliary_paths(stack_composition, L1c_aux_data_repository):
     dem_folder = os.path.join(L1c_aux_data_repository, 'DEM')
     reference_agb_folder = os.path.join(L1c_aux_data_repository, 'ReferenceAGB')
     average_covariance_folder = os.path.join(L1c_aux_data_repository, 'AverageCovariance')
-    system_decorrelation_fun_folder = os.path.join(L1c_aux_data_repository, 'SystemDecorrelationFunction')
+    system_decorrelation_fun_folder = os.path.join(
+        L1c_aux_data_repository, 'SystemDecorrelationFunction'
+    )
     calibration_screens_folder = os.path.join(L1c_aux_data_repository, 'CalibrationScreens')
     forest_height_folder = os.path.join(L1c_aux_data_repository, 'ForestHeight')
 
@@ -533,10 +556,16 @@ def get_auxiliary_paths(stack_composition, L1c_aux_data_repository):
         ECEF_grid_file_names[stack_id] = os.path.join(r'' + ECEFGRID_folder, stack_id)
         kz_file_names[stack_id] = os.path.join(r'' + KZ_folder, stack_id)
         off_nadir_angle_file_names[stack_id] = os.path.join(r'' + off_nadir_angle_folder, stack_id)
-        reference_height_file_names[stack_id] = os.path.join(r'' + reference_height_folder, stack_id)
-        slant_range_distances_file_names[stack_id] = os.path.join(r'' + slant_range_distances, stack_id)
+        reference_height_file_names[stack_id] = os.path.join(
+            r'' + reference_height_folder, stack_id
+        )
+        slant_range_distances_file_names[stack_id] = os.path.join(
+            r'' + slant_range_distances, stack_id
+        )
         slope_file_names[stack_id] = os.path.join(r'' + slope_folder, stack_id)
-        calibration_screens_file_names[stack_id] = os.path.join(r'' + calibration_screens_folder, stack_id)
+        calibration_screens_file_names[stack_id] = os.path.join(
+            r'' + calibration_screens_folder, stack_id
+        )
 
     return (
         ECEF_grid_file_names,
@@ -608,7 +637,9 @@ def data_select_by_date_and_boundaries(main_input_struct):
 
         # read the current header
 
-        datestr, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(raster_file)
+        datestr, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(
+            raster_file
+        )
 
         uniqie_stack_id = unique_acq_id[0:40]
 
@@ -664,9 +695,13 @@ def data_select_by_date_and_boundaries(main_input_struct):
         )
 
         # check 4/4 (optional) ckeck if data matches one of the user specified stack:
-        stack_is_matching = check_on_stacks_to_find(uniqie_stack_id, main_input_struct.stacks_to_find)
+        stack_is_matching = check_on_stacks_to_find(
+            uniqie_stack_id, main_input_struct.stacks_to_find
+        )
 
-        if date_is_matching and boundaries_are_matching and stack_is_matching:  # and num_acq_are_enough:
+        if (
+            date_is_matching and boundaries_are_matching and stack_is_matching
+        ):  # and num_acq_are_enough:
             # store information for data that satisfy all previous checks:
             if not uniqie_stack_id in stacks_composition.keys():
                 stacks_composition[uniqie_stack_id] = [unique_acq_id]
@@ -674,10 +709,18 @@ def data_select_by_date_and_boundaries(main_input_struct):
                 stacks_composition[uniqie_stack_id].append(unique_acq_id)
 
             try:
-                geographic_boundaries_curr.lon_min = min(geographic_boundaries_curr.lon_min, lon_min)
-                geographic_boundaries_curr.lon_max = max(geographic_boundaries_curr.lon_max, lon_max)
-                geographic_boundaries_curr.lat_min = min(geographic_boundaries_curr.lat_min, lat_min)
-                geographic_boundaries_curr.lat_max = max(geographic_boundaries_curr.lat_max, lat_max)
+                geographic_boundaries_curr.lon_min = min(
+                    geographic_boundaries_curr.lon_min, lon_min
+                )
+                geographic_boundaries_curr.lon_max = max(
+                    geographic_boundaries_curr.lon_max, lon_max
+                )
+                geographic_boundaries_curr.lat_min = min(
+                    geographic_boundaries_curr.lat_min, lat_min
+                )
+                geographic_boundaries_curr.lat_max = max(
+                    geographic_boundaries_curr.lat_max, lat_max
+                )
             except:
                 geographic_boundaries_curr.lon_min = lon_min
                 geographic_boundaries_curr.lon_max = lon_max
@@ -703,9 +746,13 @@ def data_select_by_date_and_boundaries(main_input_struct):
     if num_stacks == 0:
         logging.warning('\n')
         logging.warning('Cannot find any valid data:')
-        if len(stacks_composition_only_dates_match) or len(stacks_composition_only_boundaries_match):
+        if len(stacks_composition_only_dates_match) or len(
+            stacks_composition_only_boundaries_match
+        ):
 
-            logging.warning('    be aware that data In L1cRepository are confined inside following boundaries:')
+            logging.warning(
+                '    be aware that data In L1cRepository are confined inside following boundaries:'
+            )
             logging.warning('    minimun date is       {}'.format(edge_values['date_min']))
             logging.warning('    maximun date is       {}'.format(edge_values['date_max']))
             logging.warning('    minimun Longitude is  {}'.format(edge_values['lon_min']))
@@ -718,22 +765,34 @@ def data_select_by_date_and_boundaries(main_input_struct):
 
             point_dict = main_input_struct.geographic_boundary.point
 
-            logging.warning('    user min Longitude    {}'.format(min([x['Longitude'] for x in point_dict])))
-            logging.warning('    user max Longitude    {}'.format(max([x['Longitude'] for x in point_dict])))
-            logging.warning('    user min Latitude     {}'.format(min([x['Latitude'] for x in point_dict])))
-            logging.warning('    user max Latitude     {} \n'.format(max([x['Latitude'] for x in point_dict])))
+            logging.warning(
+                '    user min Longitude    {}'.format(min([x['Longitude'] for x in point_dict]))
+            )
+            logging.warning(
+                '    user max Longitude    {}'.format(max([x['Longitude'] for x in point_dict]))
+            )
+            logging.warning(
+                '    user min Latitude     {}'.format(min([x['Latitude'] for x in point_dict]))
+            )
+            logging.warning(
+                '    user max Latitude     {} \n'.format(max([x['Latitude'] for x in point_dict]))
+            )
 
             if len(stacks_composition_only_dates_match):
                 logging.warning(
                     '    Following stacks are confined in the desired L1cDates but not in the desired geographic boundaries'
                 )
-                logging.warning('    {} \n'.format(list(stacks_composition_only_dates_match.keys())))
+                logging.warning(
+                    '    {} \n'.format(list(stacks_composition_only_dates_match.keys()))
+                )
 
             if len(stacks_composition_only_boundaries_match):
                 logging.warning(
                     '    Following stacks are confined in the desired geographic boundaries but not in the desired L1cDates'
                 )
-                logging.warning('    {} \n'.format(list(stacks_composition_only_boundaries_match.keys())))
+                logging.warning(
+                    '    {} \n'.format(list(stacks_composition_only_boundaries_match.keys()))
+                )
 
         if len(stacks_composition_not_enough_acq):
             logging.warning(
@@ -784,7 +843,9 @@ def check_on_boundaries(lon_min, lon_max, lat_min, lat_max, point_dict):
     data_polygon_obj = MultiPoint(data_lat_lon_coords).convex_hull
 
     # create the geographic polygon containing the current data
-    user_lat_lon_coords = tuple(zip([lat_min, lat_min, lat_max, lat_max], [lon_min, lon_max, lon_min, lon_max]))
+    user_lat_lon_coords = tuple(
+        zip([lat_min, lat_min, lat_max, lat_max], [lon_min, lon_max, lon_min, lon_max])
+    )
     user_polygon_obj = MultiPoint(user_lat_lon_coords).convex_hull
 
     # check if the data polygon is at least partially intersected by the user polygon
@@ -818,10 +879,19 @@ def collect_stacks_to_be_merged(stack_composition):
             rg_sub_swath_idx,
             az_swath_idx,
             baseline_idx,
-        ) = decode_unique_acquisition_id_string(stack_composition[unique_stack_id][0], output_format='string')
+        ) = decode_unique_acquisition_id_string(
+            stack_composition[unique_stack_id][0], output_format='string'
+        )
 
         unique_merged_stack_id = (
-            'GC_' + global_cycle_idx + '_RGSW_' + rg_swath_idx + '_RGSBSW_' + rg_sub_swath_idx + '_AZSW_' + az_swath_idx
+            'GC_'
+            + global_cycle_idx
+            + '_RGSW_'
+            + rg_swath_idx
+            + '_RGSBSW_'
+            + rg_sub_swath_idx
+            + '_AZSW_'
+            + az_swath_idx
         )
 
         if unique_merged_stack_id in stacks_to_merge_dict.keys():
@@ -832,13 +902,17 @@ def collect_stacks_to_be_merged(stack_composition):
     return stacks_to_merge_dict
 
 
-if __name__ == '__main__':
-    
-    # INSTALLATION_FOLDER is the folder containing "conf" subfolder
-    biopal_folder = os.path.dirname(os.path.realpath(__file__))
+def main():
+    from docopt import docopt    
+    args = docopt(__doc__, version='0.0.1')
 
     # Input file:
-    input_file_xml = os.path.join( os.path.dirname(biopal_folder), 'inputs', 'Input_File.xml')
- 
+    input_file_xml = args["INPUTFILEXML"]
+    conf_folder = args["--conf"] 
+    
     # run processor:
-    biomassL2_processor_main(input_file_xml, biopal_folder)
+    biomassL2_processor_run(input_file_xml, conf_folder)
+    
+if __name__ == '__main__':
+    main()
+    

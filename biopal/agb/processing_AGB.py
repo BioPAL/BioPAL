@@ -7,9 +7,16 @@ from osgeo import gdal
 from gdalconst import GA_ReadOnly
 from equi7grid.equi7grid import Equi7Grid
 from biopal.utility.utility_functions import choose_equi7_sampling
+from collections import namedtuple
+
+# AGB look up tables containing paths boundaries and progressive stack indexing
+# LookupTableAGB is the standard look up
+LookupTableAGB = namedtuple('LookupTableAGB', ['paths', 'boundaries', 'progressive'])
 
 
-def initialize_inversion_parameters(eq7_sampling, geographic_grid_sampling, geographic_boundaries, proc_confAGB):
+def initialize_inversion_parameters(
+    eq7_sampling, geographic_grid_sampling, geographic_boundaries, proc_confAGB
+):
 
     e7g_intermediate = Equi7Grid(eq7_sampling)
 
@@ -42,7 +49,9 @@ def initialize_inversion_parameters(eq7_sampling, geographic_grid_sampling, geog
     else:
         geographic_grid_sampling = geographic_grid_sampling
 
-    geographic_grid_sampling = choose_equi7_sampling(proc_confAGB.product_resolution, geographic_grid_sampling)
+    geographic_grid_sampling = choose_equi7_sampling(
+        proc_confAGB.product_resolution, geographic_grid_sampling
+    )
 
     dE = np.abs(eq7_sampling)
     dN = -np.abs(eq7_sampling)
@@ -52,8 +61,12 @@ def initialize_inversion_parameters(eq7_sampling, geographic_grid_sampling, geog
     dN_roi = -np.abs(proc_confAGB.distance_sampling_area)
 
     # define ROI size
-    wE_roi = np.abs(proc_confAGB.product_resolution)  # dx_in # (cannot be finer than input pixel size)
-    wN_roi = -np.abs(proc_confAGB.product_resolution)  # -dx_in # (cannot be finer than input pixel size)
+    wE_roi = np.abs(
+        proc_confAGB.product_resolution
+    )  # dx_in # (cannot be finer than input pixel size)
+    wN_roi = -np.abs(
+        proc_confAGB.product_resolution
+    )  # -dx_in # (cannot be finer than input pixel size)
 
     # parameter block spacing (m)
     dE_par = np.abs(proc_confAGB.distance_parameter_block)
@@ -228,7 +241,9 @@ def regularizeIndices(a, b, off):
     uni = np.unique(np.concatenate((a, b)))
     lut = np.column_stack((uni, off + np.arange(len(uni))))
     f = sp.interpolate.interp1d(
-        np.concatenate((-np.ones(1), lut[:, 0])), np.concatenate((-np.ones(1), lut[:, 1])), kind='nearest'
+        np.concatenate((-np.ones(1), lut[:, 0])),
+        np.concatenate((-np.ones(1), lut[:, 1])),
+        kind='nearest',
     )
     return np.int32(f(a)), np.int32(f(b)), np.int32(lut)
 
@@ -241,7 +256,14 @@ def tableLookupFloat(x, y, xx):
 
 
 def check_intersection(
-    A_east_min, A_east_max, A_north_min, A_north_max, B_east_min, B_east_max, B_north_min, B_north_max
+    A_east_min,
+    A_east_max,
+    A_north_min,
+    A_north_max,
+    B_east_min,
+    B_east_max,
+    B_north_min,
+    B_north_max,
 ):
 
     if (
@@ -265,11 +287,21 @@ def check_intersection(
 
 
 def compute_intersection_area(
-    A_east_min_vec, A_east_max_vec, A_north_min_vec, A_north_max_vec, B_east_min, B_east_max, B_north_min, B_north_max
+    A_east_min_vec,
+    A_east_max_vec,
+    A_north_min_vec,
+    A_north_max_vec,
+    B_east_min,
+    B_east_max,
+    B_north_min,
+    B_north_max,
 ):
 
     B_coords = tuple(
-        zip([B_north_min, B_north_min, B_north_max, B_north_max], [B_east_min, B_east_max, B_east_min, B_east_max])
+        zip(
+            [B_north_min, B_north_min, B_north_max, B_north_max],
+            [B_east_min, B_east_max, B_east_min, B_east_max],
+        )
     )
     B_polygon_obj = MultiPoint(B_coords).convex_hull
 
@@ -313,8 +345,12 @@ def interp2d_wrapper(data_path, band_index_to_read, east_out_axis, north_out_axi
     nan_mask = np.isnan(data_in)
     data_in[nan_mask] = -9999
 
-    interp2d_fun = interp2d(east_axis_in, north_axis_in[::-1], data_in[::-1, :], fill_value=fill_value)
-    interp2d_fun_mask = interp2d(east_axis_in, north_axis_in[::-1], nan_mask[::-1, :], fill_value=float(0))
+    interp2d_fun = interp2d(
+        east_axis_in, north_axis_in[::-1], data_in[::-1, :], fill_value=fill_value
+    )
+    interp2d_fun_mask = interp2d(
+        east_axis_in, north_axis_in[::-1], nan_mask[::-1, :], fill_value=float(0)
+    )
 
     # interpolate
     data_out = interp2d_fun(east_out_axis, north_out_axis[::-1])[::-1, :]
@@ -354,7 +390,16 @@ def merge_agb_intermediate(a_data, b_data, method='nan_mean'):
     return a_data
 
 
-def mean_on_rois(stack_data_interp, EE_pixel_mesh, NN_pixel_mesh, EE_roi_axis, dE_roi, NN_roi_axis, dN_roi, method):
+def mean_on_rois(
+    stack_data_interp,
+    EE_pixel_mesh,
+    NN_pixel_mesh,
+    EE_roi_axis,
+    dE_roi,
+    NN_roi_axis,
+    dN_roi,
+    method,
+):
 
     # Mean on ROIs
     number_of_rois = len(EE_roi_axis) * len(NN_roi_axis)
@@ -369,14 +414,22 @@ def mean_on_rois(stack_data_interp, EE_pixel_mesh, NN_pixel_mesh, EE_roi_axis, d
             north_roi_min = north_roi_max + dN_roi
 
             # here use < and > instead of <= and >= because the pixel meshes has been defined in the centre of the pixels
-            EE_axis_valid = np.logical_and(EE_pixel_mesh > east_roi_min, EE_pixel_mesh < east_roi_max)
-            NN_axis_valid = np.logical_and(NN_pixel_mesh > north_roi_min, NN_pixel_mesh < north_roi_max)
+            EE_axis_valid = np.logical_and(
+                EE_pixel_mesh > east_roi_min, EE_pixel_mesh < east_roi_max
+            )
+            NN_axis_valid = np.logical_and(
+                NN_pixel_mesh > north_roi_min, NN_pixel_mesh < north_roi_max
+            )
             curr_roi_indexes_pixels = np.logical_and(EE_axis_valid, NN_axis_valid)
 
             if method == 'mean':
-                data_roi_means_vec[roi_counter - 1] = np.mean(stack_data_interp[curr_roi_indexes_pixels])
+                data_roi_means_vec[roi_counter - 1] = np.mean(
+                    stack_data_interp[curr_roi_indexes_pixels]
+                )
             elif method == 'nan_mean':
-                data_roi_means_vec[roi_counter - 1] = np.nanmean(stack_data_interp[curr_roi_indexes_pixels])
+                data_roi_means_vec[roi_counter - 1] = np.nanmean(
+                    stack_data_interp[curr_roi_indexes_pixels]
+                )
 
     return data_roi_means_vec
 

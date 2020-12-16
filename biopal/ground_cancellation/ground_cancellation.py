@@ -11,7 +11,9 @@ def check_pm_kz0(kz_stack, opt_str):
 
     condition = np.nansum(
         (np.nanmax(kz_list, axis=0) >= opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= opt_str.kz0)
-    ) < np.nansum((np.nanmax(kz_list, axis=0) >= -opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= -opt_str.kz0))
+    ) < np.nansum(
+        (np.nanmax(kz_list, axis=0) >= -opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= -opt_str.kz0)
+    )
 
     if condition:
         return -opt_str.kz0, kz_list
@@ -78,7 +80,11 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
 
     else:
 
-        if not (hasattr(opt_str, 'kz0')) or not (hasattr(opt_str, 'master_id')) or not (hasattr(opt_str, 'z_demod')):
+        if (
+            not (hasattr(opt_str, 'kz0'))
+            or not (hasattr(opt_str, 'master_id'))
+            or not (hasattr(opt_str, 'z_demod'))
+        ):
             logging.error('Ground cancellation module: invalid number of arguments.')
             raise
 
@@ -106,7 +112,9 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
     return GroundNotchedSLC, mask_extrap
 
 
-def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag, pho_r, theta_look, ground_slope):
+def ground_cancellation(
+    data_stack, kz_stack, multi_master_flag, z_emph, eq_flag, pho_r, theta_look, ground_slope
+):
 
     #      data_stack: stack of calibrated, ground steered slc images.
     #                  It is a dictionary of two nested dictionaries where:
@@ -144,7 +152,9 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
 
         if num_acq == 2:
             opt_str.master_id = acq_names[0]
-            notch_final, mask_final = ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str)
+            notch_final, mask_final = ground_cancellation_core(
+                data_stack, pol_name, kz_stack, opt_str
+            )
             GroundNotchedSLC[pol_name] = notch_final
 
         elif not multi_master_flag:
@@ -172,7 +182,9 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
 
             # get the index of the max
             acq_id_max_pixels = max(num_pixels_kz, key=num_pixels_kz.get)
-            print("Choosing {} as optimal master SLC for pol {}".format(acq_id_max_pixels, pol_name))
+            print(
+                "Choosing {} as optimal master SLC for pol {}".format(acq_id_max_pixels, pol_name)
+            )
 
             # compute ground notch
             opt_str.master_id = acq_id_max_pixels
@@ -181,7 +193,9 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
             for acq_id_to_mod in kz_stack.keys():
                 kz_stack_mod[acq_id_to_mod] = kz_stack[acq_id_to_mod] - TEMP
 
-            notch_final, mask_final = ground_cancellation_core(data_stack, pol_name, kz_stack_mod, opt_str)
+            notch_final, mask_final = ground_cancellation_core(
+                data_stack, pol_name, kz_stack_mod, opt_str
+            )
             notch_final[mask_final == 1] = 0
 
             GroundNotchedSLC[pol_name] = notch_final
@@ -199,7 +213,9 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
                 for acq_id_to_mod in kz_stack.keys():
                     kz_stack_mod[acq_id_to_mod] = kz_stack[acq_id_to_mod] - TEMP
 
-                notch_temp, notch_mask = ground_cancellation_core(data_stack, pol_name, kz_stack_mod, opt_str)
+                notch_temp, notch_mask = ground_cancellation_core(
+                    data_stack, pol_name, kz_stack_mod, opt_str
+                )
                 notch_temp[notch_mask == 1] = 0
                 notch_final = notch_final + np.abs(notch_temp) ** 2
                 mask_final = mask_final + 1 - notch_mask
@@ -212,10 +228,16 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
                 normalization_factor = SingleBaselineEqualization(
                     z_emph, pho_r, kz_stack[acq_names[1]], theta_look, ground_slope
                 )
-                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(normalization_factor)
+                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(
+                    normalization_factor
+                )
             else:
-                normalization_factor = SingleBaselineEqualization(z_emph, pho_r, opt_str.kz0, theta_look, ground_slope)
-                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(normalization_factor)
+                normalization_factor = SingleBaselineEqualization(
+                    z_emph, pho_r, opt_str.kz0, theta_look, ground_slope
+                )
+                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(
+                    normalization_factor
+                )
 
         elif eq_flag == '3' and num_acq == 2:  # 3 = active only when nyum_acq == 2
             normalization_factor = SingleBaselineEqualization(
@@ -252,7 +274,8 @@ def SingleBaselineEqualization(eq_height, pho_r, kz, theta_look, ground_slope):
 
     # Model power (up to the absolute forest reflectivity density)
     P = 2 * (
-        (xr0 + delta_xr / 2) * (1 - np.sin(kxr * (xr0 + delta_xr / 2)) / (kxr * (xr0 + delta_xr / 2)))
+        (xr0 + delta_xr / 2)
+        * (1 - np.sin(kxr * (xr0 + delta_xr / 2)) / (kxr * (xr0 + delta_xr / 2)))
         + delta_xr / 2 * (1 - np.sin(kxr * delta_xr / 2) / (kxr * delta_xr / 2))
     )
 
@@ -330,7 +353,9 @@ def kzInterp(data_stack_in, kz_stack_in, kz0, pol_name):
     kz_post = kz_stack[R, C, post_kz_ind]
     frac_part = (kz0 - kz_pre) / (kz_post - kz_pre)
 
-    Ikz0 = (1 - frac_part) * data_stack[R, C, pre_kz_ind] + frac_part * data_stack[R, C, post_kz_ind]
+    Ikz0 = (1 - frac_part) * data_stack[R, C, pre_kz_ind] + frac_part * data_stack[
+        R, C, post_kz_ind
+    ]
 
     mask_extrap = pre_tbe | post_tbe
 
