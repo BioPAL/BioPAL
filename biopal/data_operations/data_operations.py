@@ -16,7 +16,7 @@ from biopal.io.data_io import (
     read_auxiliary_single_channel,
     tandemx_fnf_read,
     tiff_formatter,
-    )
+)
 from biopal.io.xml_io import raster_info
 from biopal.utility.constants import OVERSAMPLING_FACTOR
 from biopal.utility.utility_functions import get_equi7_fnf_tiff_names
@@ -24,7 +24,9 @@ from biopal.utility.utility_functions import get_equi7_fnf_tiff_names
 
 def data_oversample(data, oversampling_factor, raster_info_obj):
 
-    rg_ratio = np.floor(raster_info_obj.resolution_m_slant_rg / raster_info_obj.pixel_spacing_slant_rg)
+    rg_ratio = np.floor(
+        raster_info_obj.resolution_m_slant_rg / raster_info_obj.pixel_spacing_slant_rg
+    )
     az_ratio = np.floor(raster_info_obj.resolution_m_az / raster_info_obj.pixel_spacing_az)
 
     rg_oversampling_flag = False
@@ -78,7 +80,10 @@ def data_oversample(data, oversampling_factor, raster_info_obj):
                         logging.info('        range   oversampling of ' + data_key + '...')
 
                         data[data_key], pixel_spacing_slant_rg_out = data_oversample_core(
-                            data_extracted, 0, raster_info_obj.pixel_spacing_slant_rg, oversampling_factor
+                            data_extracted,
+                            0,
+                            raster_info_obj.pixel_spacing_slant_rg,
+                            oversampling_factor,
                         )
 
                     if az_oversampling_flag:
@@ -97,16 +102,30 @@ def data_oversample(data, oversampling_factor, raster_info_obj):
                         if rg_oversampling_flag:
 
                             logging.info(
-                                '        range   oversampling of ' + data_key + ' , polarization ' + pol_key + '...'
+                                '        range   oversampling of '
+                                + data_key
+                                + ' , polarization '
+                                + pol_key
+                                + '...'
                             )
 
-                            data[data_key][pol_key], pixel_spacing_slant_rg_out = data_oversample_core(
-                                data_pol, 0, raster_info_obj.pixel_spacing_slant_rg, oversampling_factor
+                            (
+                                data[data_key][pol_key],
+                                pixel_spacing_slant_rg_out,
+                            ) = data_oversample_core(
+                                data_pol,
+                                0,
+                                raster_info_obj.pixel_spacing_slant_rg,
+                                oversampling_factor,
                             )
 
                         if az_oversampling_flag:
                             logging.info(
-                                '        azimuth oversampling of ' + data_key + ' , polarization ' + pol_key + '...'
+                                '        azimuth oversampling of '
+                                + data_key
+                                + ' , polarization '
+                                + pol_key
+                                + '...'
                             )
 
                             data_pol = data[data_key][pol_key]
@@ -179,9 +198,13 @@ def read_and_oversample_data(L1c_repository, acquisitions_pf_names, enable_resam
 
     if enable_resampling:
 
-        beta0_calibrated, num_samples, pixel_spacing_slant_rg, num_lines, pixel_spacing_az = data_oversample(
-            beta0_calibrated, OVERSAMPLING_FACTOR, raster_info_orig
-        )
+        (
+            beta0_calibrated,
+            num_samples,
+            pixel_spacing_slant_rg,
+            num_lines,
+            pixel_spacing_az,
+        ) = data_oversample(beta0_calibrated, OVERSAMPLING_FACTOR, raster_info_orig)
 
         logging.info('all data loaded.\n')
 
@@ -278,7 +301,9 @@ def read_and_oversample_aux_data(
         off_nadir_angle_rad = read_auxiliary_multi_channels(folder_name, pf_name)
 
         if not off_nadir_angle_rad is None and enable_resampling:
-            off_nadir_angle_rad = data_oversample(off_nadir_angle_rad, OVERSAMPLING_FACTOR, raster_info)[0]
+            off_nadir_angle_rad = data_oversample(
+                off_nadir_angle_rad, OVERSAMPLING_FACTOR, raster_info
+            )[0]
         if not off_nadir_angle_rad is None:
             logging.info('...off nadir angles read.\n')
         else:
@@ -299,7 +324,9 @@ def read_and_oversample_aux_data(
         )  # it is the dtm in slant_range-azimuth reference
 
         if not reference_height is None and enable_resampling:
-            reference_height = data_oversample(reference_height, OVERSAMPLING_FACTOR, raster_info)[0]
+            reference_height = data_oversample(reference_height, OVERSAMPLING_FACTOR, raster_info)[
+                0
+            ]
         if not reference_height is None:
             logging.info('...reference height read.\n')
         else:
@@ -350,7 +377,9 @@ def read_and_oversample_aux_data(
         average_covariance = read_auxiliary_multi_channels(folder, pf_name, acquisitions_pf_names)
 
         if not average_covariance is None and enable_resampling:
-            average_covariance = data_oversample(average_covariance, OVERSAMPLING_FACTOR, raster_info)[0]
+            average_covariance = data_oversample(
+                average_covariance, OVERSAMPLING_FACTOR, raster_info
+            )[0]
         if not average_covariance is None:
             logging.info('... Average covariance matrix read.\n')
 
@@ -363,7 +392,9 @@ def read_and_oversample_aux_data(
         )
 
         if not calibration_screens is None and enable_resampling:
-            calibration_screens = data_oversample(calibration_screens, OVERSAMPLING_FACTOR, raster_info)[0]
+            calibration_screens = data_oversample(
+                calibration_screens, OVERSAMPLING_FACTOR, raster_info
+            )[0]
         if not calibration_screens is None:
             logging.info('... Calibration Screens read.\n')
 
@@ -397,7 +428,9 @@ def read_and_oversample_aux_data(
         system_decorr_fun = read_auxiliary_single_channel(folder, pf_name, acquisitions_pf_names)
 
         if not system_decorr_fun is None and enable_resampling:
-            system_decorr_fun = data_oversample(system_decorr_fun, OVERSAMPLING_FACTOR, raster_info)[0]
+            system_decorr_fun = data_oversample(
+                system_decorr_fun, OVERSAMPLING_FACTOR, raster_info
+            )[0]
         if not system_decorr_fun is None:
             logging.info('...system decorrelation function read.\n')
 
@@ -469,10 +502,8 @@ def fnf_tandemx_load_filter_equi7format(
         fnf_mask_list.append(fnf_filtered)
 
     if time_tag_mjd_tandemx > time_tag_mjd_initial:
-        error_msg = (
-            'Input FNF Mask (TANDEM-X) date of "{}" is bigger than input stack data minimum date of "{}"'.format(
-                str(time_tag_mjd_tandemx), str(time_tag_mjd_initial)
-            )
+        error_msg = 'Input FNF Mask (TANDEM-X) date of "{}" is bigger than input stack data minimum date of "{}"'.format(
+            str(time_tag_mjd_tandemx), str(time_tag_mjd_initial)
         )
         logging.error(error_msg)
         raise ValueError(error_msg)
@@ -493,7 +524,9 @@ def fnf_tandemx_load_filter_equi7format(
         []
     )  # thos will contain all the fnf names in equi7: all fnf tiles, all equi7 tiles
     for idx, fnf_name_curr in enumerate(fnf_mask_ground_dir_names):
-        equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, 'fnf_mask_not_merged_tile_{}'.format(idx))
+        equi7_fnf_mask_parent_tempdir = os.path.join(
+            output_folder, 'fnf_mask_not_merged_tile_{}'.format(idx)
+        )
         equi7_out_name_curr = image2equi7grid(
             e7g,
             fnf_name_curr,
@@ -524,7 +557,9 @@ def fnf_equi7_load_filter_equi7format(
 ):
 
     # get the names of input equi7 fnf masks
-    equi7_fnf_mask_tiff_names_list, equi7_subgrid_name = get_equi7_fnf_tiff_names(forest_mask_catalogue_folder)
+    equi7_fnf_mask_tiff_names_list, equi7_subgrid_name = get_equi7_fnf_tiff_names(
+        forest_mask_catalogue_folder
+    )
 
     subgrid_code = equi7_subgrid_name[6:8]
 
@@ -588,18 +623,28 @@ def fnf_equi7_load_filter_equi7format(
             e7g_in = Equi7Grid(equi7_sampling_mask_in)
         except Exception as e:
             logging.error(
-                'Input FNF Equi7 mask geotransform is not in the correct format :'.format(subgrid_code) + str(e),
+                'Input FNF Equi7 mask geotransform is not in the correct format :'.format(
+                    subgrid_code
+                )
+                + str(e),
                 exc_info=True,
             )
             raise
 
         # [(left, lower), (right, upper)]
         try:
-            lon_min, lat_min = getattr(e7g_in, subgrid_code).xy2lonlat(min(east_axis), min(north_axis))
-            lon_max, lat_max = getattr(e7g_in, subgrid_code).xy2lonlat(max(east_axis), max(north_axis))
+            lon_min, lat_min = getattr(e7g_in, subgrid_code).xy2lonlat(
+                min(east_axis), min(north_axis)
+            )
+            lon_max, lat_max = getattr(e7g_in, subgrid_code).xy2lonlat(
+                max(east_axis), max(north_axis)
+            )
         except Exception as e:
             logging.error(
-                'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(subgrid_code) + str(e),
+                'Cannot recognize input FNF Equi7 mask "{}" sub-grid folder name :'.format(
+                    subgrid_code
+                )
+                + str(e),
                 exc_info=True,
             )
             raise
@@ -642,7 +687,9 @@ def fnf_equi7_masks_merging(fnf_mask_equi7_fnames_whole, temp_output_folder):
     # equi7 tiles may be grouped in different sub grids
 
     # retrive the name of tge "EQUI7 sub grid (there will be just one)
-    equi7_subgrid_name = os.path.basename(os.path.dirname(os.path.dirname(fnf_mask_equi7_fnames_whole[0])))
+    equi7_subgrid_name = os.path.basename(
+        os.path.dirname(os.path.dirname(fnf_mask_equi7_fnames_whole[0]))
+    )
     # also prepare the empty dictionary for equi7 tile names
     equi7_tile_names = []
 
@@ -687,11 +734,16 @@ def fnf_equi7_masks_merging(fnf_mask_equi7_fnames_whole, temp_output_folder):
                 if not 'data_sum' in locals():
                     data_sum = loaded_equi7_tile
                 else:
-                    where_loaded_only_is_not_zero = np.logical_and(data_sum == 0, loaded_equi7_tile != 0)
+                    where_loaded_only_is_not_zero = np.logical_and(
+                        data_sum == 0, loaded_equi7_tile != 0
+                    )
                     where_both_are_not_zero = np.logical_and(data_sum != 0, loaded_equi7_tile != 0)
-                    data_sum[where_loaded_only_is_not_zero] = loaded_equi7_tile[where_loaded_only_is_not_zero]
+                    data_sum[where_loaded_only_is_not_zero] = loaded_equi7_tile[
+                        where_loaded_only_is_not_zero
+                    ]
                     data_sum[where_both_are_not_zero] = (
-                        loaded_equi7_tile[where_both_are_not_zero] + data_sum[where_both_are_not_zero]
+                        loaded_equi7_tile[where_both_are_not_zero]
+                        + data_sum[where_both_are_not_zero]
                     ) / 2
 
         # round:
@@ -716,12 +768,16 @@ def fnf_equi7_masks_merging(fnf_mask_equi7_fnames_whole, temp_output_folder):
     return merged_fnf_equi7_names
 
 
-def fnf_and_validity_masks_merging(merged_fnf_equi7_names, validity_mask_equi7_fnames, temp_output_folder, stack_id):
+def fnf_and_validity_masks_merging(
+    merged_fnf_equi7_names, validity_mask_equi7_fnames, temp_output_folder, stack_id
+):
 
     final_mask_equi7_names = []
 
     # retrive the name of tge "EQUI7 sub grid (there will be just one)
-    equi7_subgrid_name = os.path.basename(os.path.dirname(os.path.dirname(merged_fnf_equi7_names[0])))
+    equi7_subgrid_name = os.path.basename(
+        os.path.dirname(os.path.dirname(merged_fnf_equi7_names[0]))
+    )
     # also prepare the empty dictionary for equi7 tile names
     equi7_tile_names = []
 
@@ -738,7 +794,9 @@ def fnf_and_validity_masks_merging(merged_fnf_equi7_names, validity_mask_equi7_f
     # search all the equi7 tile name in each fnf tile and sum togheter
     for equi7_tile_name in equi7_tile_names:
         fnf_mask_name = [name for name in merged_fnf_equi7_names if equi7_tile_name in name]
-        validity_mask_name = [name for name in validity_mask_equi7_fnames if equi7_tile_name in name]
+        validity_mask_name = [
+            name for name in validity_mask_equi7_fnames if equi7_tile_name in name
+        ]
         # both should exist:
         if fnf_mask_name and validity_mask_name:
 
@@ -804,7 +862,9 @@ def mosaiking(equi7_main_full_folder, mosaiking_out_folder):
     equi7_stack_folder_names = os.listdir(equi7_main_full_folder)
 
     # retrive the name of tge "EQUI7 sub grid (there will be just one)
-    equi7_subgrid_folder_name = os.listdir(os.path.join(equi7_main_full_folder, equi7_stack_folder_names[0]))[0]
+    equi7_subgrid_folder_name = os.listdir(
+        os.path.join(equi7_main_full_folder, equi7_stack_folder_names[0])
+    )[0]
 
     ### first iteration: retrive all the EQUI7 TILE names (as "E045N050T1" )
     equi7_tile_names = []
@@ -838,43 +898,60 @@ def mosaiking(equi7_main_full_folder, mosaiking_out_folder):
             for equi7_tile_name_curr in equi7_tile_folder_names:
 
                 if equi7_tile_name_curr == equi7_tile_name:
-                    equi7_tile_tiff_name = os.listdir(os.path.join(equi7_subgrid_folder, equi7_tile_name))[0]
+                    equi7_tile_tiff_name = os.listdir(
+                        os.path.join(equi7_subgrid_folder, equi7_tile_name)
+                    )[0]
                     equi7_tile_tiff_full_names.append(
                         os.path.join(equi7_subgrid_folder, equi7_tile_name, equi7_tile_tiff_name)
                     )
 
         # now cycle over all the tiff data corresponding to same equi7 tile, amd performthe mosaicking (mean them together)
-        out_tile_equi7_full_folder = os.path.join(mosaiking_out_folder, equi7_subgrid_folder_name, equi7_tile_name)
+        out_tile_equi7_full_folder = os.path.join(
+            mosaiking_out_folder, equi7_subgrid_folder_name, equi7_tile_name
+        )
         for equi7_tiff_name in equi7_tile_tiff_full_names:
 
             # read current tiff to be mosaiked:
             input_image_driver = gdal.Open(equi7_tiff_name, GA_ReadOnly)
-            loaded_equi7_tile_data = input_image_driver.GetRasterBand(data_layer_index).ReadAsArray()
-            loaded_equi7_tile_quality = input_image_driver.GetRasterBand(quality_layer_index).ReadAsArray()
+            loaded_equi7_tile_data = input_image_driver.GetRasterBand(
+                data_layer_index
+            ).ReadAsArray()
+            loaded_equi7_tile_quality = input_image_driver.GetRasterBand(
+                quality_layer_index
+            ).ReadAsArray()
 
             # mosaiking (mean where both, use une where just one) it with previous data
             if not 'out_mosaiked_data' in locals():
                 out_mosaiked_data = loaded_equi7_tile_data
                 out_mosaiked_quality = loaded_equi7_tile_quality
             else:
-                where_loaded_only_is_not_zero = np.logical_and(out_mosaiked_data == 0, loaded_equi7_tile_data != 0)
-                where_both_are_not_zero = np.logical_and(out_mosaiked_data != 0, loaded_equi7_tile_data != 0)
+                where_loaded_only_is_not_zero = np.logical_and(
+                    out_mosaiked_data == 0, loaded_equi7_tile_data != 0
+                )
+                where_both_are_not_zero = np.logical_and(
+                    out_mosaiked_data != 0, loaded_equi7_tile_data != 0
+                )
 
-                out_mosaiked_data[where_loaded_only_is_not_zero] = loaded_equi7_tile_data[where_loaded_only_is_not_zero]
+                out_mosaiked_data[where_loaded_only_is_not_zero] = loaded_equi7_tile_data[
+                    where_loaded_only_is_not_zero
+                ]
                 out_mosaiked_data[where_both_are_not_zero] = (
-                    loaded_equi7_tile_data[where_both_are_not_zero] + out_mosaiked_data[where_both_are_not_zero]
+                    loaded_equi7_tile_data[where_both_are_not_zero]
+                    + out_mosaiked_data[where_both_are_not_zero]
                 ) / 2
 
                 out_mosaiked_quality[where_loaded_only_is_not_zero] = loaded_equi7_tile_quality[
                     where_loaded_only_is_not_zero
                 ]
                 out_mosaiked_quality[where_both_are_not_zero] = (
-                    loaded_equi7_tile_quality[where_both_are_not_zero] + out_mosaiked_quality[where_both_are_not_zero]
+                    loaded_equi7_tile_quality[where_both_are_not_zero]
+                    + out_mosaiked_quality[where_both_are_not_zero]
                 ) / 2
 
         # write the output final mosaiked tiff of the current equi7 tile:
         out_mosaiked_equi7_name = os.path.join(
-            out_tile_equi7_full_folder, 'FH_' + equi7_subgrid_folder_name + '_' + equi7_tile_name + '.tif'
+            out_tile_equi7_full_folder,
+            'FH_' + equi7_subgrid_folder_name + '_' + equi7_tile_name + '.tif',
         )
 
         geotransform = input_image_driver.GetGeoTransform()
@@ -905,9 +982,8 @@ def apply_dem_flattening(beta0_calibrated, kz_in, reference_height, master_id, r
     for pf_name in beta0_calibrated.keys():
         for pol_id in beta0_calibrated[pf_name]:
             beta0_calibrated[pf_name][pol_id] = np.multiply(
-                beta0_calibrated[pf_name][pol_id], np.exp(-1j * np.multiply(kz_in[pf_name], reference_height))
+                beta0_calibrated[pf_name][pol_id],
+                np.exp(-1j * np.multiply(kz_in[pf_name], reference_height)),
             )
 
     return beta0_calibrated
-
-

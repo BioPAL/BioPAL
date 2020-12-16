@@ -12,7 +12,7 @@ from arepytools.timing.precisedatetime import PreciseDateTime
 from osgeo import (
     gdal,
     osr,
-    )
+)
 
 ###############################################################################
 # Fields to write and read the Biomass Header in the Binary Files:#############
@@ -34,7 +34,9 @@ def getBiomassHeaderOffsetSize(stack_composition):
     return _HEADER_FORMAT_SIZE
 
 
-def writeBiomassHeader(product_folder, channel_idx, date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id):
+def writeBiomassHeader(
+    product_folder, channel_idx, date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
+):
 
     if not isinstance(date_str, str):
         error_message = 'date_str should be an Utc string, not a PreciseDateTime object'
@@ -56,7 +58,9 @@ def writeBiomassHeader(product_folder, channel_idx, date_str, lon_min, lon_max, 
     )
 
     raster_info_read = (
-        product_folder.get_channel(channel_idx).metadata.get_metadata_channels(0).get_element('RasterInfo')
+        product_folder.get_channel(channel_idx)
+        .metadata.get_metadata_channels(0)
+        .get_element('RasterInfo')
     )
 
     if raster_info_read.header_offset_bytes != _HEADER_FORMAT_SIZE:
@@ -77,7 +81,9 @@ def readBiomassHeader(product_folder, channel_idx):
     ri = metadatachannel_obj.get_element('RasterInfo')
     raster_file = os.path.join(product_folder.pf_dir_path, ri.file_name)
 
-    date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(raster_file)
+    date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(
+        raster_file
+    )
 
     return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
 
@@ -98,7 +104,6 @@ def readBiomassHeader_core(raster_file):
     unique_acq_id = encoded_unique_acq_id.decode(_STRING_ENCODING)
 
     return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
-
 
 
 def read_data(folder, pf_name):
@@ -123,7 +128,9 @@ def read_data(folder, pf_name):
         # get the ID of the master acquisition:
         di = metadatachannel_obj.get_element('DataSetInfo')
         if not di:
-            raise ValueError('data product folder should contain the DataSetInfo to retrive the MASTER ID')
+            raise ValueError(
+                'data product folder should contain the DataSetInfo to retrive the MASTER ID'
+            )
         if di.description.find('Master_swath_') != 0:
             raise ValueError(
                 'DataSetInfo description not recognized: it should be a string as "Master_swath_IdOfTheMaster"'
@@ -141,7 +148,9 @@ def read_data(folder, pf_name):
         # SwathInfo
         si = metadatachannel_obj.get_element('SwathInfo')
         if not si:
-            raise ValueError('data product folder should contain the SwathInfo to retrive the polarization')
+            raise ValueError(
+                'data product folder should contain the SwathInfo to retrive the polarization'
+            )
         pol_id = si.polarization.name
 
         polid_found.append(pol_id)
@@ -154,7 +163,9 @@ def read_data(folder, pf_name):
         if pol_id == 'hv' or pol_id == 'vh':
             if 'vh' in data_read.keys():
                 # data (vh or hv) already saved in the dict, add the other data
-                data_read['vh'] = (data_read['vh'] + pf.read_data(pol_channel_idx).transpose()) / np.sqrt(2)
+                data_read['vh'] = (
+                    data_read['vh'] + pf.read_data(pol_channel_idx).transpose()
+                ) / np.sqrt(2)
             else:
                 # nor vh nor vv have been saved to dict yet, add first one
                 data_read['vh'] = pf.read_data(pol_channel_idx).transpose()
@@ -168,7 +179,12 @@ def read_data(folder, pf_name):
                 pf_name, len(polid_found)
             )
         )
-    elif not 'hh' in polid_found or not 'hv' in polid_found or not 'vh' in polid_found or not 'vv' in polid_found:
+    elif (
+        not 'hh' in polid_found
+        or not 'hv' in polid_found
+        or not 'vh' in polid_found
+        or not 'vv' in polid_found
+    ):
         raise ValueError(
             'Input data stack {} should contain #4 polarizations, hh, hv, vh, vv, only {} found '.format(
                 pf_name, len(polid_found)
@@ -199,7 +215,9 @@ def read_auxiliary_single_channel(folder, pf_name):
         number_of_channels = pf.get_number_channels()
         if number_of_channels > 1:
             raise ValueError(
-                'Input auxiliary data is supposed to have just one channel, and not # {}'.format(number_of_channels)
+                'Input auxiliary data is supposed to have just one channel, and not # {}'.format(
+                    number_of_channels
+                )
             )
 
         aux_read = pf.read_data(0).transpose()
@@ -210,7 +228,9 @@ def read_auxiliary_single_channel(folder, pf_name):
     return aux_read
 
 
-def read_auxiliary_multi_channels(folder, pf_name, valid_acq_id_to_read=None, read_raster_info=False):
+def read_auxiliary_multi_channels(
+    folder, pf_name, valid_acq_id_to_read=None, read_raster_info=False
+):
     # reads a KZ product:
     # it is supposed to be a pf containing "N" channels, with "N" the number of acquisitions in a stack
     # the acquisition name is read from the SwathInfo "Swath" field
@@ -233,7 +253,9 @@ def read_auxiliary_multi_channels(folder, pf_name, valid_acq_id_to_read=None, re
             # SwathInfo
             si = metadatachannel_obj.get_element('SwathInfo')
             if not si:
-                raise ValueError('Input KZ and off_nadir should contain the SwathInfo to retrive the Swath ID')
+                raise ValueError(
+                    'Input KZ and off_nadir should contain the SwathInfo to retrive the Swath ID'
+                )
 
             if valid_acq_id_to_read is None or (si.swath in valid_acq_id_to_read):
 
@@ -290,7 +312,9 @@ def read_ecef_grid(folder, pf_name):
             # DataSetInfo
             di = metadatachannel_obj.get_element('DataSetInfo')
             if not di:
-                raise ValueError('Input ECEF GRID should contain the DataSetInfo to retrive the Description')
+                raise ValueError(
+                    'Input ECEF GRID should contain the DataSetInfo to retrive the Description'
+                )
             coord_id = di.description[16]
             if not coord_id == 'X' and not coord_id == 'Y' and not coord_id == 'Z':
                 raise ValueError(
@@ -306,7 +330,6 @@ def read_ecef_grid(folder, pf_name):
         logging.warning('Path ' + data_pf_name + ' does not exist.')
 
     return coordinates_read
-
 
 
 def tandemx_search_fnf_tiles(geographic_boundaries):
@@ -398,17 +421,24 @@ def tandemx_fnf_read(fnf_catalogue, geographic_boundaries):
     # geographic_boundaries:
     # is a namedlist with four fields: lon_min, lon_max, lat_min and lat_max
 
-    fnf_string_list, geotransform_list, tile_extent_lonlat_list = tandemx_search_fnf_tiles(geographic_boundaries)
+    fnf_string_list, geotransform_list, tile_extent_lonlat_list = tandemx_search_fnf_tiles(
+        geographic_boundaries
+    )
 
     fnf_tile_loaded_list = []
     fnf_loaded_geotransform_list = []
 
     for tile_idx in np.arange(len(fnf_string_list)):
 
-        fnf_path = os.path.join(fnf_catalogue, fnf_string_list[tile_idx], 'FNF', fnf_string_list[tile_idx] + '.tiff')
+        fnf_path = os.path.join(
+            fnf_catalogue, fnf_string_list[tile_idx], 'FNF', fnf_string_list[tile_idx] + '.tiff'
+        )
 
         fnf_aux_inf_file_path = os.path.join(
-            fnf_catalogue, fnf_string_list[tile_idx], 'AUXFILES', fnf_string_list[tile_idx] + '_INF.txt'
+            fnf_catalogue,
+            fnf_string_list[tile_idx],
+            'AUXFILES',
+            fnf_string_list[tile_idx] + '_INF.txt',
         )
 
         input_image_driver = gdal.Open(fnf_path, 0)
@@ -423,7 +453,9 @@ def tandemx_fnf_read(fnf_catalogue, geographic_boundaries):
 
             map_object = map(operator.sub, list(fnf_geotransform), geotransform_list[tile_idx])
             diff_list = list(map_object)
-            values_are_different = [coord_value for coord_value in diff_list if abs(coord_value) > np.finfo(float).eps]
+            values_are_different = [
+                coord_value for coord_value in diff_list if abs(coord_value) > np.finfo(float).eps
+            ]
             if not values_are_different:
 
                 fnf_tile_loaded_list.append(fnf_mask)
@@ -467,7 +499,9 @@ def tandemx_fnf_read(fnf_catalogue, geographic_boundaries):
                 month_str = 'DEC'
 
             date_time = []
-            utc_string = line[20:22] + '-' + month_str + '-' + line[12:16] + ' 00:00:00.000000000000'
+            utc_string = (
+                line[20:22] + '-' + month_str + '-' + line[12:16] + ' 00:00:00.000000000000'
+            )
             if idx == 0:
                 date_time = PreciseDateTime().set_from_utc_string(utc_string)
             else:
@@ -489,23 +523,33 @@ def tandemx_fnf_write(out_fnf_path, fnf_raster, lon_raster, lat_raster):
 
     for tile_idx in np.arange(len(fnf_string_list)):
 
-        fnf_path = os.path.join(out_fnf_path, fnf_string_list[tile_idx], 'FNF', fnf_string_list[tile_idx] + '.tiff')
+        fnf_path = os.path.join(
+            out_fnf_path, fnf_string_list[tile_idx], 'FNF', fnf_string_list[tile_idx] + '.tiff'
+        )
         directory = os.path.dirname(fnf_path)
         if not os.path.exists(directory):
             os.makedirs(directory)
 
         lon_out = np.arange(
             geotransform_list[tile_idx][0],
-            geotransform_list[tile_idx][0] + tile_extent_lonlat_list[tile_idx][0] + geotransform_list[tile_idx][1],
+            geotransform_list[tile_idx][0]
+            + tile_extent_lonlat_list[tile_idx][0]
+            + geotransform_list[tile_idx][1],
             geotransform_list[tile_idx][1],
         )
         lat_out = np.arange(
             geotransform_list[tile_idx][3],
-            geotransform_list[tile_idx][3] - tile_extent_lonlat_list[tile_idx][1] + geotransform_list[tile_idx][5],
+            geotransform_list[tile_idx][3]
+            - tile_extent_lonlat_list[tile_idx][1]
+            + geotransform_list[tile_idx][5],
             geotransform_list[tile_idx][5],
         )
-        lon_out = lon_out[lon_out <= geotransform_list[tile_idx][0] + tile_extent_lonlat_list[tile_idx][0]]
-        lat_out = lat_out[lat_out >= geotransform_list[tile_idx][3] - tile_extent_lonlat_list[tile_idx][1]]
+        lon_out = lon_out[
+            lon_out <= geotransform_list[tile_idx][0] + tile_extent_lonlat_list[tile_idx][0]
+        ]
+        lat_out = lat_out[
+            lat_out >= geotransform_list[tile_idx][3] - tile_extent_lonlat_list[tile_idx][1]
+        ]
 
         raster_interp = interp2d(lon_raster, lat_raster, fnf_raster, fill_value=0)
         raster_out = raster_interp(lon_out, lat_out)
@@ -524,7 +568,13 @@ def tandemx_fnf_write(out_fnf_path, fnf_raster, lon_raster, lat_raster):
 
 
 def tiff_formatter(
-    data_in, out_fname, geotransform, gdal_data_format, projection=None, multi_layers_tiff=False, time_tag=None
+    data_in,
+    out_fname,
+    geotransform,
+    gdal_data_format,
+    projection=None,
+    multi_layers_tiff=False,
+    time_tag=None,
 ):
 
     if '.tiff' in out_fname:

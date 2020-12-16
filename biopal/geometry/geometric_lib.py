@@ -62,7 +62,9 @@ def get_min_indexes(vector):
 
 
 def cut_state_vectors(sv_in: StateVectors, azimuth_start, azimuth_stop, guard_sv=5):
-    first_sv = np.max([int(np.round((azimuth_start - sv_in.reference_time) / sv_in.time_step)) - guard_sv, 0])
+    first_sv = np.max(
+        [int(np.round((azimuth_start - sv_in.reference_time) / sv_in.time_step)) - guard_sv, 0]
+    )
     last_sv = np.min(
         [
             int(np.round((azimuth_stop - sv_in.reference_time) / sv_in.time_step)) + guard_sv,
@@ -90,7 +92,9 @@ def compute_interferometric_baseline(
     gso_slave = create_general_sar_orbit(state_vectors_slave)
 
     # Direct geocoding with the master orbit
-    targets_coords = gso_master.sat2earth(azimuth_time_master, range_axis_master, look_direction, geodetic_height)
+    targets_coords = gso_master.sat2earth(
+        azimuth_time_master, range_axis_master, look_direction, geodetic_height
+    )
 
     # Inverse geocoding with the slave orbit
     azimuth_time_slave, _ = gso_slave.earth2sat(targets_coords[:, 0])
@@ -120,11 +124,16 @@ def compute_vertical_wavenumber(normal_baseline, wavelength, distance, angles):
 
 def compute_vertical_wavenumber_angles(wavelength, off_nadir_angles_master, off_nadir_angles_slave):
     return (
-        4 * np.pi * (off_nadir_angles_slave - off_nadir_angles_master) / (wavelength * np.sin(off_nadir_angles_master))
+        4
+        * np.pi
+        * (off_nadir_angles_slave - off_nadir_angles_master)
+        / (wavelength * np.sin(off_nadir_angles_master))
     )
 
 
-def save_product(data_matrix_list, azimuth_axis, range_axis, output_path, product_type: EProductType):
+def save_product(
+    data_matrix_list, azimuth_axis, range_axis, output_path, product_type: EProductType
+):
     import shutil
 
     if not os.path.exists(output_path):
@@ -161,7 +170,10 @@ def cut_raster_info(raster_info_input: RasterInfo, roi_pixels) -> RasterInfo:
 
     raster_info_out = RasterInfo(roi_pixels[2], roi_pixels[3], raster_info_input.cell_type.value)
     raster_info_out.set_lines_axis(
-        lines_start, raster_info_input.lines_start_unit, raster_info_input.lines_step, raster_info_input.lines_step_unit
+        lines_start,
+        raster_info_input.lines_start_unit,
+        raster_info_input.lines_step,
+        raster_info_input.lines_step_unit,
     )
     raster_info_out.set_samples_axis(
         samples_start,
@@ -173,7 +185,11 @@ def cut_raster_info(raster_info_input: RasterInfo, roi_pixels) -> RasterInfo:
 
 
 def get_geo_corners(
-    raster_info: RasterInfo, state_vectors: StateVectors, side_looking, max_height=10.0e3, min_height=-1.0e3
+    raster_info: RasterInfo,
+    state_vectors: StateVectors,
+    side_looking,
+    max_height=10.0e3,
+    min_height=-1.0e3,
 ):
     """This function returns the maximum extension of the lat/lon corners for the raster info
     and the orbit in input. The range of altitude used to complute the geographic extension is
@@ -198,7 +214,10 @@ def get_geo_corners(
     lon_min = np.nan
     lat_max = np.nan
     lon_max = np.nan
-    lines_axis = [raster_info.lines_start, raster_info.lines_start + (raster_info.lines - 1) * raster_info.lines_step]
+    lines_axis = [
+        raster_info.lines_start,
+        raster_info.lines_start + (raster_info.lines - 1) * raster_info.lines_step,
+    ]
     samples_axis = [
         raster_info.samples_start,
         raster_info.samples_start + (raster_info.samples - 1) * raster_info.samples_step,
@@ -217,7 +236,11 @@ def get_geo_corners(
 
 
 def check_geometric_corners(
-    raster_info: RasterInfo, state_vector: StateVectors, side_looking, geometric_corners, tolerance=1e-6
+    raster_info: RasterInfo,
+    state_vector: StateVectors,
+    side_looking,
+    geometric_corners,
+    tolerance=1e-6,
 ):
     geometric_corners = np.array(geometric_corners) // tolerance * tolerance
     raster_geocorners = get_geo_corners(raster_info, state_vector, side_looking)
@@ -234,7 +257,12 @@ def check_geometric_corners(
 
 
 def check_roi(roi, ri):
-    if (roi[0] < 0) or (roi[1] < 0) or (roi[0] + roi[2] > ri.lines) or (roi[1] + roi[3] > ri.samples):
+    if (
+        (roi[0] < 0)
+        or (roi[1] < 0)
+        or (roi[0] + roi[2] > ri.lines)
+        or (roi[1] + roi[3] > ri.samples)
+    ):
         raise Exception(f'The ROI {roi} is not correct')
     return roi
 
@@ -321,9 +349,14 @@ def perform_inverse_geocoding(gso, points):
                     + coeff_pos[coord, 4]
                 )
                 sat_velocity[coord] = (
-                    coeff_vel[coord, 0] * t3 + coeff_vel[coord, 1] * t2 + coeff_vel[coord, 2] * t + coeff_vel[coord, 3]
+                    coeff_vel[coord, 0] * t3
+                    + coeff_vel[coord, 1] * t2
+                    + coeff_vel[coord, 2] * t
+                    + coeff_vel[coord, 3]
                 )
-                sat_acceleration[coord] = coeff_acc[coord, 0] * t2 + coeff_acc[coord, 1] * t + coeff_acc[coord, 2]
+                sat_acceleration[coord] = (
+                    coeff_acc[coord, 0] * t2 + coeff_acc[coord, 1] * t + coeff_acc[coord, 2]
+                )
 
             sat2point = sat_position - points[:, point_index]
 
@@ -356,7 +389,13 @@ def is_north_heading(velocity):
 
 class SARGeometry:
     def __init__(
-        self, raster_info: RasterInfo, state_vectors: StateVectors, lat_axis, lon_axis, dem, flag_check_dem=True
+        self,
+        raster_info: RasterInfo,
+        state_vectors: StateVectors,
+        lat_axis,
+        lon_axis,
+        dem,
+        flag_check_dem=True,
     ):
         self._raster_info = raster_info
         self._state_vector = cut_state_vectors(
@@ -372,10 +411,19 @@ class SARGeometry:
 
         # Check the DEM validity
         if flag_check_dem:
-            geometric_corners = (np.min(lat_axis), np.max(lat_axis), np.min(lon_axis), np.max(lon_axis))
+            geometric_corners = (
+                np.min(lat_axis),
+                np.max(lat_axis),
+                np.min(lon_axis),
+                np.max(lon_axis),
+            )
             if not (
-                check_geometric_corners(self._raster_info, self._state_vector, 'RIGHT', geometric_corners)
-                or check_geometric_corners(self._raster_info, self._state_vector, 'LEFT', geometric_corners)
+                check_geometric_corners(
+                    self._raster_info, self._state_vector, 'RIGHT', geometric_corners
+                )
+                or check_geometric_corners(
+                    self._raster_info, self._state_vector, 'LEFT', geometric_corners
+                )
             ):
                 raise Exception("the DEM in input is not compliant with the ROI of SAR data.")
 
@@ -450,16 +498,28 @@ class SARGeometry:
         lon_axis = np.arange(self.lon_axis.size, dtype=np.int)
         indexes = np.zeros(2, dtype=np.int)
         indexes[0] = np.nanargmin(
-            np.abs(get_distance_from_zero_doppler(zero_doppler_plane.astype(np.float32), targets_coord_first))
+            np.abs(
+                get_distance_from_zero_doppler(
+                    zero_doppler_plane.astype(np.float32), targets_coord_first
+                )
+            )
         )
         indexes[1] = np.nanargmin(
-            np.abs(get_distance_from_zero_doppler(zero_doppler_plane.astype(np.float32), targets_coord_last))
+            np.abs(
+                get_distance_from_zero_doppler(
+                    zero_doppler_plane.astype(np.float32), targets_coord_last
+                )
+            )
         )
         if flag_north_heading:
             lat_axis = np.arange(
-                np.max([np.min(indexes) - 10, 0]), np.min([np.max(indexes) + 10, self.lat_axis.size - 1]), dtype=np.int
+                np.max([np.min(indexes) - 10, 0]),
+                np.min([np.max(indexes) + 10, self.lat_axis.size - 1]),
+                dtype=np.int,
             )
-            lon_matrix_current, lat_matrix_current = np.meshgrid(np.arange(self.lon_axis.size, dtype=np.int), lat_axis)
+            lon_matrix_current, lat_matrix_current = np.meshgrid(
+                np.arange(self.lon_axis.size, dtype=np.int), lat_axis
+            )
             current_indexes = np.ravel_multi_index(
                 np.concatenate(
                     [
@@ -471,9 +531,13 @@ class SARGeometry:
             )
         else:
             lon_axis = np.arange(
-                np.max([np.min(indexes) - 10, 0]), np.min([np.max(indexes) + 10, self.lon_axis.size - 1]), dtype=np.int
+                np.max([np.min(indexes) - 10, 0]),
+                np.min([np.max(indexes) + 10, self.lon_axis.size - 1]),
+                dtype=np.int,
             )
-            lon_matrix_current, lat_matrix_current = np.meshgrid(lon_axis, np.arange(self.lat_axis.size, dtype=np.int))
+            lon_matrix_current, lat_matrix_current = np.meshgrid(
+                lon_axis, np.arange(self.lat_axis.size, dtype=np.int)
+            )
             current_indexes = np.ravel_multi_index(
                 np.concatenate(
                     [
@@ -518,7 +582,9 @@ class SARGeometry:
         azimuth_time_axis, _ = self.get_axis()
         gso = self._general_sar_orbit
         sensor_position = gso.get_position(azimuth_time_axis)
-        sensor_position = np.repeat(sensor_position[:, :, np.newaxis], tuple(self.x_sar_coords.shape)[1], axis=2)
+        sensor_position = np.repeat(
+            sensor_position[:, :, np.newaxis], tuple(self.x_sar_coords.shape)[1], axis=2
+        )
 
         return sensor_position
 
@@ -536,7 +602,8 @@ class SARGeometry:
         sensor_position = gso.get_position(azimuth_points_master_slave)
 
         sensor_position = np.reshape(
-            sensor_position, [3, tuple(self.x_sar_coords.shape)[0], tuple(self.x_sar_coords.shape)[1]]
+            sensor_position,
+            [3, tuple(self.x_sar_coords.shape)[0], tuple(self.x_sar_coords.shape)[1]],
         )
 
         return sensor_position
@@ -552,7 +619,9 @@ class SARGeometry:
         azimuth_time_axis, _ = self.get_axis()
         gso = self._general_sar_orbit
         sensor_velocity = gso.get_velocity(azimuth_time_axis)
-        sensor_velocity = np.repeat(sensor_velocity[:, :, np.newaxis], tuple(self.x_sar_coords.shape)[1], axis=2)
+        sensor_velocity = np.repeat(
+            sensor_velocity[:, :, np.newaxis], tuple(self.x_sar_coords.shape)[1], axis=2
+        )
 
         return sensor_velocity
 
@@ -568,11 +637,14 @@ class SARGeometry:
             axis=1,
         )
         # Inverse geocoding
-        for index_target, target_coord in progressbar(enumerate(targets_coords), max_value=self.x_sar_coords.size):
+        for index_target, target_coord in progressbar(
+            enumerate(targets_coords), max_value=self.x_sar_coords.size
+        ):
             azimuth_time, _ = gso.earth2sat(target_coord)
             sensor_velocity[:, index_target] = gso.get_velocity(azimuth_time)
         sensor_velocity = np.reshape(
-            sensor_velocity, [3, tuple(self.x_sar_coords.shape)[0], tuple(self.x_sar_coords.shape)[1]]
+            sensor_velocity,
+            [3, tuple(self.x_sar_coords.shape)[0], tuple(self.x_sar_coords.shape)[1]],
         )
 
         return sensor_velocity
@@ -590,16 +662,22 @@ class SARGeometry:
         else:
             sensor_positions = self.get_sensor_positions_slave(state_vector_ext)
 
-        return self.compute_off_nadir_angles_from_positions(sensor_positions_master, sensor_positions)
+        return self.compute_off_nadir_angles_from_positions(
+            sensor_positions_master, sensor_positions
+        )
 
     def compute_off_nadir_angles_from_positions(self, sensor_positions_master, sensor_positions):
         # Compute nadir versors
-        nadir_versors = sensor_positions_master[:, :, 0] / np.linalg.norm(sensor_positions_master[:, :, 0], axis=0)
+        nadir_versors = sensor_positions_master[:, :, 0] / np.linalg.norm(
+            sensor_positions_master[:, :, 0], axis=0
+        )
         # Compute LOS versors
         los_versors_x = sensor_positions[0, :] - self.x_sar_coords
         los_versors_y = sensor_positions[1, :] - self.y_sar_coords
         los_versors_z = sensor_positions[2, :] - self.z_sar_coords
-        distances = np.sqrt(np.power(los_versors_x, 2) + np.power(los_versors_y, 2) + np.power(los_versors_z, 2))
+        distances = np.sqrt(
+            np.power(los_versors_x, 2) + np.power(los_versors_y, 2) + np.power(los_versors_z, 2)
+        )
         los_versors_x /= distances
         los_versors_y /= distances
         los_versors_z /= distances
@@ -660,7 +738,9 @@ class SARGeometry:
             + terrain_vector_z * ground_versors[2, :][:, np.newaxis]
         )
         self._terrain_slope = -np.arcsin(scalar_product)
-        self._terrain_slope = np.append(self._terrain_slope, self._terrain_slope[:, -1][:, np.newaxis], axis=1)
+        self._terrain_slope = np.append(
+            self._terrain_slope, self._terrain_slope[:, -1][:, np.newaxis], axis=1
+        )
         # Interpolate to the data grid
         self._terrain_slope = signal_processing.shift_image(self._terrain_slope, 0, 1 / 2)
 
@@ -696,7 +776,9 @@ class SARGeometry:
         sat_velocities = self.get_sensor_velocity_master()
 
         # Get first and last coords
-        mean_velocity = np.nanmean(np.reshape(sat_velocities, [3, self.roi[2] * self.roi[3]]), axis=1)
+        mean_velocity = np.nanmean(
+            np.reshape(sat_velocities, [3, self.roi[2] * self.roi[3]]), axis=1
+        )
         if is_north_heading(mean_velocity):
             targets_coord_first = self.get_targets_coordinates(lon_index=0)
             targets_coord_last = self.get_targets_coordinates(lon_index=-1)
@@ -705,7 +787,9 @@ class SARGeometry:
             targets_coord_last = self.get_targets_coordinates(lat_index=-1)
 
         # Slow time loop
-        for index_slow_time in progressbar(range(azimuth_axis_rel.size), max_value=azimuth_axis_rel.size):
+        for index_slow_time in progressbar(
+            range(azimuth_axis_rel.size), max_value=azimuth_axis_rel.size
+        ):
 
             current_sat_position = sat_positions[:, index_slow_time, 0][:, np.newaxis]
             current_sat_velocity = sat_velocities[:, index_slow_time, 0][:, np.newaxis]
@@ -713,13 +797,18 @@ class SARGeometry:
             zero_doppler_plane = get_zero_doppler_plane(current_sat_velocity, current_sat_position)
 
             lat_indexes, lon_indexes, current_indexes = self.get_indexes_dem_portion(
-                zero_doppler_plane, targets_coord_first, targets_coord_last, is_north_heading(mean_velocity)
+                zero_doppler_plane,
+                targets_coord_first,
+                targets_coord_last,
+                is_north_heading(mean_velocity),
             )
             lat_axis_ = self.lat_axis[lat_indexes]
             lon_axis_ = self.lon_axis[lon_indexes]
 
             # Distance from zero doppler plane
-            distances = get_distance_from_zero_doppler(zero_doppler_plane, targets_coord[:, current_indexes])
+            distances = get_distance_from_zero_doppler(
+                zero_doppler_plane, targets_coord[:, current_indexes]
+            )
             distances = np.reshape(distances, [lat_axis_.size, lon_axis_.size])
 
             # Display distances
@@ -738,8 +827,12 @@ class SARGeometry:
                 range_line_coords = np.zeros([3, self.lon_axis.size])
                 for current_lon_index in range(self.lon_axis.size):
                     current_distances = distances[:, current_lon_index]
-                    if np.any(np.sign(current_distances) < 0) and np.any(np.sign(current_distances) > 0):
-                        index_min_dist_vect[:, current_lon_index] = get_min_indexes(current_distances)
+                    if np.any(np.sign(current_distances) < 0) and np.any(
+                        np.sign(current_distances) > 0
+                    ):
+                        index_min_dist_vect[:, current_lon_index] = get_min_indexes(
+                            current_distances
+                        )
                     else:
                         index_min_dist_vect[:, current_lon_index] = [0, 1]
 
@@ -747,12 +840,14 @@ class SARGeometry:
                     [
                         distances.flatten()[
                             np.ravel_multi_index(
-                                [index_min_dist_vect[0], np.arange(self.lon_axis.size, dtype=int)], distances.shape
+                                [index_min_dist_vect[0], np.arange(self.lon_axis.size, dtype=int)],
+                                distances.shape,
                             )
                         ][np.newaxis, :],
                         distances.flatten()[
                             np.ravel_multi_index(
-                                [index_min_dist_vect[1], np.arange(self.lon_axis.size, dtype=int)], distances.shape
+                                [index_min_dist_vect[1], np.arange(self.lon_axis.size, dtype=int)],
+                                distances.shape,
                             )
                         ][np.newaxis, :],
                     ]
@@ -761,13 +856,19 @@ class SARGeometry:
                     [
                         self.dem.flatten()[
                             np.ravel_multi_index(
-                                [lat_indexes[index_min_dist_vect[0]], np.arange(self.lon_axis.size, dtype=int)],
+                                [
+                                    lat_indexes[index_min_dist_vect[0]],
+                                    np.arange(self.lon_axis.size, dtype=int),
+                                ],
                                 self.dem.shape,
                             )
                         ][np.newaxis, :],
                         self.dem.flatten()[
                             np.ravel_multi_index(
-                                [lat_indexes[index_min_dist_vect[1]], np.arange(self.lon_axis.size, dtype=int)],
+                                [
+                                    lat_indexes[index_min_dist_vect[1]],
+                                    np.arange(self.lon_axis.size, dtype=int),
+                                ],
                                 self.dem.shape,
                             )
                         ][np.newaxis, :],
@@ -782,18 +883,26 @@ class SARGeometry:
                 range_line_coords = np.zeros([3, self.lat_axis.size])
                 for current_lat_index in range(self.lat_axis.size):
                     current_distances = distances[current_lat_index, :]
-                    if np.any(np.sign(current_distances) < 0) and np.any(np.sign(current_distances) > 0):
-                        index_min_dist_vect[:, current_lat_index] = get_min_indexes(current_distances)
+                    if np.any(np.sign(current_distances) < 0) and np.any(
+                        np.sign(current_distances) > 0
+                    ):
+                        index_min_dist_vect[:, current_lat_index] = get_min_indexes(
+                            current_distances
+                        )
                     else:
                         index_min_dist_vect[:, current_lat_index] = [0, 1]
                 complete_lat_indexes = np.arange(self.lat_axis.size, dtype=int)
                 distances_vect = np.concatenate(
                     [
                         distances.flatten()[
-                            np.ravel_multi_index([complete_lat_indexes, index_min_dist_vect[0]], distances.shape)
+                            np.ravel_multi_index(
+                                [complete_lat_indexes, index_min_dist_vect[0]], distances.shape
+                            )
                         ][np.newaxis, :],
                         distances.flatten()[
-                            np.ravel_multi_index([complete_lat_indexes, index_min_dist_vect[1]], distances.shape)
+                            np.ravel_multi_index(
+                                [complete_lat_indexes, index_min_dist_vect[1]], distances.shape
+                            )
                         ][np.newaxis, :],
                     ],
                 )
@@ -801,12 +910,14 @@ class SARGeometry:
                     [
                         self.dem.flatten()[
                             np.ravel_multi_index(
-                                [complete_lat_indexes, lon_indexes[index_min_dist_vect[0]]], self.dem.shape
+                                [complete_lat_indexes, lon_indexes[index_min_dist_vect[0]]],
+                                self.dem.shape,
                             )
                         ][np.newaxis, :],
                         self.dem.flatten()[
                             np.ravel_multi_index(
-                                [complete_lat_indexes, lon_indexes[index_min_dist_vect[1]]], self.dem.shape
+                                [complete_lat_indexes, lon_indexes[index_min_dist_vect[1]]],
+                                self.dem.shape,
                             )
                         ][np.newaxis, :],
                     ]
@@ -818,15 +929,23 @@ class SARGeometry:
 
             range_line_coords_xyz = conversions.llh2xyz(range_line_coords)
 
-            target_dist = np.sqrt(np.sum(np.power((range_line_coords_xyz - current_sat_position), 2), 0))
+            target_dist = np.sqrt(
+                np.sum(np.power((range_line_coords_xyz - current_sat_position), 2), 0)
+            )
 
             # Interpolate along range
             range_line_coords = range_line_coords[:, ~np.isnan(target_dist)]
             target_dist = target_dist[~np.isnan(target_dist)]
             if len(target_dist):
-                range_line_coords_out_grid[0, :] = np.interp(range_axis_out, target_dist, range_line_coords[0, :])
-                range_line_coords_out_grid[1, :] = np.interp(range_axis_out, target_dist, range_line_coords[1, :])
-                range_line_coords_out_grid[2, :] = np.interp(range_axis_out, target_dist, range_line_coords[2, :])
+                range_line_coords_out_grid[0, :] = np.interp(
+                    range_axis_out, target_dist, range_line_coords[0, :]
+                )
+                range_line_coords_out_grid[1, :] = np.interp(
+                    range_axis_out, target_dist, range_line_coords[1, :]
+                )
+                range_line_coords_out_grid[2, :] = np.interp(
+                    range_axis_out, target_dist, range_line_coords[2, :]
+                )
 
                 self._dem_sar[index_slow_time, :] = range_line_coords_out_grid[2, :]
 
@@ -880,7 +999,11 @@ def main(input_file_path):
 
         # Extract DEM
         external_dem_obj = ext_geodata_mosaic(
-            *geo_corners, configuration_obj.dem_repository, configuration_obj.dem_type, input_obj.output_path, geoid_dir
+            *geo_corners,
+            configuration_obj.dem_repository,
+            configuration_obj.dem_type,
+            input_obj.output_path,
+            geoid_dir,
         )
         external_dem_obj.Run()
         dem_path = external_dem_obj.geodata_output_dir
@@ -893,7 +1016,9 @@ def main(input_file_path):
 
     dem_samples = ri_dem.samples
     lat_axis = (np.arange(0, ri_dem.lines) * ri_dem.lines_step + ri_dem.lines_start) * np.pi / 180
-    lon_axis = (np.arange(0, dem_samples) * ri_dem.samples_step + ri_dem.samples_start) * np.pi / 180
+    lon_axis = (
+        (np.arange(0, dem_samples) * ri_dem.samples_step + ri_dem.samples_start) * np.pi / 180
+    )
 
     dem_data = pf_dem.read_data(0, [0, 0, ri_dem.lines, dem_samples])
 
@@ -929,7 +1054,9 @@ def main(input_file_path):
             )
         )
 
-        azimuth_points_master_slave, range_points_master_slave = perform_inverse_geocoding(gso_slave, targets_coords)
+        azimuth_points_master_slave, range_points_master_slave = perform_inverse_geocoding(
+            gso_slave, targets_coords
+        )
 
     if int(configuration_obj.save_distance):
         distance_master = sar_geometry.compute_distance_master()
@@ -978,12 +1105,20 @@ def main(input_file_path):
 
     if int(configuration_obj.save_reference_height):
         save_product(
-            [sar_geometry.dem_sar], azimuth_axis, range_axis, input_obj.output_path, EProductType('REFERENCEHEIGHT')
+            [sar_geometry.dem_sar],
+            azimuth_axis,
+            range_axis,
+            input_obj.output_path,
+            EProductType('REFERENCEHEIGHT'),
         )
 
     if int(configuration_obj.save_distance):
         save_product(
-            [distance_master, distance_slave], azimuth_axis, range_axis, input_obj.output_path, EProductType('DISTANCE')
+            [distance_master, distance_slave],
+            azimuth_axis,
+            range_axis,
+            input_obj.output_path,
+            EProductType('DISTANCE'),
         )
 
     if int(configuration_obj.save_off_nadir):
@@ -997,12 +1132,20 @@ def main(input_file_path):
 
     if int(configuration_obj.save_terrain_slope):
         save_product(
-            [sar_geometry.terrain_slope], azimuth_axis, range_axis, input_obj.output_path, EProductType('SLOPE')
+            [sar_geometry.terrain_slope],
+            azimuth_axis,
+            range_axis,
+            input_obj.output_path,
+            EProductType('SLOPE'),
         )
 
     if int(configuration_obj.save_wavenumber):
         save_product(
-            [vertical_wave_number], azimuth_axis, range_axis, input_obj.output_path, EProductType('WAVENUMBER')
+            [vertical_wave_number],
+            azimuth_axis,
+            range_axis,
+            input_obj.output_path,
+            EProductType('WAVENUMBER'),
         )
 
 

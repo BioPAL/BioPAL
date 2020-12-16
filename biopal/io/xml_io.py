@@ -116,7 +116,9 @@ configuration_params = namedtuple(
 # configuration_params "interpolate_stack"  sub-fields:
 interpolate_params = namedtuple('interpolate_params', 'regular_baseline_grid_flag')
 # configuration_params "ground_cancellation"  sub-fields:
-ground_canc_params = namedtuple('ground_canc_params', 'multi_master_flag enhanced_forest_height equalization_flag')
+ground_canc_params = namedtuple(
+    'ground_canc_params', 'multi_master_flag enhanced_forest_height equalization_flag'
+)
 
 # configuration_params "agb" sub-fields:
 agb_est_params = namedtuple(
@@ -145,7 +147,9 @@ agb_model_params = namedtuple(
                               changes_across_swath changes_across_subswath changes_across_azimuth',
 )
 # model_parameters "triplet_params" sub-fields:
-triplet_params = namedtuple('triplet_params', 'agb_model_scaling agb_model_exponent agb_cosine_exponent')
+triplet_params = namedtuple(
+    'triplet_params', 'agb_model_scaling agb_model_exponent agb_cosine_exponent'
+)
 
 # configuration_params "FH" sub-fields:
 FH_est_params = namedtuple(
@@ -184,7 +188,9 @@ TOMO_FH_est_params = namedtuple(
 TOMO_est_params = namedtuple('TOMO_est_params', 'product_resolution')
 
 # TOMO and TOMO_FH "vertical range" sub-fields:
-vertical_range_params = namedtuple('vertical_range_params', 'maximum_height minimum_height sampling')
+vertical_range_params = namedtuple(
+    'vertical_range_params', 'maximum_height minimum_height sampling'
+)
 ###############################################################################
 
 
@@ -291,7 +297,9 @@ def write_chains_input_file(input_params, input_file_xml):
         ForestHeight.text = input_params.forest_height_folder
 
     if chain_id == 'FH':
-        SystemDecorrelationFunction = SubElement(AuxiliaryProductList, 'SystemDecorrelationFunction')
+        SystemDecorrelationFunction = SubElement(
+            AuxiliaryProductList, 'SystemDecorrelationFunction'
+        )
         SystemDecorrelationFunction.text = input_params.system_decorrelation_fun_folder
 
     if not 'TOMO' in chain_id:
@@ -324,7 +332,9 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
     if chain_id == 'TOMO':
         InterpolateStack = SubElement(ConfigurationL2_Item, 'InterpolateStack')
         RegularBaselineGrid = SubElement(InterpolateStack, 'RegularBaselineGrid')
-        RegularBaselineGrid.text = str(configuration_params.interpolate_stack.regular_baseline_grid_flag)
+        RegularBaselineGrid.text = str(
+            configuration_params.interpolate_stack.regular_baseline_grid_flag
+        )
 
     # Ground Cancellation
     if chain_id == 'AGB' or chain_id == 'FD':
@@ -415,11 +425,17 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
         NumberOfExtinctionValue = SubElement(ModelParameters, 'NumberOfExtinctionValue')
         NumberOfExtinctionValue.text = str(model_params.number_of_extinction_value)
 
-        NumberOfGroundVolumeRatioValue = SubElement(ModelParameters, 'NumberOfGroundVolumeRatioValue')
+        NumberOfGroundVolumeRatioValue = SubElement(
+            ModelParameters, 'NumberOfGroundVolumeRatioValue'
+        )
         NumberOfGroundVolumeRatioValue.text = str(model_params.number_of_ground_volume_ratio_value)
 
-        NumberOfTemporalDecorrelationValue = SubElement(ModelParameters, 'NumberOfTemporalDecorrelationValue')
-        NumberOfTemporalDecorrelationValue.text = str(model_params.number_of_temporal_decorrelation_value)
+        NumberOfTemporalDecorrelationValue = SubElement(
+            ModelParameters, 'NumberOfTemporalDecorrelationValue'
+        )
+        NumberOfTemporalDecorrelationValue.text = str(
+            model_params.number_of_temporal_decorrelation_value
+        )
 
         MedianFactor = SubElement(Estimate_elem, 'MedianFactor')
         MedianFactor.text = str(params_curr.median_factor)
@@ -483,7 +499,9 @@ def write_fd_lookup_table(lookup_table_file_name_xml, table_type, lut_dict):
     # table_type: string 'fnf' or 'covariance'
     if not table_type == 'fnf' and not table_type == 'covariance':
         raise ValueError(
-            '#3th iinput should be a string of value "fnf" or "covariance": "' + table_type + '" is not recognized'
+            '#3th iinput should be a string of value "fnf" or "covariance": "'
+            + table_type
+            + '" is not recognized'
         )
 
     if table_type == 'fnf':
@@ -528,8 +546,8 @@ def write_fd_lookup_table(lookup_table_file_name_xml, table_type, lut_dict):
     ElementTree_indent(lut_Item)
     tree = ElementTree(lut_Item)
     tree.write(open(lookup_table_file_name_xml, 'w'), encoding='unicode')
-    
-    
+
+
 def parse_biomassL2_main_input_file(input_file_xml):
     """Parse the input file, configuration file and current campaign params file
     and store all the needed information in the dataset data_stack class"""
@@ -556,9 +574,7 @@ def parse_biomassL2_main_input_file(input_file_xml):
         if aux_name == 'DEM':
             dem_folder_found = True
     if not dem_folder_found:
-        error_message = (
-            'Main input file: the specified AuxiliaryProductsFolder should contain AT LEAST the sub-folder "DEM"'
-        )
+        error_message = 'Main input file: the specified AuxiliaryProductsFolder should contain AT LEAST the sub-folder "DEM"'
         logging.error(error_message)
         raise ValueError(error_message)
 
@@ -571,7 +587,9 @@ def parse_biomassL2_main_input_file(input_file_xml):
         logging.error(error_message)
         raise ValueError(error_message)
     if geographic_grid_sampling <= 0:
-        error_message = 'Main input file: GeographicGridSampling should be a positive numeric value [m]'
+        error_message = (
+            'Main input file: GeographicGridSampling should be a positive numeric value [m]'
+        )
         logging.error(error_message)
         raise ValueError(error_message)
 
@@ -582,7 +600,9 @@ def parse_biomassL2_main_input_file(input_file_xml):
     proc_flags_TOMO = bool_from_string(L2Product_Item.find('TOMO').text)
     proc_flags_TOMO_FH = bool_from_string(L2Product_Item.find('TOMO_FH').text)
 
-    proc_flags_struct = proc_flags(proc_flags_AGB, proc_flags_FH, proc_flags_TOMO_FH, proc_flags_FD, proc_flags_TOMO)
+    proc_flags_struct = proc_flags(
+        proc_flags_AGB, proc_flags_FH, proc_flags_TOMO_FH, proc_flags_FD, proc_flags_TOMO
+    )
 
     L1cDates = root.findall('L1cDate')
     if len(L1cDates) != 2:
@@ -617,7 +637,9 @@ def parse_biomassL2_main_input_file(input_file_xml):
     GeographicBoundary_Item = root.find('GeographicBoundary')
     Points = GeographicBoundary_Item.findall('Point')
     if len(Points) < 3:
-        error_message = 'Main input file: at least #3 Geograplic Boundary points should be specified'
+        error_message = (
+            'Main input file: at least #3 Geograplic Boundary points should be specified'
+        )
         logging.error(error_message)
         raise ValueError(error_message)
 
@@ -668,7 +690,6 @@ def parse_biomassL2_main_input_file(input_file_xml):
     return main_input_struct
 
 
-
 def parse_chains_input_file(input_file_xml):
     """Parse the input file of inner chains(AGB, FH, FD, TOMO FH and TOMO)"""
 
@@ -676,7 +697,13 @@ def parse_chains_input_file(input_file_xml):
     tree = ET.parse(input_file_xml)
     root = tree.getroot()
     chain_id = root.tag[8:]
-    if chain_id != 'AGB' and chain_id != 'FH' and chain_id != 'FD' and chain_id != 'TOMO_FH' and chain_id != 'TOMO':
+    if (
+        chain_id != 'AGB'
+        and chain_id != 'FH'
+        and chain_id != 'FD'
+        and chain_id != 'TOMO_FH'
+        and chain_id != 'TOMO'
+    ):
         error_message = 'The provided input file is not an inner biomassL2 chain input (AGB, FH, FD, TOMO FH or TOMO)'
         logging.error(error_message)
         raise ValueError(error_message)
@@ -748,7 +775,12 @@ def parse_chains_input_file(input_file_xml):
         if L1cStack_Item.find('CalibrationScreens') != None:
             calibration_screens_file_names[stack_id] = L1cStack_Item.find('CalibrationScreens').text
         elif chain_id == 'TOMO' or chain_id == 'TOMO_FH':
-            error_message = chain_id + ' Input File: CalibrationScreens are mandatory for ' + chain_id + ' chain.'
+            error_message = (
+                chain_id
+                + ' Input File: CalibrationScreens are mandatory for '
+                + chain_id
+                + ' chain.'
+            )
             logging.error(error_message)
             raise ValueError(error_message)
 
@@ -763,7 +795,9 @@ def parse_chains_input_file(input_file_xml):
         forest_height_folder = AuxiliaryProductList_Item.find('ForestHeight').text
     if chain_id == 'FH':
         if AuxiliaryProductList_Item.find('SystemDecorrelationFunction'):
-            system_decorrelation_fun_folder = AuxiliaryProductList_Item.find('SystemDecorrelationFunction').text
+            system_decorrelation_fun_folder = AuxiliaryProductList_Item.find(
+                'SystemDecorrelationFunction'
+            ).text
         else:
             system_decorrelation_fun_folder = ''
 
@@ -833,7 +867,9 @@ def parse_fd_lookup_table(lookup_table_file_name_xml):
             raise ImportError(' table xml is not valid')
 
         if not table_type == 'fnf' and not table_type == 'covariance':
-            raise ImportError(' table xml is not valid, element "' + table_type + '" not recognized')
+            raise ImportError(
+                ' table xml is not valid, element "' + table_type + '" not recognized'
+            )
 
         fd_steps = L1cStack.findall(table_type)
         for step_curr in fd_steps:
@@ -851,17 +887,20 @@ def parse_fd_lookup_table(lookup_table_file_name_xml):
 
     return lut_dict
 
+
 def parse_biopal_configuration_file(biopal_configuration_file_xml):
     """Parse the biopal configuration file"""
+
+    gdal_path = gdal_environment_path = None
     
     tree = ET.parse(biopal_configuration_file_xml)
     root = tree.getroot()
-    
-    GDAL_Item = root.find('GDAL')
-    
-    gdal_path = GDAL_Item.find('gdal_path').text
-    gdal_environment_path = GDAL_Item.find('gdal_environment_path').text
-    
+
+    gdal_item = root.find('GDAL')
+    if gdal_item:
+        gdal_path = gdal_item.find('gdal_path').text
+        gdal_environment_path = gdal_item.find('gdal_environment_path').text
+
     return gdal_path, gdal_environment_path
 
 
@@ -875,7 +914,9 @@ def parse_chains_configuration_file(configuration_file_xml):
     # interpolate_stack
     if chain_id == 'TOMO':
         InterpolateStack_Item = root.find('InterpolateStack')
-        regular_baseline_grid_flag = bool_from_string(InterpolateStack_Item.find('RegularBaselineGrid').text)
+        regular_baseline_grid_flag = bool_from_string(
+            InterpolateStack_Item.find('RegularBaselineGrid').text
+        )
         interpolate_stack = interpolate_params(regular_baseline_grid_flag)
     else:
         interpolate_stack = None
@@ -886,13 +927,19 @@ def parse_chains_configuration_file(configuration_file_xml):
         multi_master_flag = bool_from_string(GroundCancellation_Item.find('MultiMaster').text)
         enhanced_forest_height = float(GroundCancellation_Item.find('EnhancedForestHeight').text)
         equalization_flag = GroundCancellation_Item.find('ModelBasedEqualization').text
-        if not equalization_flag == '1' and not equalization_flag == '2' and not equalization_flag == '3':
+        if (
+            not equalization_flag == '1'
+            and not equalization_flag == '2'
+            and not equalization_flag == '3'
+        ):
             error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
                 equalization_flag
             )
             logging.error(error_str)
             raise
-        ground_cancellation = ground_canc_params(multi_master_flag, enhanced_forest_height, equalization_flag)
+        ground_cancellation = ground_canc_params(
+            multi_master_flag, enhanced_forest_height, equalization_flag
+        )
     else:
         ground_cancellation = None
 
@@ -940,18 +987,24 @@ def parse_chains_configuration_file(configuration_file_xml):
     if chain_id == 'AGB':
 
         number_of_tests = float(chain_field_Item.find('number_of_tests').text)
-        intermediate_ground_averaging = float(chain_field_Item.find('intermediate_ground_averaging').text)
+        intermediate_ground_averaging = float(
+            chain_field_Item.find('intermediate_ground_averaging').text
+        )
 
         distance_sampling_area = float(chain_field_Item.find('distance_sampling_area').text)
         fraction_of_roi_per_test = int(chain_field_Item.find('fraction_of_roi_per_test').text)
         fraction_of_cal_per_test = int(chain_field_Item.find('fraction_of_cal_per_test').text)
 
-        add_variability_on_cal_data = bool_from_string(chain_field_Item.find('add_variability_on_cal_data').text)   
+        add_variability_on_cal_data = bool_from_string(
+            chain_field_Item.find('add_variability_on_cal_data').text
+        )
 
         parameter_block_size = float(chain_field_Item.find('parameter_block_size').text)
         distance_parameter_block = float(chain_field_Item.find('distance_parameter_block').text)
         min_number_of_rois = int(chain_field_Item.find('min_number_of_rois').text)
-        min_number_of_rois_per_stack = int(chain_field_Item.find('min_number_of_rois_per_stack').text)
+        min_number_of_rois_per_stack = int(
+            chain_field_Item.find('min_number_of_rois_per_stack').text
+        )
         min_number_of_cals_per_test = int(chain_field_Item.find('min_number_of_cals_per_test').text)
         min_number_of_rois_per_test = int(chain_field_Item.find('min_number_of_rois_per_test').text)
 
@@ -977,50 +1030,112 @@ def parse_chains_configuration_file(configuration_file_xml):
 
         changes_across_pol_Item = model_parameter_Item.find('ChangesAcrossPolarisation')
         agb_model_scaling = bool_from_string(changes_across_pol_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_pol_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_pol_Item.find('agb_cosine_exponent').text)
-        changes_across_pol = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_exponent = bool_from_string(
+            changes_across_pol_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_pol_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_pol = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         changes_across_stacks_Item = model_parameter_Item.find('ChangesAcrossStack')
-        agb_model_scaling = bool_from_string(changes_across_stacks_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_stacks_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_stacks_Item.find('agb_cosine_exponent').text)
-        changes_across_stacks = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_stacks_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_stacks_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_stacks_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_stacks = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         changes_across_global_cycle_Item = model_parameter_Item.find('ChangesAcrossGlobalCycle')
-        agb_model_scaling = bool_from_string(changes_across_global_cycle_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_global_cycle_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_global_cycle_Item.find('agb_cosine_exponent').text)
-        changes_across_global_cycle = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_global_cycle_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_global_cycle_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_global_cycle_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_global_cycle = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         changes_across_heading_Item = model_parameter_Item.find('ChangesAcrossHeading')
-        agb_model_scaling = bool_from_string(changes_across_heading_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_heading_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_heading_Item.find('agb_cosine_exponent').text)
-        changes_across_heading = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_heading_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_heading_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_heading_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_heading = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         changes_across_swath_Item = model_parameter_Item.find('ChangesAcrossSwath')
-        agb_model_scaling = bool_from_string(changes_across_swath_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_swath_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_swath_Item.find('agb_cosine_exponent').text)
-        changes_across_swath = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_swath_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_swath_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_swath_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_swath = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         changes_across_sub_swath_Item = model_parameter_Item.find('ChangesAcrossSubswath')
-        agb_model_scaling = bool_from_string(changes_across_sub_swath_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_sub_swath_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_sub_swath_Item.find('agb_cosine_exponent').text)
-        changes_across_subswath = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_sub_swath_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_sub_swath_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_sub_swath_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_subswath = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         changes_across_azimuth_Item = model_parameter_Item.find('ChangesAcrossAzimuth')
-        agb_model_scaling = bool_from_string(changes_across_azimuth_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_azimuth_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_azimuth_Item.find('agb_cosine_exponent').text)
-        changes_across_azimuth = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_azimuth_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_azimuth_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_azimuth_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_azimuth = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
-        agb_model_scaling = bool_from_string(changes_across_stacks_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(changes_across_stacks_Item.find('agb_model_exponent').text)
-        agb_cosine_exponent = bool_from_string(changes_across_stacks_Item.find('agb_cosine_exponent').text)
-        changes_across_stacks = triplet_params(agb_model_scaling, agb_model_exponent, agb_cosine_exponent)
+        agb_model_scaling = bool_from_string(
+            changes_across_stacks_Item.find('agb_model_scaling').text
+        )
+        agb_model_exponent = bool_from_string(
+            changes_across_stacks_Item.find('agb_model_exponent').text
+        )
+        agb_cosine_exponent = bool_from_string(
+            changes_across_stacks_Item.find('agb_cosine_exponent').text
+        )
+        changes_across_stacks = triplet_params(
+            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
+        )
 
         estimation_valid_values_limits = [
             float(chain_field_Item.find('EstimationValidValuesLimits').find('min').text),
@@ -1071,7 +1186,9 @@ def parse_chains_configuration_file(configuration_file_xml):
             float(chain_field_Item.find('EstimationValidValuesLimits').find('max').text),
         ]
 
-        spectral_shift_filtering = bool_from_string(chain_field_Item.find('SpectralShiftFiltering').text)
+        spectral_shift_filtering = bool_from_string(
+            chain_field_Item.find('SpectralShiftFiltering').text
+        )
 
         kz_thresholds = [
             float(chain_field_Item.find('KZ_thresholds').find('min').text),
@@ -1090,7 +1207,9 @@ def parse_chains_configuration_file(configuration_file_xml):
         model_parameters_Item = chain_field_Item.find('ModelParameters')
         maximum_height = int(model_parameters_Item.find('MaximumHeight').text)
         number_of_extinction_value = int(model_parameters_Item.find('NumberOfExtinctionValue').text)
-        number_of_ground_volume_ratio_value = int(model_parameters_Item.find('NumberOfGroundVolumeRatioValue').text)
+        number_of_ground_volume_ratio_value = int(
+            model_parameters_Item.find('NumberOfGroundVolumeRatioValue').text
+        )
         number_of_temporal_decorrelation_value = int(
             model_parameters_Item.find('NumberOfTemporalDecorrelationValue').text
         )
@@ -1111,7 +1230,13 @@ def parse_chains_configuration_file(configuration_file_xml):
             number_of_temporal_decorrelation_value,
         )
 
-        FH = FH_est_params(spectral_shift_filtering, product_resolution, kz_thresholds, model_parameters, median_factor)
+        FH = FH_est_params(
+            spectral_shift_filtering,
+            product_resolution,
+            kz_thresholds,
+            model_parameters,
+            median_factor,
+        )
 
     elif chain_id == 'TOMO_FH':
 
@@ -1120,7 +1245,9 @@ def parse_chains_configuration_file(configuration_file_xml):
             float(chain_field_Item.find('EstimationValidValuesLimits').find('max').text),
         ]
 
-        enable_super_resolution = bool_from_string(chain_field_Item.find('EnableSuperResolution').text)
+        enable_super_resolution = bool_from_string(
+            chain_field_Item.find('EnableSuperResolution').text
+        )
         regularization_noise_factor = float(chain_field_Item.find('RegularizationNoiseFactor').text)
         power_threshold = float(chain_field_Item.find('PowerThreshold').text)
         median_factor = int(chain_field_Item.find('MedianFactor').text)
@@ -1170,12 +1297,16 @@ def check_chains_input_file(proc_inputs):
         for pf_name in proc_inputs.stack_composition[key]:
             fullPath = os.path.join(proc_inputs.L1c_repository, pf_name)
             if not os.path.exists(fullPath):
-                error_message = ' Input file Acquisition ' + pf_name + ' does not exist: ' + fullPath
+                error_message = (
+                    ' Input file Acquisition ' + pf_name + ' does not exist: ' + fullPath
+                )
                 logging.error(error_message)
                 raise RuntimeError(error_message)
 
     if not os.path.exists(proc_inputs.dem_folder):
-        error_message = ' Input file AuxiliaryProductList DEM does not exist: ' + proc_inputs.dem_folder
+        error_message = (
+            ' Input file AuxiliaryProductList DEM does not exist: ' + proc_inputs.dem_folder
+        )
         logging.error(error_message)
         raise RuntimeError(error_message)
 
@@ -1193,13 +1324,17 @@ def check_chains_input_file(proc_inputs):
 
     for inc_name in proc_inputs.off_nadir_angle_file_names:
         if not os.path.exists(inc_name):
-            error_message = ' Input file AuxiliaryProductList OffNadirAngle does not exist: ' + inc_name
+            error_message = (
+                ' Input file AuxiliaryProductList OffNadirAngle does not exist: ' + inc_name
+            )
             logging.error(error_message)
             raise RuntimeError(error_message)
 
     for h_name in proc_inputs.reference_height_file_names:
         if not os.path.exists(h_name):
-            error_message = 'Input file AuxiliaryProductList ReferenceHeight does not exist: ' + h_name
+            error_message = (
+                'Input file AuxiliaryProductList ReferenceHeight does not exist: ' + h_name
+            )
             logging.error(error_message)
             raise RuntimeError(error_message)
 
@@ -1207,7 +1342,8 @@ def check_chains_input_file(proc_inputs):
     if chain_id == 'AGB':
         if not os.path.exists(proc_inputs.reference_agb_folder):
             error_message = (
-                ' Input file AuxiliaryProductList ReferenceAGB does not exist: ' + proc_inputs.reference_agb_folder
+                ' Input file AuxiliaryProductList ReferenceAGB does not exist: '
+                + proc_inputs.reference_agb_folder
             )
             logging.error(error_message)
             raise RuntimeError(error_message)
@@ -1238,14 +1374,16 @@ def check_chains_input_file(proc_inputs):
 
     if len(proc_inputs.geographic_grid_sampling) == 0 or proc_inputs.geographic_grid_sampling <= 0:
         error_message = (
-            ' Input file GeographicGridSampling should be a positive number: ' + proc_inputs.geographic_grid_sampling
+            ' Input file GeographicGridSampling should be a positive number: '
+            + proc_inputs.geographic_grid_sampling
         )
         logging.error(error_message)
         raise RuntimeError(error_message)
 
     if not os.path.exists(proc_inputs.forest_mask_catalogue_folder):
         error_message = (
-            ' Input file AuxiliaryProductList ForestMask does not exist: ' + proc_inputs.forest_mask_catalogue_folder
+            ' Input file AuxiliaryProductList ForestMask does not exist: '
+            + proc_inputs.forest_mask_catalogue_folder
         )
         logging.error(error_message)
         raise RuntimeError(error_message)
@@ -1260,7 +1398,9 @@ def parse_campaign_params_simple(campaign_params_file_xml, tag, campaign_tag):
     scene_node = root.find('Scenes')
     carrierFrequency = float(scene_node.attrib['frequency']) * 1000000
 
-    temp = [sc.attrib['pixel_spacing'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag]
+    temp = [
+        sc.attrib['pixel_spacing'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag
+    ]
     pixel_spacing_slant_rg_m = float(temp[0])
     del temp
 
@@ -1273,7 +1413,9 @@ def parse_campaign_params_simple(campaign_params_file_xml, tag, campaign_tag):
     else:
         pixel_spacing_az_m = 1
 
-    temp = [sc.attrib['SLR_start'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag]
+    temp = [
+        sc.attrib['SLR_start'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag
+    ]
     SLR_start_m = float(temp[0])
     del temp
 
@@ -1302,7 +1444,15 @@ def parse_campaign_params_simple(campaign_params_file_xml, tag, campaign_tag):
     temp = [sc.attrib['heading'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag]
     heading = float(temp[0])
 
-    return pixel_spacing_az_m, pixel_spacing_slant_rg_m, date_UTC, SLR_start_m, master, carrierFrequency, heading
+    return (
+        pixel_spacing_az_m,
+        pixel_spacing_slant_rg_m,
+        date_UTC,
+        SLR_start_m,
+        master,
+        carrierFrequency,
+        heading,
+    )
 
 
 class XmlIO:
@@ -1344,7 +1494,9 @@ class XmlIO:
     def __getparam__(self, name):
         p = [p for p in self.__root__.iter('parameter') if p.attrib['name'] == name]
         if len(p) != 1:
-            raise AttributeError('Expected a unique match parameter name "%s", got %i matches.' % (name, len(p)))
+            raise AttributeError(
+                'Expected a unique match parameter name "%s", got %i matches.' % (name, len(p))
+            )
 
         return [p[0].find(tag) for tag in ('remark', 'datatype', 'value', 'unit')]
 
@@ -1363,10 +1515,19 @@ class XmlIO:
             obj_arr = [XmlIO(obj) for obj in v.iter('object')]
             return obj_arr[0] if size <= 1 else obj_arr
 
-        conv = {'bool': bool, 'int': int, 'long': int, 'float': np.float, 'double': np.double, 'string': lambda s: s}
+        conv = {
+            'bool': bool,
+            'int': int,
+            'long': int,
+            'float': np.float,
+            'double': np.double,
+            'string': lambda s: s,
+        }
         try:
             if size > 1:
-                val = np.asarray([conv[type](v) for v in v.text.strip('[]').split(',')]).reshape(shape)
+                val = np.asarray([conv[type](v) for v in v.text.strip('[]').split(',')]).reshape(
+                    shape
+                )
             else:
                 val = conv[type](v.text)
         except KeyError:
@@ -1486,7 +1647,16 @@ class XmlIO:
         return xml_tools.tostring(self.__totree().getroot(), encoding='UTF-8')
 
 
-def add_param(root, name, unit_text, datatype_text, remark_text="none", value_text=None, length=1, sub_flag=False):
+def add_param(
+    root,
+    name,
+    unit_text,
+    datatype_text,
+    remark_text="none",
+    value_text=None,
+    length=1,
+    sub_flag=False,
+):
 
     # Sub flag is needed in order to correctly add parameters to a struct-type xml tree
     if sub_flag:

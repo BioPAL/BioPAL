@@ -25,5 +25,3 @@ CARRIER_FREQUENCY_HZ = 435000000
 
 # Velocity of the satellite in [m/s]
 SATELLITE_VELOCITY = 7.595823208681849e03
-
-
