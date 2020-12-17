@@ -123,7 +123,8 @@ ground_canc_params = namedtuple(
 # configuration_params "agb" sub-fields:
 agb_est_params = namedtuple(
     'agb_est_params',
-    'number_of_tests \
+    'residual_function \
+                                 number_of_tests \
                                  fraction_of_roi_per_test \
                                  fraction_of_cal_per_test \
                                  add_variability_on_cal_data \
@@ -136,16 +137,54 @@ agb_est_params = namedtuple(
                                  min_number_of_rois_per_stack \
                                  min_number_of_cals_per_test \
                                  min_number_of_rois_per_test \
-                                 model_parameters \
                                  estimation_valid_values_limits',
 )
-# agb "model_parameters" sub-fields:
-agb_model_params = namedtuple(
-    'agb_model_params',
-    'agb_model_scaling_limits agb_model_exponent_limits agb_cosine_exponent_limits agb_estimation_limits \
-                              changes_across_pol changes_across_stacks changes_across_global_cycle changes_across_heading \
-                              changes_across_swath changes_across_subswath changes_across_azimuth',
+# agb "residual_function" sub-fields:    
+residual_function = namedtuple(
+    'residual_function',
+    'formula formula_parameters formula_observables'
 )
+# agb "formula_parameters" sub-fields:    
+formula_parameters = namedtuple(
+    'formula_parameters',
+    'name \
+     save_as_map \
+     limits \
+     FixedToInitValue \
+     ChangesAcrossSamples \
+     ChangesAcrossForestClass \
+     ChangesAcrossStack \
+     ChangesAcrossGlobalCycle \
+     ChangesAcrossHeading \
+     ChangesAcrossSwath \
+     ChangesAcrossSubswath \
+     ChangesAcrossAzimuth',
+)
+# agb "formula_observables" sub-fields:    
+formula_observables = namedtuple(
+    'formula_observables',
+    'name \
+     is_required \
+     source \
+     ranges \
+     transform \
+     averaging_method',
+)
+# min_max is used for parameters limits and observables ranges 
+min_max = namedlist(
+    'min_max',
+    'min \
+     max',
+)
+# agb "formula_observables source_path" sub-fields:  
+source = namedlist(
+    'source',
+    'path \
+     stack_id \
+     file_id \
+     band',
+)    
+           
 # model_parameters "triplet_params" sub-fields:
 triplet_params = namedtuple(
     'triplet_params', 'agb_model_scaling agb_model_exponent agb_cosine_exponent'
@@ -975,7 +1014,7 @@ def parse_chains_configuration_file(configuration_file_xml):
     if chain_id == 'TOMO' or chain_id == 'TOMO_FH':
         product_resolution = float(root.find('ProductResolution').text)
     elif chain_id == 'AGB':
-        product_resolution = float(root.find(chain_field_name).find('product_resolution').text)
+        product_resolution = float(chain_field_Item.find('product_resolution').text)
     else:
         product_resolution = float(chain_field_Item.find('ProductResolution').text)
 
@@ -986,6 +1025,105 @@ def parse_chains_configuration_file(configuration_file_xml):
     TOMO = None
     if chain_id == 'AGB':
 
+        residual_function_Item = chain_field_Item.find('residual_function')
+        formula_Item = residual_function_Item.find('formula')
+        formula_parameters_Item = residual_function_Item.find('formula_parameters')
+        formula_observables_Item = residual_function_Item.find('formula_observables')
+        
+        formula = []
+        for row_item in formula_Item.findall('row'):
+            formula.append( row_item.text )
+        
+        name = []
+        save_as_map = []
+        min_limit = []
+        max_limit = []
+        FixedToInitValue = []
+        ChangesAcrossSamples = []
+        ChangesAcrossForestClass = []
+        ChangesAcrossStack = []
+        ChangesAcrossGlobalCycle = []
+        ChangesAcrossHeading = []
+        ChangesAcrossSwath = []
+        ChangesAcrossSubswath = []
+        ChangesAcrossAzimuth = []
+        for par_item in formula_parameters_Item.findall('par'):
+            
+            name.append( par_item.find('name').text )
+            save_as_map.append( bool_from_string( par_item.find('save_as_map').text ) )
+            min_limit.append( float(par_item.find('limits').find('min').text) )
+            max_limit.append( float(par_item.find('limits').find('max').text) )
+            FixedToInitValue.append( bool_from_string( par_item.find('FixedToInitValue').text ) )
+            ChangesAcrossSamples.append( bool_from_string( par_item.find('ChangesAcrossSamples').text ) )
+            ChangesAcrossForestClass.append( bool_from_string( par_item.find('ChangesAcrossForestClass').text ) )
+            ChangesAcrossStack.append( bool_from_string( par_item.find('ChangesAcrossStack').text ) )
+            ChangesAcrossGlobalCycle.append( bool_from_string( par_item.find('ChangesAcrossGlobalCycle').text ) )
+            ChangesAcrossHeading.append( bool_from_string( par_item.find('ChangesAcrossHeading').text ) )
+            ChangesAcrossSwath.append( bool_from_string( par_item.find('ChangesAcrossSwath').text ) )
+            ChangesAcrossSubswath.append( bool_from_string( par_item.find('ChangesAcrossSubswath').text ) )
+            ChangesAcrossAzimuth.append( bool_from_string( par_item.find('ChangesAcrossAzimuth').text ) )
+        
+        limits = min_max( min_limit, max_limit )
+        formula_parameters_struct = formula_parameters(
+            name,
+            save_as_map,
+            limits,
+            FixedToInitValue,
+            ChangesAcrossSamples,
+            ChangesAcrossForestClass,
+            ChangesAcrossStack,
+            ChangesAcrossGlobalCycle,
+            ChangesAcrossHeading,
+            ChangesAcrossSwath,
+            ChangesAcrossSubswath,
+            ChangesAcrossAzimuth,
+        )  
+    
+        name = []
+        is_required = []
+        source_path = []
+        source_stack_id = []
+        source_file_id = []
+        source_band = []
+        min_range = []
+        max_range = []
+        transform = []
+        averaging_method = []
+        for obs_item in formula_observables_Item.findall('obs'):
+            
+            name.append( obs_item.find('name').text )
+            is_required.append( bool_from_string( obs_item.find('is_required').text ) )
+            source_path.append( obs_item.find('source_path').text )
+            source_stack_id.append( int( obs_item.find('source_path').attrib['stack_id'] ) )
+            source_file_id.append( int( obs_item.find('source_path').attrib['file_id'] ) )
+            source_band.append( int( obs_item.find('source_path').attrib['band'] ) )
+            min_range.append( float(obs_item.find('ranges').find('min').text) )
+            max_range.append( float(obs_item.find('ranges').find('max').text) )
+            transform.append( obs_item.find('transform').text )
+            averaging_method.append( obs_item.find('averaging_method').text )
+            
+        source_struct = source(
+            source_path,
+            source_stack_id,
+            source_file_id,
+            source_band,
+         )  
+        ranges = min_max( min_range, max_range )
+        formula_observables_struct = formula_observables(
+            name,
+            is_required,
+            source_struct,
+            ranges,
+            transform,
+            averaging_method,
+        )
+        
+        residual_function_struct = residual_function(
+            formula,
+            formula_parameters_struct,
+            formula_observables_struct,
+        )
+        
         number_of_tests = float(chain_field_Item.find('number_of_tests').text)
         intermediate_ground_averaging = float(
             chain_field_Item.find('intermediate_ground_averaging').text
@@ -1008,155 +1146,15 @@ def parse_chains_configuration_file(configuration_file_xml):
         min_number_of_cals_per_test = int(chain_field_Item.find('min_number_of_cals_per_test').text)
         min_number_of_rois_per_test = int(chain_field_Item.find('min_number_of_rois_per_test').text)
 
-        model_parameter_Item = chain_field_Item.find('ModelParameters')
-
-        parameter_ranges_Item = model_parameter_Item.find('parameter_ranges')
-        agb_model_scaling_limits = [
-            float(parameter_ranges_Item.find('agb_model_scaling').find('min').text),
-            float(parameter_ranges_Item.find('agb_model_scaling').find('max').text),
-        ]
-        agb_model_exponent_limits = [
-            float(parameter_ranges_Item.find('agb_model_exponent').find('min').text),
-            float(parameter_ranges_Item.find('agb_model_exponent').find('max').text),
-        ]
-        agb_cosine_exponent_limits = [
-            float(parameter_ranges_Item.find('agb_cosine_exponent').find('min').text),
-            float(parameter_ranges_Item.find('agb_cosine_exponent').find('max').text),
-        ]
-        agb_estimation_limits = [
-            float(parameter_ranges_Item.find('agb_estimation').find('min').text),
-            float(parameter_ranges_Item.find('agb_estimation').find('max').text),
-        ]
-
-        changes_across_pol_Item = model_parameter_Item.find('ChangesAcrossPolarisation')
-        agb_model_scaling = bool_from_string(changes_across_pol_Item.find('agb_model_scaling').text)
-        agb_model_exponent = bool_from_string(
-            changes_across_pol_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_pol_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_pol = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        changes_across_stacks_Item = model_parameter_Item.find('ChangesAcrossStack')
-        agb_model_scaling = bool_from_string(
-            changes_across_stacks_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_stacks_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_stacks_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_stacks = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        changes_across_global_cycle_Item = model_parameter_Item.find('ChangesAcrossGlobalCycle')
-        agb_model_scaling = bool_from_string(
-            changes_across_global_cycle_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_global_cycle_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_global_cycle_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_global_cycle = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        changes_across_heading_Item = model_parameter_Item.find('ChangesAcrossHeading')
-        agb_model_scaling = bool_from_string(
-            changes_across_heading_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_heading_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_heading_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_heading = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        changes_across_swath_Item = model_parameter_Item.find('ChangesAcrossSwath')
-        agb_model_scaling = bool_from_string(
-            changes_across_swath_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_swath_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_swath_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_swath = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        changes_across_sub_swath_Item = model_parameter_Item.find('ChangesAcrossSubswath')
-        agb_model_scaling = bool_from_string(
-            changes_across_sub_swath_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_sub_swath_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_sub_swath_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_subswath = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        changes_across_azimuth_Item = model_parameter_Item.find('ChangesAcrossAzimuth')
-        agb_model_scaling = bool_from_string(
-            changes_across_azimuth_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_azimuth_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_azimuth_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_azimuth = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        agb_model_scaling = bool_from_string(
-            changes_across_stacks_Item.find('agb_model_scaling').text
-        )
-        agb_model_exponent = bool_from_string(
-            changes_across_stacks_Item.find('agb_model_exponent').text
-        )
-        agb_cosine_exponent = bool_from_string(
-            changes_across_stacks_Item.find('agb_cosine_exponent').text
-        )
-        changes_across_stacks = triplet_params(
-            agb_model_scaling, agb_model_exponent, agb_cosine_exponent
-        )
-
-        estimation_valid_values_limits = [
-            float(chain_field_Item.find('EstimationValidValuesLimits').find('min').text),
-            float(chain_field_Item.find('EstimationValidValuesLimits').find('max').text),
-        ]
-
-        model_parameters = agb_model_params(
-            agb_model_scaling_limits,
-            agb_model_exponent_limits,
-            agb_cosine_exponent_limits,
-            agb_estimation_limits,
-            changes_across_pol,
-            changes_across_stacks,
-            changes_across_global_cycle,
-            changes_across_heading,
-            changes_across_swath,
-            changes_across_subswath,
-            changes_across_azimuth,
-        )
+        estimation_min_value = float(chain_field_Item.find('EstimationValidValuesLimits').find('min').text),
+        estimation_max_value = float(chain_field_Item.find('EstimationValidValuesLimits').find('max').text)
+        estimation_valid_values_limits = min_max(
+            estimation_min_value, 
+            estimation_max_value,
+            )
 
         AGB = agb_est_params(
+            residual_function_struct,
             number_of_tests,
             fraction_of_roi_per_test,
             fraction_of_cal_per_test,
@@ -1170,7 +1168,6 @@ def parse_chains_configuration_file(configuration_file_xml):
             min_number_of_rois_per_stack,
             min_number_of_cals_per_test,
             min_number_of_rois_per_test,
-            model_parameters,
             estimation_valid_values_limits,
         )
 
