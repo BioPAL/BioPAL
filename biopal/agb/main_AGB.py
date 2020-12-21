@@ -1,3 +1,7 @@
+# this path is temporary:
+from pathlib import Path
+path_aux = Path( 'C:/bio/aux_for_agb_dev' )
+      
 # import libraries
 import os
 import numpy as np
@@ -1077,23 +1081,24 @@ class CoreProcessingAGB(Task):
                             file_sources.append([os.path.join(current_path2,current_file),0])
                 stack_sources.append(file_sources)
             observable_sources.append(stack_sources)
+    
         for current_observable_idx in range(4):
             file_sources = []
             for current_file in self.lut_cal_paths:
                 file_sources.append([current_file,current_observable_idx])
             observable_sources.append([file_sources])
         observable_sources = observable_sources+[
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_AF050M_E045N048T3.tif',0]]],
-            [[[r'C:\Users\macie\Documents\BioPAL-1\new_data\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif',0]]],
+            [[[ str( path_aux.joinpath('lope_lidar','lidar_chm','EQUI7_AF050M','E045N048T3','lidar_chm_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_fh','BIOMASS_L2_20201118T123101','TOMO_FH','Products','global_FH','EQUI7_AF050M','E045N048T3','FH_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','theta','EQUI7_AF050M','E045N048T3','theta_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('lope_lidar','lidar_agb','EQUI7_AF050M','E045N048T3','lidar_AGB_AF050M_E045N048T3.tif')),0]]],
+            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','theta','EQUI7_AF050M','E045N048T3','theta_AF050M_E045N048T3.tif')),0]]],
             ]
         
         

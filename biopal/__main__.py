@@ -1,7 +1,22 @@
+"""biopal processor
+
+Usage:
+  biopal [--conf=CONFFOLDER] INPUTFILEXML
+  
+Arguments:
+  INPUTFILEXML       Path of the xml input file
+  
+Options:
+  --conf=CONFFOLDER  Set the directory containing the xml configuration files
+  -h --help          Show this screen
+  --version          Show version
+"""
+
 import os
+import pkg_resources
 import logging
 import collections
-from shutil import copyfile
+from shutil import copyfile, which
 from shapely.geometry import MultiPoint
 from biopal.utility.utility_functions import (
     check_if_path_exists,
@@ -28,11 +43,11 @@ try:
 except:
     pass
 try:
-    from biopal.fh.main_FH import main_FH
+    from biopal.fh.main_FH import ForestHeight
 except:
     pass
 try:
-    from biopal.tomo_fh.main_TOMO_FH import main_TOMO_FH
+    from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
 except:
     pass
 try:
@@ -49,24 +64,51 @@ except:
 # 1) Sets enviriment and logging, parses the main input
 # 2) Chooses data to be processed
 # 3) Launches each activated chain
-def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
+def biomassL2_processor_run(input_file_xml, conf_folder=None):
 
-    default_configuration_folder = os.path.join(INSTALLATION_FOLDER, 'conf')
-    check_if_path_exists(default_configuration_folder, 'FOLDER')
+    if conf_folder is None:
+        biopal_configuration_file_xml = pkg_resources.resource_filename(
+            'biopal', 'conf/biopal_configuration.xml')
+        configuration_file_AGB = pkg_resources.resource_filename(
+            'biopal', 'conf/ConfigurationFile_AGB.xml')
+        configuration_file_FH = pkg_resources.resource_filename(
+            'biopal', 'conf/ConfigurationFile_FH.xml')
+        configuration_file_TOMO_FH = pkg_resources.resource_filename(
+            'biopal', 'conf/ConfigurationFile_TOMO_FH.xml')
+    else:
+        default_configuration_folder = conf_folder
+        check_if_path_exists(default_configuration_folder, 'FOLDER')
 
-    biopal_configuration_file_xml = os.path.join(
-        default_configuration_folder, 'biopal_configuration.xml'
-    )
-
+        biopal_configuration_file_xml = os.path.join(
+            default_configuration_folder, 'biopal_configuration.xml'
+        )
+        configuration_file_AGB = os.path.join(
+            default_configuration_folder, 'ConfigurationFile_AGB.xml')
+        configuration_file_FH = os.path.join(
+            default_configuration_folder, 'ConfigurationFile_FH.xml')
+        configuration_file_TOMO_FH = os.path.join(
+            default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml')
+    
     gdal_path, gdal_environment_path = parse_biopal_configuration_file(
         biopal_configuration_file_xml
     )
+    if gdal_path is None:
+        gdal_info_path = which('gdalinfo')
+        if not gdal_info_path:
+            raise RuntimeError('Missing gdalinfo executable')
+        gdal_path = os.path.dirname(gdal_info_path)
+        
+    if gdal_environment_path is None:
+        gdal_environment_path = os.environ.get('GDAL_DATA')
+        if not gdal_environment_path:
+            raise RuntimeError('Missing GDAL_DATA environment variable')
+    else:
+        # Set the enviroment
+        os.environ['GDAL_DATA'] = gdal_environment_path
 
+         
     print('gdal_path ' + gdal_path)
     print('gdal_environment_path ' + gdal_environment_path)
-    # Set the enviroment
-    if gdal_environment_path:
-        os.environ['GDAL_DATA'] = gdal_environment_path
 
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
@@ -84,7 +126,7 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
     # start the main logging
     log_file_name = start_logging(output_folder, main_input_struct.proc_flags, 'DEBUG')
 
-    logging.debug('Installation   folder is {}'.format(INSTALLATION_FOLDER))
+    logging.debug('Configuration   folder is {}'.format(conf_folder))
     logging.info(' Auxiliary data folder is {}'.format(main_input_struct.L1c_aux_data_repository))
     logging.info('Results will be saved into output folder {}'.format(output_folder))
 
@@ -131,77 +173,39 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
         stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition)
 
     # AGB
-    agb_obj = AboveGroundBiomass(
-        os.path.join(default_configuration_folder, 'ConfigurationFile_AGB.xml'),
-        geographic_boundaries,
-        geographic_boundaries_per_stack,
-        gdal_path,
-    )
+    if main_input_struct.proc_flags.AGB:
 
-    agb_obj.run(AGB_input_file_xml)
+        agb_obj = AboveGroundBiomass(
+            configuration_file_AGB,
+            geographic_boundaries,
+            geographic_boundaries_per_stack,
+            gdal_path,
+        )
 
-    # FD
-    try:
-        if main_input_struct.proc_flags.FD:
-            configuration_file_xml = os.path.join(
-                default_configuration_folder, 'ConfigurationFile_FD.xml'
-            )
-            main_FD(FD_input_file_xml, configuration_file_xml, geographic_boundaries, gdal_path)
-
-    except Exception as e:
-        logging.error('biopal main: FD chain not implemented in this BioPAL version')
-        raise
+        agb_obj.run(AGB_input_file_xml)
 
     # FH
-    try:
-        if main_input_struct.proc_flags.FH:
+    if main_input_struct.proc_flags.FH:
 
-            configuration_file_xml = os.path.join(
-                default_configuration_folder, 'ConfigurationFile_FH.xml'
-            )
-            main_FH(
-                FH_input_file_xml,
-                configuration_file_xml,
-                stacks_to_merge_dict,
-                geographic_boundaries,
-                gdal_path,
-            )
+        fh_obj = ForestHeight(
+            configuration_file_FH,
+            geographic_boundaries,
+            stacks_to_merge_dict,
+            gdal_path,
+        )
 
-    except Exception as e:
-        logging.error('biopal main: FH chain not implemented in this BioPAL version')
-        raise
+        fh_obj.run(FH_input_file_xml)
 
     # TOMO FH
-    try:
-        if main_input_struct.proc_flags.TOMO_FH:
+    if main_input_struct.proc_flags.TOMO_FH:
 
-            configuration_file_xml = os.path.join(
-                default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml'
-            )
-            main_TOMO_FH(
-                TOMO_FH_input_file_xml,
-                configuration_file_xml,
-                stacks_to_merge_dict,
-                geographic_boundaries,
-                gdal_path,
-            )
+        tomo_fh_obj = TomoForestHeight(
+            configuration_file_TOMO_FH,
+            stacks_to_merge_dict,
+            gdal_path,
+        )
 
-    except Exception as e:
-        logging.error('biopal main: TOMO FH chain not implemented in this BioPAL version')
-        raise
-
-    # TOMO
-    try:
-        if main_input_struct.proc_flags.TOMO:
-            configuration_file_xml = os.path.join(
-                default_configuration_folder, 'ConfigurationFile_TOMO.xml'
-            )
-
-            main_TOMO_CUBE(TOMO_input_file_xml, configuration_file_xml, gdal_path)
-
-    except Exception as e:
-        logging.error('biopal main: TOMO chain not implemented in this BioPAL version')
-        raise
+        tomo_fh_obj.run(TOMO_FH_input_file_xml)
 
     logging.info('All outputs have been saved into: ' + output_folder + '\n')
     logging.info('BIOMASS L2 Processor ended: see the above log messages for more info.')
@@ -211,57 +215,28 @@ def biomassL2_processor_main(input_file_xml, INSTALLATION_FOLDER):
         log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'AGB', 'biomassL2.log')
         copyfile(log_file_name, log_file_name_new)
 
-        conf_file_name_curr = os.path.join(
-            default_configuration_folder, 'ConfigurationFile_AGB.xml'
-        )
         conf_file_name_new = os.path.join(
             os.path.dirname(log_file_name), 'AGB', 'ConfigurationFile.xml'
         )
-        copyfile(conf_file_name_curr, conf_file_name_new)
-
-    if main_input_struct.proc_flags.FD:
-        log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'FD', 'biomassL2.log')
-        copyfile(log_file_name, log_file_name_new)
-
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_FD.xml')
-        conf_file_name_new = os.path.join(
-            os.path.dirname(log_file_name), 'FD', 'ConfigurationFile.xml'
-        )
-        copyfile(conf_file_name_curr, conf_file_name_new)
+        copyfile(configuration_file_AGB, conf_file_name_new)
 
     if main_input_struct.proc_flags.FH:
         log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'FH', 'biomassL2.log')
         copyfile(log_file_name, log_file_name_new)
 
-        conf_file_name_curr = os.path.join(default_configuration_folder, 'ConfigurationFile_FH.xml')
         conf_file_name_new = os.path.join(
             os.path.dirname(log_file_name), 'FH', 'ConfigurationFile.xml'
         )
-        copyfile(conf_file_name_curr, conf_file_name_new)
+        copyfile(configuration_file_FH, conf_file_name_new)
 
     if main_input_struct.proc_flags.TOMO_FH:
         log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'TOMO_FH', 'biomassL2.log')
         copyfile(log_file_name, log_file_name_new)
 
-        conf_file_name_curr = os.path.join(
-            default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml'
-        )
         conf_file_name_new = os.path.join(
             os.path.dirname(log_file_name), 'TOMO_FH', 'ConfigurationFile.xml'
         )
-        copyfile(conf_file_name_curr, conf_file_name_new)
-
-    if main_input_struct.proc_flags.TOMO:
-        log_file_name_new = os.path.join(os.path.dirname(log_file_name), 'TOMO', 'biomassL2.log')
-        copyfile(log_file_name, log_file_name_new)
-
-        conf_file_name_curr = os.path.join(
-            default_configuration_folder, 'ConfigurationFile_TOMO.xml'
-        )
-        conf_file_name_new = os.path.join(
-            os.path.dirname(log_file_name), 'TOMO', 'ConfigurationFile.xml'
-        )
-        copyfile(conf_file_name_curr, conf_file_name_new)
+        copyfile(configuration_file_TOMO_FH, conf_file_name_new)
 
     return True
 
@@ -927,13 +902,17 @@ def collect_stacks_to_be_merged(stack_composition):
     return stacks_to_merge_dict
 
 
-if __name__ == '__main__':
-
-    # INSTALLATION_FOLDER is the folder containing "conf" subfolder
-    biopal_folder = os.path.dirname(os.path.realpath(__file__))
+def main():
+    from docopt import docopt    
+    args = docopt(__doc__, version='0.0.1')
 
     # Input file:
-    input_file_xml = os.path.join(os.path.dirname(biopal_folder), 'inputs', 'Input_File.xml')
-
+    input_file_xml = args["INPUTFILEXML"]
+    conf_folder = args["--conf"] 
+    
     # run processor:
-    biomassL2_processor_main(input_file_xml, biopal_folder)
+    biomassL2_processor_run(input_file_xml, conf_folder)
+    
+if __name__ == '__main__':
+    main()
+    
