@@ -890,7 +890,7 @@ class CoreProcessingAGB(Task):
     # %%
     def _run(self, input_file_xml):
 
-        # status update and reading xml files
+        # AGB: Reading chains configuration files
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
