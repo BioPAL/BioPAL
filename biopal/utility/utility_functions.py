@@ -27,18 +27,18 @@ class Task:
 
     def run(self, input_file_xml):
 
-        try:
+        #try:
 
-            logging.info('Starting {}'.format(self.name()))
-            output = self._run(input_file_xml)
-            logging.info('Finished {}'.format(self.name()))
+        logging.info('Starting {}'.format(self.name()))
+        output = self._run(input_file_xml)
+        logging.info('Finished {}'.format(self.name()))
 
-            return output
+        return output
 
-        except Exception as e:
-            error_msg = 'biopal error inside {}: {}'.format(self.name(), e)
-            logging.error(error_msg, exc_info=True)
-            raise RuntimeError(error_msg)
+        # except Exception as e:
+        #     error_msg = 'biopal error inside {}: {}'.format(self.name(), e)
+        #     logging.error(error_msg, exc_info=True)
+        #     raise RuntimeError(error_msg)
 
 
 def get_data_time_stamp(folder, pf_name):

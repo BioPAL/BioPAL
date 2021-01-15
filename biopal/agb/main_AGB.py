@@ -149,8 +149,8 @@ class StackBasedProcessingAGB(Task):
 
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
         proc_inputs = parse_chains_input_file(input_file_xml)
+        proc_conf = parse_chains_configuration_file(self.configuration_file_xml, proc_inputs.output_folder)
 
         ### managing output folders:
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
@@ -893,8 +893,8 @@ class CoreProcessingAGB(Task):
         # AGB: Reading chains configuration files
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
         proc_inputs = parse_chains_input_file(input_file_xml)
+        proc_conf = parse_chains_configuration_file(self.configuration_file_xml, proc_inputs.output_folder)
 
         # setting up directories and making sure that preprocessing has been run
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
@@ -925,9 +925,8 @@ class CoreProcessingAGB(Task):
         
         
         '''
-        
-        
-        
+        from biopal.io.xml_io_old import parse_chains_configuration_file as parse_chains_configuration_file_old
+        proc_conf_TEMP = parse_chains_configuration_file_old(r"C:\ARESYS_PROJ\BioPAL\biopal\conf\ConfigurationFile_AGB_OLD.xml")
         # read and initialize all the parameters needed for the inversion
         (
             _,
@@ -957,50 +956,85 @@ class CoreProcessingAGB(Task):
             self.equi7_sampling_intermediate,
             proc_inputs.geographic_grid_sampling,
             self.geographic_boundaries,
-            proc_conf.AGB,
-        )
-        
+            proc_conf_TEMP.AGB,
+        )     
 
         #### Residual function defined as a list of function strings
         # (move this out of this code and into the xml file)
         
-        formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db',
-                                'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db',
-                                'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db']
+        # formula = ['l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db',
+        #                         'l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db',
+        #                         'l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db']
         
-        # experimental: testing the use of tomosar products
-        formula = ['l_hh + a_hh * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/cos_tomo2_theta)) + neg_cov_hh_30_db',
-                'l_hv + a_hv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/cos_tomo2_theta)) + neg_cov_hv_30_db',
-                'l_vv + a_vv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/cos_tomo2_theta)) + neg_cov_vv_30_db']
-        
-        
+        # # experimental: testing the use of tomosar products
+        # formula = ['l_hh + a_hh * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/cos_tomo2_theta)) + neg_cov_hh_30_db',
+        #         'l_hv + a_hv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/cos_tomo2_theta)) + neg_cov_hv_30_db',
+        #         'l_vv + a_vv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/cos_tomo2_theta)) + neg_cov_vv_30_db']
         
         
-        
+        #### Residual function defined as a list of function strings
+        formula = proc_conf.AGB.residual_function.formula
         
         #### parameter names matching the unknown elements in the formula
+        parameter_names = proc_conf.AGB.residual_function.formula_parameters.name
+        
+        #### parameter limits
+        parameter_limits = proc_conf.AGB.residual_function.formula_parameters.limits
+        
+        #### flag indicating whether the parameters should be saved as a map
+        parameter_save_as_map = proc_conf.AGB.residual_function.formula_parameters.save_as_map
+        
+        #### parameter variabilities 
+        #  Defined over eight different dimensions (in this particular order):
+        #   spatial - between samples
+        #   forest class - between forest classes
+        #   stack - between stacks, independent from where they come (equivalent to flagging all remaining flags)
+        #   global cycle - between stacks if they come from different global cycle (equivalent to temporal of multiple months)
+        #   heading - between stacks if they come from different headings
+        #   swath - between stacks if they come from different 150-km swaths (equivalent to temporal of several weeks)
+        #   subswath - between stacks if they come from different 50-km subswaths (equivalent to temporal of several days)
+        #   azimuth - betwen stacks if they come from different 150-km images overlapping in azimuth (equivalent to temporal of a few seconds)
+        number_of_parameters = len(proc_conf.AGB.residual_function.formula_parameters.name)
+
+        parameter_variabilities = []
+        for parameter_index in np.arange(number_of_parameters):
+            parameter_variabilities.append(
+            np.array([proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossSamples[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossForestClass[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossStack[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossGlobalCycle[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossHeading[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossSwath[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossSubswath[parameter_index],
+                     proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossAzimuth[parameter_index]
+                     ]
+                     )
+            )
+
+                        
+        #### parameter names matching the unknown elements in the formula
         #   these are the elements of the formula that will be estimated
-        parameter_names = ['l_hh','l_hv','l_vv',
-                           'a_hh','a_hv','a_vv',
-                           'n_hh','n_hv','n_vv',
-                           'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
-                           'k_hh','k_hv','k_vv']
+        # parameter_names = ['l_hh','l_hv','l_vv',
+        #                    'a_hh','a_hv','a_vv',
+        #                    'n_hh','n_hv','n_vv',
+        #                    'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
+        #                    'k_hh','k_hv','k_vv']
         
         
         #### parameter limits
         # for now, simply re-organise existing input
-        parameter_limits = [parameter_limits_l,parameter_limits_l,parameter_limits_l,
-                            parameter_limits_a,parameter_limits_a,parameter_limits_a,
-                            parameter_limits_n,parameter_limits_n,parameter_limits_n,
-                            parameter_limits_w,[0,10],[0,10],[0,10],
-                            [0,30*0.033],[0,30*0.033],[0,30*0.033]]
+        # parameter_limits = [parameter_limits_l,parameter_limits_l,parameter_limits_l,
+        #                     parameter_limits_a,parameter_limits_a,parameter_limits_a,
+        #                     parameter_limits_n,parameter_limits_n,parameter_limits_n,
+        #                     parameter_limits_w,[0,10],[0,10],[0,10],
+        #                     [0,30*0.033],[0,30*0.033],[0,30*0.033]]
         
         #### flag indicating whether the parameters should be saved as a map
-        parameter_save_as_map = [False,False,False,
-                                 False,False,False,
-                                 False,False,False,
-                                 True,True,True,True,
-                                 False,False,False]
+        # parameter_save_as_map = [False,False,False,
+        #                          False,False,False,
+        #                          False,False,False,
+        #                          True,True,True,True,
+        #                          False,False,False]
         
         #### parameter variabilities 
         #  Defined over eight different dimensions (in this particular order):
@@ -1013,31 +1047,50 @@ class CoreProcessingAGB(Task):
         #   subswath - between stacks if they come from different 50-km subswaths (equivalent to temporal of several days)
         #   azimuth - betwen stacks if they come from different 150-km images overlapping in azimuth (equivalent to temporal of a few seconds)
         # for now, simply re-organise existing input
-        parameter_variabilities_orig = np.column_stack((np.ones((3,2))==0,np.array(parameter_variabilities_orig)[:,1:]))
-        parameter_variabilities_orig = parameter_variabilities_orig[np.array([0,0,0,1,1,1,2,2,2]),:]
-        parameter_variabilities = []
-        for parameter_variability in parameter_variabilities_orig:
-            parameter_variabilities.append(parameter_variability)
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
-        parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
-        
-        
-        
-        
+        # parameter_variabilities_orig = np.column_stack((np.ones((3,2))==0,np.array(parameter_variabilities_orig)[:,1:]))
+        # parameter_variabilities_orig = parameter_variabilities_orig[np.array([0,0,0,1,1,1,2,2,2]),:]
+        # parameter_variabilities = []
+        # for parameter_variability in parameter_variabilities_orig:
+        #     parameter_variabilities.append(parameter_variability)
+        # parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        # parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        # parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        # parameter_variabilities.append(np.array([True,False,False,False,False,False,False,False]))
+        # parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
+        # parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
+        # parameter_variabilities.append(np.array([False,False,False,False,False,False,False,False]))
         
         #### Names for all elements of the formula that will be read from disk
-        observable_names = ['neg_sigma0_hh_db','neg_sigma0_hv_db','neg_sigma0_vv_db',
-                            'cos_local_db',
-                            'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
-                            'lidar_h_db','tomo_h',
-                            'neg_cov_hh_30_db','neg_cov_hv_30_db','neg_cov_vv_30_db',
-                            'neg_cov_hh_40_db','neg_cov_hv_40_db','neg_cov_vv_40_db',
-                            'cos_tomo_theta_db','ref_lidar_agb_db','cos_tomo2_theta']
+        observable_names = proc_conf.AGB.residual_function.formula_observables.name
+        
+        #### flag indicating whether these observables are compulsory
+        # if so, samples without this observable are rejected
+        # (order of elements must match that in observable_names)
+        observable_is_required = proc_conf.AGB.residual_function.formula_observables.is_required
+        
+        #### list with sources for observable data
+        observable_sources = proc_conf.AGB.residual_function.formula_observables.source
+        
+        #### permissible intervals for source data (before transformation)
+        observable_ranges = proc_conf.AGB.residual_function.formula_observables.ranges
+        
+        #### data transforms (here: tags indicating one of predefined functions)
+        observable_transforms = proc_conf.AGB.residual_function.formula_observables.transform
+        
+        ### averaging method within current sampling area and stack
+        #   although oftentimes 'mean' is used, this may not always be the case 
+        #   e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) 
+        #   is a better averaging method as it is not as susceptible to 2pi ambiguities
+        observable_averaging_methods = proc_conf.AGB.residual_function.formula_observables.averaging_method
+       
+        #### Names for all elements of the formula that will be read from disk
+        # observable_names = ['neg_sigma0_hh_db','neg_sigma0_hv_db','neg_sigma0_vv_db',
+        #                     'cos_local_db',
+        #                     'agb_1_db','agb_2_db','agb_3_db','agb_4_db',
+        #                     'lidar_h_db','tomo_h',
+        #                     'neg_cov_hh_30_db','neg_cov_hv_30_db','neg_cov_vv_30_db',
+        #                     'neg_cov_hh_40_db','neg_cov_hv_40_db','neg_cov_vv_40_db',
+        #                     'cos_tomo_theta_db','ref_lidar_agb_db','cos_tomo2_theta']
         # note that agb is special: it is defined as both "observable" and "parameter", so it will be 
         # both read from external data and estimated 
         
@@ -1046,13 +1099,13 @@ class CoreProcessingAGB(Task):
         #### flag indicating whether these observables are compulsory
         # if so, samples without this observable are rejected
         # (order of elements must match that in observable_names)
-        observable_is_required = [True,True,True,
-                                  True,
-                                  False,False,False,False,
-                                  True,True,
-                                  True,True,True,
-                                  True,True,True,
-                                  True,True,True]
+        # observable_is_required = [True,True,True,
+        #                           True,
+        #                           False,False,False,False,
+        #                           True,True,
+        #                           True,True,True,
+        #                           True,True,True,
+        #                           True,True,True]
         
         #### list with sources for observable data
         # this part connects the observables to actual data
@@ -1067,74 +1120,74 @@ class CoreProcessingAGB(Task):
         #     source_x = [tiff_file_path,band_id]
         
         # for now, simply re-organise existing input
-        observable_sources = []
-        for current_observable in ['sigma0_hh','sigma0_vh','sigma0_vv','theta']:
-            stack_sources = []
-            for current_stack in range(len(self.lut_stacks_paths)):
-                file_sources = []
-                current_path =  os.path.join(self.lut_stacks_paths[current_stack], current_observable) 
-                for current_grid in os.listdir(current_path):
-                    current_path1 = os.path.join(current_path,current_grid)
-                    for current_tile in os.listdir(current_path1):
-                        current_path2 = os.path.join(current_path1,current_tile)
-                        for current_file in os.listdir(current_path2):
-                            file_sources.append([os.path.join(current_path2,current_file),0])
-                stack_sources.append(file_sources)
-            observable_sources.append(stack_sources)
+        # observable_sources = []
+        # for current_observable in ['sigma0_hh','sigma0_vh','sigma0_vv','theta']:
+        #     stack_sources = []
+        #     for current_stack in range(len(self.lut_stacks_paths)):
+        #         file_sources = []
+        #         current_path =  os.path.join(self.lut_stacks_paths[current_stack], current_observable) 
+        #         for current_grid in os.listdir(current_path):
+        #             current_path1 = os.path.join(current_path,current_grid)
+        #             for current_tile in os.listdir(current_path1):
+        #                 current_path2 = os.path.join(current_path1,current_tile)
+        #                 for current_file in os.listdir(current_path2):
+        #                     file_sources.append([os.path.join(current_path2,current_file),0])
+        #         stack_sources.append(file_sources)
+        #     observable_sources.append(stack_sources)
     
-        for current_observable_idx in range(4):
-            file_sources = []
-            for current_file in self.lut_cal_paths:
-                file_sources.append([current_file,current_observable_idx])
-            observable_sources.append([file_sources])
-        observable_sources = observable_sources+[
-            [[[ str( path_aux.joinpath('lope_lidar','lidar_chm','EQUI7_AF050M','E045N048T3','lidar_chm_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_fh','BIOMASS_L2_20201118T123101','TOMO_FH','Products','global_FH','EQUI7_AF050M','E045N048T3','FH_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','theta','EQUI7_AF050M','E045N048T3','theta_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('lope_lidar','lidar_agb','EQUI7_AF050M','E045N048T3','lidar_AGB_AF050M_E045N048T3.tif')),0]]],
-            [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','theta','EQUI7_AF050M','E045N048T3','theta_AF050M_E045N048T3.tif')),0]]],
-            ]
+        # for current_observable_idx in range(4):
+        #     file_sources = []
+        #     for current_file in self.lut_cal_paths:
+        #         file_sources.append([current_file,current_observable_idx])
+        #     observable_sources.append([file_sources])
+        # observable_sources = observable_sources+[
+        #     [[[ str( path_aux.joinpath('lope_lidar','lidar_chm','EQUI7_AF050M','E045N048T3','lidar_chm_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_fh','BIOMASS_L2_20201118T123101','TOMO_FH','Products','global_FH','EQUI7_AF050M','E045N048T3','FH_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_30_m','EQUI7_AF050M','E045N048T3','cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','slice_40_m','EQUI7_AF050M','E045N048T3','cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','theta','EQUI7_AF050M','E045N048T3','theta_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('lope_lidar','lidar_agb','EQUI7_AF050M','E045N048T3','lidar_AGB_AF050M_E045N048T3.tif')),0]]],
+        #     [[[ str( path_aux.joinpath('out_tomo_GGS_50m_RES_200m','theta','EQUI7_AF050M','E045N048T3','theta_AF050M_E045N048T3.tif')),0]]],
+        #     ]
         
         
         
-        #### permissible intervals for source data (before transformation)
-        observable_ranges = [[1e-8,20],[1e-8,20],[1e-8,20],
-                             [20*np.pi/180,60*np.pi/180],
-                             [1,700],[0,10],[0,10],[0,10],
-                             [0.1,100],[0.1,100],
-                             [1e-8,20],[1e-8,20],[1e-8,20],
-                             [1e-8,20],[1e-8,20],[1e-8,20],
-                             [20*np.pi/180,60*np.pi/180],
-                             [1,700],
-                             [20*np.pi/180,60*np.pi/180]]
+        # #### permissible intervals for source data (before transformation)
+        # observable_ranges = [[1e-8,20],[1e-8,20],[1e-8,20],
+        #                      [20*np.pi/180,60*np.pi/180],
+        #                      [1,700],[0,10],[0,10],[0,10],
+        #                      [0.1,100],[0.1,100],
+        #                      [1e-8,20],[1e-8,20],[1e-8,20],
+        #                      [1e-8,20],[1e-8,20],[1e-8,20],
+        #                      [20*np.pi/180,60*np.pi/180],
+        #                      [1,700],
+        #                      [20*np.pi/180,60*np.pi/180]]
         
-        #### data transforms (here: tags indicating one of predefined functions)
-        observable_transforms = ['-db','-2db','-db',
-                                 'cosdb',
-                                 'db','none','none','none',
-                                 'db','none',
-                                 '-db','-2db','-db',
-                                 '-db','-2db','-db',
-                                 'cosdb',
-                                 'db','cos']
+        # #### data transforms (here: tags indicating one of predefined functions)
+        # observable_transforms = ['-db','-2db','-db',
+        #                          'cosdb',
+        #                          'db','none','none','none',
+        #                          'db','none',
+        #                          '-db','-2db','-db',
+        #                          '-db','-2db','-db',
+        #                          'cosdb',
+        #                          'db','cos']
         
-        ### averaging method within current sampling area and stack
-        #   although oftentimes 'mean' is used, this may not always be the case 
-        #   e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) 
-        #   is a better averaging method as it is not as susceptible to 2pi ambiguities
-        observable_averaging_methods = ['mean','mean','mean',
-                                        'mean',
-                                        'mean','mean','mean','mean',
-                                        'mean','mean',
-                                        'mean','mean','mean',
-                                        'mean','mean','mean',
-                                        'mean','mean','mean'] 
+        # ### averaging method within current sampling area and stack
+        # #   although oftentimes 'mean' is used, this may not always be the case 
+        # #   e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v))) 
+        # #   is a better averaging method as it is not as susceptible to 2pi ambiguities
+        # observable_averaging_methods = ['mean','mean','mean',
+        #                                 'mean',
+        #                                 'mean','mean','mean','mean',
+        #                                 'mean','mean',
+        #                                 'mean','mean','mean',
+        #                                 'mean','mean','mean',
+        #                                 'mean','mean','mean'] 
         
         
         
