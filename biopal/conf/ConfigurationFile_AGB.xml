@@ -20,7 +20,7 @@
 						<max>0</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -37,7 +37,7 @@
 						<max>0</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -54,7 +54,7 @@
 						<max>0</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -71,7 +71,7 @@
 						<max>1.9</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -88,7 +88,7 @@
 						<max>1.9</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -105,7 +105,7 @@
 						<max>1.9</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -122,7 +122,7 @@
 						<max>3</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -139,7 +139,7 @@
 						<max>3</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -156,7 +156,7 @@
 						<max>3</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -241,7 +241,7 @@
 						<max>0.99</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -258,7 +258,7 @@
 						<max>0.99</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -275,7 +275,7 @@
 						<max>0.99</max>
 					</limits>
 					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
 					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
@@ -289,7 +289,18 @@
 				<obs>
 					<name>neg_sigma0_hh_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_hh\EQUI7_AF050M\E045N048T3\sigma0_hh_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_hh\EQUI7_AF050M\E045N048T3\sigma0_hh_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -300,7 +311,18 @@
 				<obs>
 					<name>neg_sigma0_hv_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vh\EQUI7_AF050M\E045N048T3\sigma0_vh_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vh\EQUI7_AF050M\E045N048T3\sigma0_vh_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -311,7 +333,18 @@
 				<obs>
 					<name>neg_sigma0_vv_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vv\EQUI7_AF050M\E045N048T3\sigma0_vv_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vv\EQUI7_AF050M\E045N048T3\sigma0_vv_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -322,7 +355,18 @@
 				<obs>
 					<name>cos_local_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\theta\EQUI7_AF050M\E045N048T3\theta_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\theta\EQUI7_AF050M\E045N048T3\theta_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='Deg'>
 						<min>20</min>
 						<max>60</max>
@@ -333,7 +377,13 @@
 				<obs>
 					<name>agb_1_db</name>
 					<is_required>False</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='t/ha'>
 						<min>1</min>
 						<max>700</max>
@@ -344,7 +394,13 @@
 				<obs>
 					<name>agb_2_db</name>
 					<is_required>False</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="1">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -355,7 +411,13 @@
 				<obs>
 					<name>agb_3_db</name>
 					<is_required>False</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="2">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -366,7 +428,13 @@
 				<obs>
 					<name>agb_4_db</name>
 					<is_required>False</is_required>
-					<source_path stack_id="1" file_id="1" band="1"></source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="3">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -377,7 +445,13 @@
 				<obs>
 					<name>lidar_h_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='m'>
 						<min>0.1</min>
 						<max>100</max>
@@ -388,7 +462,13 @@
 				<obs>
 					<name>tomo_h</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='m'>
 						<min>0.1</min>
 						<max>100</max>
@@ -399,7 +479,13 @@
 				<obs>
 					<name>neg_cov_hh_30_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -410,7 +496,13 @@
 				<obs>
 					<name>neg_cov_hv_30_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -421,7 +513,13 @@
 				<obs>
 					<name>neg_cov_vv_30_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -432,7 +530,13 @@
 				<obs>
 					<name>neg_cov_hh_40_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -443,7 +547,13 @@
 				<obs>
 					<name>neg_cov_hv_40_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -454,7 +564,13 @@
 				<obs>
 					<name>neg_cov_vv_40_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -465,7 +581,13 @@
 				<obs>
 					<name>cos_tomo_theta_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='Deg'>
 						<min>20</min>
 						<max>60</max>
@@ -476,7 +598,13 @@
 				<obs>
 					<name>ref_lidar_agb_db</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='t/ha'>
 						<min>1</min>
 						<max>700</max>
@@ -487,7 +615,13 @@
 				<obs>
 					<name>cos_tomo2_theta</name>
 					<is_required>True</is_required>
-					<source_path stack_id="1" file_id="1" band="1">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif</source_path>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
 					<ranges unit='Deg'>
 						<min>20</min>
 						<max>60</max>
@@ -511,8 +645,8 @@
 		<min_number_of_cals_per_test>2</min_number_of_cals_per_test>
 		<min_number_of_rois_per_test>1</min_number_of_rois_per_test>
 		<EstimationValidValuesLimits>
-			<min unit='t/ha'>1</min>
-			<max unit='t/ha'>1000</max>
+			<min unit="t/ha">1</min>
+			<max unit="t/ha">1000</max>
 		</EstimationValidValuesLimits>
 	</EstimateAGB>
 	<EnableResampling>False</EnableResampling>
