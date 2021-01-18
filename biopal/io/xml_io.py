@@ -150,6 +150,7 @@ formula_parameters = namedtuple(
     'name \
      save_as_map \
      limits \
+     units \
      FixedToInitValue \
      ChangesAcrossSamples \
      ChangesAcrossForestClass \
@@ -166,6 +167,7 @@ formula_observables = namedtuple(
     'name \
      is_required \
      source \
+     units \
      ranges \
      transform \
      averaging_method',
@@ -422,7 +424,7 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
             save_as_map.text = str( par_struct.save_as_map[index] )
             
             limits = SubElement(par, 'limits')
-            limits.set('unit', 'dB')
+            limits.set('unit', par_struct.units[index])
             min_item = SubElement(limits, 'min')
             min_item.text = str( par_struct.limits[index][0])
             max_item = SubElement(limits, 'max')
@@ -457,57 +459,56 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
         
         
         formula_observables = SubElement(residual_function, 'formula_observables')
-        number_of_observables = len(configuration_params.AGB.residual_function.formula_observables.name)
         obs_struct = configuration_params.AGB.residual_function.formula_observables
-        for index in np.arange(number_of_observables):
-            
+        # obs_struct.source composition:
+        # obs_struct.source[index_obs][index_stack][index_file][index_layer]
+        # and each layer has two fields: path and layer id
+        # path = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
+        # layer_id = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
+        number_of_observables = len(obs_struct.source)
+        for index_obs in np.arange(number_of_observables):
+            source_curr = obs_struct.source[index_obs]
             obs = SubElement(formula_observables, 'obs')
             
             name = SubElement(obs, 'name')
-            name.text = obs_struct.name[index]
+            name.text = obs_struct.name[index_obs]
             
             is_required = SubElement(obs, 'is_required')
-            is_required.text = str( obs_struct.is_required[index] )
+            is_required.text = str( obs_struct.is_required[index_obs] )
             
             source_paths = SubElement(obs, 'source_paths')
-            number_of_stacks = len(obs_struct.source)
+            number_of_stacks = len(source_curr)
             for index_stack in np.arange( number_of_stacks) :
+                stack_curr = obs_struct.source[index_obs][index_stack]
                 
                 stack = SubElement(source_paths, 'stack')
-                stack_struct = obs_struct.source[index_stack]
-                number_of_files = len(stack_struct)
-                
+                number_of_files = len(stack_curr)
                 for index_file in np.arange( number_of_files ):
+                    file_curr = obs_struct.source[index_obs][index_stack][index_file]
                     
                     file = SubElement(stack, 'file')
-                    file_struct = stack_struct[index_file]
-                    number_of_layers = len(file_struct)
-                    
+                    number_of_layers = len(file_curr)
                     for index_layer in np.arange( number_of_layers ):
+                        layer_curr = obs_struct.source[index_obs][index_stack][index_file][index_layer]
                         
                         layer = SubElement(file, 'layer')
-                        layer_struct = file_struct[index_layer]
                         
-                        layer.text = layer_struct[0]
-                        layer.set( 'layer_id', str( layer_struct[1] ))
+                        layer.text = layer_curr[0]
+                        layer.set( 'layer_id', str( layer_curr[1] ))
                        
-                    
-                    
-                    
-                
-            
-            
             ranges = SubElement(obs, 'ranges')
+            if not obs_struct.units[index_obs] == '':
+                ranges.set('unit', obs_struct.units[index_obs] )
             min_item = SubElement(ranges, 'min')
-            min_item.text = str( obs_struct.ranges[index][0])
+            min_item.text = str( obs_struct.ranges[index_obs][0])
             max_item = SubElement(ranges, 'max')
-            max_item.text = str( obs_struct.ranges[index][1])
+            max_item.text = str( obs_struct.ranges[index_obs][1])
             
             transform = SubElement(obs, 'transform')
-            transform.text = str( obs_struct.transform[index] )
-            
+            transform.text = str( obs_struct.transform[index_obs] )
+
             averaging_method = SubElement(obs, 'averaging_method')
-            averaging_method.text = str( obs_struct.averaging_method[index] )
+            averaging_method.text = str( obs_struct.averaging_method[index_obs] )
             
             
         number_of_tests = SubElement(Estimate_elem, 'number_of_tests')
@@ -1166,6 +1167,7 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
         name = []
         save_as_map = []
         limits = []
+        units_par = []
         FixedToInitValue = []
         ChangesAcrossSamples = []
         ChangesAcrossForestClass = []
@@ -1181,6 +1183,7 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
             save_as_map.append( bool_from_string( par_item.find('save_as_map').text ) )
             min_limit = float(par_item.find('limits').find('min').text)
             max_limit = float(par_item.find('limits').find('max').text)
+            units_par.append( par_item.find('limits').attrib['unit'])
             limits.append( [min_limit, max_limit] )
             FixedToInitValue.append( bool_from_string( par_item.find('FixedToInitValue').text ) )
             ChangesAcrossSamples.append( bool_from_string( par_item.find('ChangesAcrossSamples').text ) )
@@ -1196,6 +1199,7 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
             name,
             save_as_map,
             limits,
+            units_par,
             FixedToInitValue,
             ChangesAcrossSamples,
             ChangesAcrossForestClass,
@@ -1209,7 +1213,9 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
     
         name = []
         is_required = []
-        observables_sources = [] # contains one sub list for each observable
+        observables_sources = [] # contains one sub list for each observable:
+        # observables_sourcesobs_struct.source[index_obs][index_stack][index_file][index_layer]
+        units_obs = []
         ranges = []
         transform = []
         averaging_method = []
@@ -1219,6 +1225,10 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
             is_required.append( bool_from_string( obs_item.find('is_required').text ) )
             min_range = float(obs_item.find('ranges').find('min').text)
             max_range = float(obs_item.find('ranges').find('max').text)
+            if obs_item.find('ranges').attrib == {}:
+                units_obs.append('')
+            else:
+                units_obs.append( obs_item.find('ranges').attrib['unit'] )
             ranges.append( [min_range, max_range] )
             transform.append( obs_item.find('transform').text )
             averaging_method.append( obs_item.find('averaging_method').text )
@@ -1230,12 +1240,15 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
 
                 curr_stack_files = []
                 for file_item in stack_item.findall('file'): 
+                    
+                    curr_file_layers = []
                     for layer_item in file_item.findall('layer'):  
                         
                         layer_path = os.path.join( os.path.dirname(output_folder), layer_item.text )
                         layer_id = int( layer_item.attrib['layer_id'])
-                        curr_stack_files.append( [layer_path , layer_id]) 
-                        
+                        curr_file_layers.append( [layer_path , layer_id]) 
+                    
+                    curr_stack_files.append(curr_file_layers)      
                 curr_obs_stacks.append(curr_stack_files) 
             observables_sources.append(curr_obs_stacks)      
                 
@@ -1243,6 +1256,7 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
             name,
             is_required,
             observables_sources,
+            units_obs,
             ranges,
             transform,
             averaging_method,
