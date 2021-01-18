@@ -7,9 +7,9 @@
 	<EstimateAGB>
 		<residual_function>
 			<formula>
-				<row>l_hh + a_hh * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hh*tomo_h/cos_tomo2_theta)) + neg_cov_hh_30_db</row>
-				<row>l_hv + a_hv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_hv*tomo_h/cos_tomo2_theta)) + neg_cov_hv_30_db</row>
-				<row>l_vv + a_vv * agb_1_db + cos_tomo_theta_db + 10*np.log10(1-np.exp(-k_vv*tomo_h/cos_tomo2_theta)) + neg_cov_vv_30_db</row>
+				<row>l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db</row>
+				<row>l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db</row>
+				<row>l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db</row>
 			</formula>
 			<formula_parameters>
 				<par>
@@ -233,73 +233,12 @@
 					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
 					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
 				</par>
-				<par>
-					<name>k_hh</name>
-					<save_as_map>False</save_as_map>
-					<limits unit="dB">
-						<min>0</min>
-						<max>0.99</max>
-					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
-				</par>
-				<par>
-					<name>k_hv</name>
-					<save_as_map>False</save_as_map>
-					<limits unit="dB">
-						<min>0</min>
-						<max>0.99</max>
-					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
-				</par>
-				<par>
-					<name>k_vv</name>
-					<save_as_map>False</save_as_map>
-					<limits unit="dB">
-						<min>0</min>
-						<max>0.99</max>
-					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
-				</par>
 			</formula_parameters>
 			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
 				<obs>
 					<name>neg_sigma0_hh_db</name>
 					<is_required>True</is_required>
 					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_hh\EQUI7_AF050M\E045N048T3\sigma0_hh_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_hh\EQUI7_AF050M\E045N048T3\sigma0_hh_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
 					</source_paths>
 					<ranges>
 						<min>1e-8</min>
@@ -312,16 +251,6 @@
 					<name>neg_sigma0_hv_db</name>
 					<is_required>True</is_required>
 					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vh\EQUI7_AF050M\E045N048T3\sigma0_vh_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vh\EQUI7_AF050M\E045N048T3\sigma0_vh_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
 					</source_paths>
 					<ranges>
 						<min>1e-8</min>
@@ -334,16 +263,6 @@
 					<name>neg_sigma0_vv_db</name>
 					<is_required>True</is_required>
 					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vv\EQUI7_AF050M\E045N048T3\sigma0_vv_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vv\EQUI7_AF050M\E045N048T3\sigma0_vv_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
 					</source_paths>
 					<ranges>
 						<min>1e-8</min>
@@ -356,16 +275,6 @@
 					<name>cos_local_db</name>
 					<is_required>True</is_required>
 					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\theta\EQUI7_AF050M\E045N048T3\theta_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-						<stack>
-							<file>
-								<layer layer_id="0">AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\theta\EQUI7_AF050M\E045N048T3\theta_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
 					</source_paths>
 					<ranges unit='Deg'>
 						<min>20</min>
@@ -440,193 +349,6 @@
 						<max>10</max>
 					</ranges>
 					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>lidar_h_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges unit='m'>
-						<min>0.1</min>
-						<max>100</max>
-					</ranges>
-					<transform>db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>tomo_h</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges unit='m'>
-						<min>0.1</min>
-						<max>100</max>
-					</ranges>
-					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>neg_cov_hh_30_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_hh_30_m_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges>
-						<min>1e-8</min>
-						<max>20</max>
-					</ranges>
-					<transform>db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>neg_cov_hv_30_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges>
-						<min>1e-8</min>
-						<max>20</max>
-					</ranges>
-					<transform>-2db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>neg_cov_vv_30_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges>
-						<min>1e-8</min>
-						<max>20</max>
-					</ranges>
-					<transform>-db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>neg_cov_hh_40_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges>
-						<min>1e-8</min>
-						<max>20</max>
-					</ranges>
-					<transform>db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>neg_cov_hv_40_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges>
-						<min>1e-8</min>
-						<max>20</max>
-					</ranges>
-					<transform>-2db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>neg_cov_vv_40_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges>
-						<min>1e-8</min>
-						<max>20</max>
-					</ranges>
-					<transform>-db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>cos_tomo_theta_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges unit='Deg'>
-						<min>20</min>
-						<max>60</max>
-					</ranges>
-					<transform>cosdb</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>ref_lidar_agb_db</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges unit='t/ha'>
-						<min>1</min>
-						<max>700</max>
-					</ranges>
-					<transform>db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>cos_tomo2_theta</name>
-					<is_required>True</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
-					<ranges unit='Deg'>
-						<min>20</min>
-						<max>60</max>
-					</ranges>
-					<transform>cos</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 			</formula_observables>
