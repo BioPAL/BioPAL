@@ -62,8 +62,11 @@ from biopal.geocoding.geocoding import (
 )
 from biopal.io.xml_io import (
     parse_chains_input_file,
-    parse_chains_configuration_file,
+    parse_agb_configuration_file,
+    parse_coreprocessing_agb_configuration_file,
+    write_coreprocessing_agb_configuration_file,
 )
+
 from biopal.io.data_io import (
     tiff_formatter,
 )
@@ -111,13 +114,13 @@ class AboveGroundBiomass(Task):
         )
 
         # Run Main APP #1: Stack Based Processing
-        (lut_cal, lut_fnf, lut_stacks, equi7_initialization) = stack_based_processing_obj.run(
+        (coreprocessing_configuration_file_xml, lut_cal, lut_fnf, lut_stacks, equi7_initialization) = stack_based_processing_obj.run(
             input_file_xml
         )
 
         # Main APP #2: AGB Core Processing
         agb_processing_obj = CoreProcessingAGB(
-            self.configuration_file_xml,
+            coreprocessing_configuration_file_xml,
             self.geographic_boundaries,
             self.gdal_path,
             lut_cal,
@@ -150,7 +153,7 @@ class StackBasedProcessingAGB(Task):
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_inputs = parse_chains_input_file(input_file_xml)
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml, proc_inputs.output_folder)
+        proc_conf = parse_agb_configuration_file(self.configuration_file_xml)
 
         ### managing output folders:
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
@@ -829,7 +832,10 @@ class StackBasedProcessingAGB(Task):
         }
 
         ########################## END OF STACK BASED STEPS ######################
+        coreprocessing_configuration_file_xml = r"C:\ARESYS_PROJ\BioPAL\biopal\conf\ConfigurationFile_CoreProcessingAGB_Mio.xml"
+        
         return (
+            coreprocessing_configuration_file_xml,
             LookupTableAGB(paths=lut_cal_paths, boundaries=lut_cal, progressive=None),
             LookupTableAGB(paths=lut_fnf_paths, boundaries=lut_fnf, progressive=None),
             LookupTableAGB(
@@ -894,7 +900,7 @@ class CoreProcessingAGB(Task):
         logging.info('AGB: Reading chains configuration files')
         check_if_path_exists(self.configuration_file_xml, 'FILE')
         proc_inputs = parse_chains_input_file(input_file_xml)
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml, proc_inputs.output_folder)
+        proc_conf = parse_coreprocessing_agb_configuration_file(self.configuration_file_xml, proc_inputs.output_folder)
 
         # setting up directories and making sure that preprocessing has been run
         products_folder = os.path.join(proc_inputs.output_folder, 'Products')
@@ -925,8 +931,7 @@ class CoreProcessingAGB(Task):
         
         
         '''
-        from biopal.io.xml_io_old import parse_chains_configuration_file as parse_chains_configuration_file_old
-        proc_conf_TEMP = parse_chains_configuration_file_old(r"C:\ARESYS_PROJ\BioPAL\biopal\conf\ConfigurationFile_AGB_OLD.xml")
+        proc_conf = parse_coreprocessing_agb_configuration_file(self.configuration_file_xml)
         # read and initialize all the parameters needed for the inversion
         (
             _,
@@ -944,11 +949,6 @@ class CoreProcessingAGB(Task):
             block_spacing_north,
             block_size_east,
             block_size_north,
-            parameter_variabilities_orig,
-            parameter_limits_l,
-            parameter_limits_a,
-            parameter_limits_n,
-            parameter_limits_w,
             number_of_subsets,
             geographic_grid_sampling,
             sub_grid_string,
@@ -956,7 +956,7 @@ class CoreProcessingAGB(Task):
             self.equi7_sampling_intermediate,
             proc_inputs.geographic_grid_sampling,
             self.geographic_boundaries,
-            proc_conf_TEMP.AGB,
+            proc_conf.AGB,
         )     
 
         #### Residual function defined as a list of function strings
