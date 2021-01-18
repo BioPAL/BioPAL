@@ -1,9 +1,4 @@
-<ConfigurationL2AGB version="1.0">
-	<GroundCancellation>
-		<MultiMaster>True</MultiMaster><!--default True-->
-		<EnhancedForestHeight unit="m">50</EnhancedForestHeight>
-		<ModelBasedEqualization always_off="1" always_on="2" on_if_two_acquisitions="3">1</ModelBasedEqualization>
-	</GroundCancellation>
+<ConfigurationL2CoreProcessingAGB version="1.0">
 	<EstimateAGB>
 		<residual_function>
 			<formula>
@@ -425,11 +420,4 @@
 			<max unit="t/ha">1000</max>
 		</EstimationValidValuesLimits>
 	</EstimateAGB>
-	<EnableResampling>False</EnableResampling>
-	<ComputeGeometry>False</ComputeGeometry>
-	<ApplyCalibrationScreen>False</ApplyCalibrationScreen>
-	<DEMflattening>False</DEMflattening>
-	<MultilookHeadingCorrection>True</MultilookHeadingCorrection>
-	<SaveBreakpoints>True</SaveBreakpoints>
-	<DeleteTemporaryFiles>False</DeleteTemporaryFiles>
-</ConfigurationL2AGB>
+</ConfigurationL2CoreProcessingAGB>

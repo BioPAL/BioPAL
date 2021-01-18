@@ -374,28 +374,29 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
     if chain_id == 'AGB' or chain_id == 'FD':
 
         ground_canc_params = configuration_params.ground_cancellation
-        GroundCancellation = SubElement(ConfigurationL2_Item, 'GroundCancellation')
-        MultiMaster = SubElement(GroundCancellation, 'MultiMaster')
-        MultiMaster.text = str(ground_canc_params.multi_master_flag)
-        EnhancedForestHeight = SubElement(GroundCancellation, 'EnhancedForestHeight')
-        EnhancedForestHeight.text = str(ground_canc_params.enhanced_forest_height)
-        EnhancedForestHeight.set('unit', 'm')
-        ModelBasedEqualization = SubElement(GroundCancellation, 'ModelBasedEqualization')
-        ModelBasedEqualization.text = str(ground_canc_params.equalization_flag)
-        ModelBasedEqualization.set( 'always_off', '1')
-        ModelBasedEqualization.set( 'always_on', '2')
-        ModelBasedEqualization.set( 'on_if_two_acquisitions', '3')
+        if ground_canc_params:
+            GroundCancellation = SubElement(ConfigurationL2_Item, 'GroundCancellation')
+            MultiMaster = SubElement(GroundCancellation, 'MultiMaster')
+            MultiMaster.text = str(ground_canc_params.multi_master_flag)
+            EnhancedForestHeight = SubElement(GroundCancellation, 'EnhancedForestHeight')
+            EnhancedForestHeight.text = str(ground_canc_params.enhanced_forest_height)
+            EnhancedForestHeight.set('unit', 'm')
+            ModelBasedEqualization = SubElement(GroundCancellation, 'ModelBasedEqualization')
+            ModelBasedEqualization.text = str(ground_canc_params.equalization_flag)
+            ModelBasedEqualization.set( 'always_off', '1')
+            ModelBasedEqualization.set( 'always_on', '2')
+            ModelBasedEqualization.set( 'on_if_two_acquisitions', '3')
         
-        if (
-            not ModelBasedEqualization.text == '1'
-            and not ModelBasedEqualization.text == '2'
-            and not ModelBasedEqualization.text == '3'
-        ):
-            error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
-                ModelBasedEqualization.text
-            )
-            logging.error(error_str)
-            raise
+            if (
+                not ModelBasedEqualization.text == '1'
+                and not ModelBasedEqualization.text == '2'
+                and not ModelBasedEqualization.text == '3'
+            ):
+                error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
+                    ModelBasedEqualization.text
+                )
+                logging.error(error_str)
+                raise
 
     params_curr = getattr(configuration_params, chain_id)
 
@@ -403,112 +404,112 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
 
         Estimate_elem = SubElement(ConfigurationL2_Item, 'Estimate' + chain_id)
 
-        residual_function = SubElement(Estimate_elem, 'residual_function')
-        
-        formula = SubElement(residual_function, 'formula')
-        for raw_text in configuration_params.AGB.residual_function.formula:
-            row = SubElement(formula, 'row')
-            row.text = raw_text
-        
-        formula_parameters = SubElement(residual_function, 'formula_parameters')
-        number_of_parameters = len(configuration_params.AGB.residual_function.formula_parameters.name)
-        par_struct = configuration_params.AGB.residual_function.formula_parameters
-        for index in np.arange(number_of_parameters):
+        if configuration_params.AGB.residual_function:
+            residual_function = SubElement(Estimate_elem, 'residual_function')
+            formula = SubElement(residual_function, 'formula')
+            for raw_text in configuration_params.AGB.residual_function.formula:
+                row = SubElement(formula, 'row')
+                row.text = raw_text
             
-            par = SubElement(formula_parameters, 'par')
-            
-            name = SubElement(par, 'name')
-            name.text = par_struct.name[index]
-            
-            save_as_map = SubElement(par, 'save_as_map')
-            save_as_map.text = str( par_struct.save_as_map[index] )
-            
-            limits = SubElement(par, 'limits')
-            limits.set('unit', par_struct.units[index])
-            min_item = SubElement(limits, 'min')
-            min_item.text = str( par_struct.limits[index][0])
-            max_item = SubElement(limits, 'max')
-            max_item.text = str( par_struct.limits[index][1])
-            
-            FixedToInitValue = SubElement(par, 'FixedToInitValue')
-            FixedToInitValue.text = str( par_struct.FixedToInitValue[index] )
-            
-            ChangesAcrossSamples = SubElement(par, 'ChangesAcrossSamples')
-            ChangesAcrossSamples.text = str( par_struct.ChangesAcrossSamples[index] )
-            
-            ChangesAcrossForestClass = SubElement(par, 'ChangesAcrossForestClass')
-            ChangesAcrossForestClass.text = str( par_struct.ChangesAcrossForestClass[index] )
-            
-            ChangesAcrossStack = SubElement(par, 'ChangesAcrossStack')
-            ChangesAcrossStack.text = str( par_struct.ChangesAcrossStack[index] )
-            
-            ChangesAcrossGlobalCycle = SubElement(par, 'ChangesAcrossGlobalCycle')
-            ChangesAcrossGlobalCycle.text = str( par_struct.ChangesAcrossGlobalCycle[index] )
-            
-            ChangesAcrossHeading = SubElement(par, 'ChangesAcrossHeading')
-            ChangesAcrossHeading.text = str( par_struct.ChangesAcrossHeading[index] )
-            
-            ChangesAcrossSwath = SubElement(par, 'ChangesAcrossSwath')
-            ChangesAcrossSwath.text = str( par_struct.ChangesAcrossSwath[index] )
-            
-            ChangesAcrossSubswath = SubElement(par, 'ChangesAcrossSubswath')
-            ChangesAcrossSubswath.text = str( par_struct.ChangesAcrossSubswath[index] )
-            
-            ChangesAcrossAzimuth = SubElement(par, 'ChangesAcrossAzimuth')
-            ChangesAcrossAzimuth.text = str( par_struct.ChangesAcrossAzimuth[index] )
-        
-        
-        formula_observables = SubElement(residual_function, 'formula_observables')
-        obs_struct = configuration_params.AGB.residual_function.formula_observables
-        # obs_struct.source composition:
-        # obs_struct.source[index_obs][index_stack][index_file][index_layer]
-        # and each layer has two fields: path and layer id
-        # path = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
-        # layer_id = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
-        number_of_observables = len(obs_struct.source)
-        for index_obs in np.arange(number_of_observables):
-            source_curr = obs_struct.source[index_obs]
-            obs = SubElement(formula_observables, 'obs')
-            
-            name = SubElement(obs, 'name')
-            name.text = obs_struct.name[index_obs]
-            
-            is_required = SubElement(obs, 'is_required')
-            is_required.text = str( obs_struct.is_required[index_obs] )
-            
-            source_paths = SubElement(obs, 'source_paths')
-            number_of_stacks = len(source_curr)
-            for index_stack in np.arange( number_of_stacks) :
-                stack_curr = obs_struct.source[index_obs][index_stack]
+            formula_parameters = SubElement(residual_function, 'formula_parameters')
+            number_of_parameters = len(configuration_params.AGB.residual_function.formula_parameters.name)
+            par_struct = configuration_params.AGB.residual_function.formula_parameters
+            for index in np.arange(number_of_parameters):
                 
-                stack = SubElement(source_paths, 'stack')
-                number_of_files = len(stack_curr)
-                for index_file in np.arange( number_of_files ):
-                    file_curr = obs_struct.source[index_obs][index_stack][index_file]
-                    
-                    file = SubElement(stack, 'file')
-                    number_of_layers = len(file_curr)
-                    for index_layer in np.arange( number_of_layers ):
-                        layer_curr = obs_struct.source[index_obs][index_stack][index_file][index_layer]
-                        
-                        layer = SubElement(file, 'layer')
-                        
-                        layer.text = layer_curr[0]
-                        layer.set( 'layer_id', str( layer_curr[1] ))
-                       
-            ranges = SubElement(obs, 'ranges')
-            if not obs_struct.units[index_obs] == '':
-                ranges.set('unit', obs_struct.units[index_obs] )
-            min_item = SubElement(ranges, 'min')
-            min_item.text = str( obs_struct.ranges[index_obs][0])
-            max_item = SubElement(ranges, 'max')
-            max_item.text = str( obs_struct.ranges[index_obs][1])
+                par = SubElement(formula_parameters, 'par')
+                
+                name = SubElement(par, 'name')
+                name.text = par_struct.name[index]
+                
+                save_as_map = SubElement(par, 'save_as_map')
+                save_as_map.text = str( par_struct.save_as_map[index] )
+                
+                limits = SubElement(par, 'limits')
+                limits.set('unit', par_struct.units[index])
+                min_item = SubElement(limits, 'min')
+                min_item.text = str( par_struct.limits[index][0])
+                max_item = SubElement(limits, 'max')
+                max_item.text = str( par_struct.limits[index][1])
+                
+                FixedToInitValue = SubElement(par, 'FixedToInitValue')
+                FixedToInitValue.text = str( par_struct.FixedToInitValue[index] )
+                
+                ChangesAcrossSamples = SubElement(par, 'ChangesAcrossSamples')
+                ChangesAcrossSamples.text = str( par_struct.ChangesAcrossSamples[index] )
+                
+                ChangesAcrossForestClass = SubElement(par, 'ChangesAcrossForestClass')
+                ChangesAcrossForestClass.text = str( par_struct.ChangesAcrossForestClass[index] )
+                
+                ChangesAcrossStack = SubElement(par, 'ChangesAcrossStack')
+                ChangesAcrossStack.text = str( par_struct.ChangesAcrossStack[index] )
+                
+                ChangesAcrossGlobalCycle = SubElement(par, 'ChangesAcrossGlobalCycle')
+                ChangesAcrossGlobalCycle.text = str( par_struct.ChangesAcrossGlobalCycle[index] )
+                
+                ChangesAcrossHeading = SubElement(par, 'ChangesAcrossHeading')
+                ChangesAcrossHeading.text = str( par_struct.ChangesAcrossHeading[index] )
+                
+                ChangesAcrossSwath = SubElement(par, 'ChangesAcrossSwath')
+                ChangesAcrossSwath.text = str( par_struct.ChangesAcrossSwath[index] )
+                
+                ChangesAcrossSubswath = SubElement(par, 'ChangesAcrossSubswath')
+                ChangesAcrossSubswath.text = str( par_struct.ChangesAcrossSubswath[index] )
+                
+                ChangesAcrossAzimuth = SubElement(par, 'ChangesAcrossAzimuth')
+                ChangesAcrossAzimuth.text = str( par_struct.ChangesAcrossAzimuth[index] )
             
-            transform = SubElement(obs, 'transform')
-            transform.text = str( obs_struct.transform[index_obs] )
-
-            averaging_method = SubElement(obs, 'averaging_method')
-            averaging_method.text = str( obs_struct.averaging_method[index_obs] )
+            
+            formula_observables = SubElement(residual_function, 'formula_observables')
+            obs_struct = configuration_params.AGB.residual_function.formula_observables
+            # obs_struct.source composition:
+            # obs_struct.source[index_obs][index_stack][index_file][index_layer]
+            # and each layer has two fields: path and layer id
+            # path = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
+            # layer_id = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
+            number_of_observables = len(obs_struct.source)
+            for index_obs in np.arange(number_of_observables):
+                source_curr = obs_struct.source[index_obs]
+                obs = SubElement(formula_observables, 'obs')
+                
+                name = SubElement(obs, 'name')
+                name.text = obs_struct.name[index_obs]
+                
+                is_required = SubElement(obs, 'is_required')
+                is_required.text = str( obs_struct.is_required[index_obs] )
+                
+                source_paths = SubElement(obs, 'source_paths')
+                number_of_stacks = len(source_curr)
+                for index_stack in np.arange( number_of_stacks) :
+                    stack_curr = obs_struct.source[index_obs][index_stack]
+                    
+                    stack = SubElement(source_paths, 'stack')
+                    number_of_files = len(stack_curr)
+                    for index_file in np.arange( number_of_files ):
+                        file_curr = obs_struct.source[index_obs][index_stack][index_file]
+                        
+                        file = SubElement(stack, 'file')
+                        number_of_layers = len(file_curr)
+                        for index_layer in np.arange( number_of_layers ):
+                            layer_curr = obs_struct.source[index_obs][index_stack][index_file][index_layer]
+                            
+                            layer = SubElement(file, 'layer')
+                            
+                            layer.text = layer_curr[0]
+                            layer.set( 'layer_id', str( layer_curr[1] ))
+                           
+                ranges = SubElement(obs, 'ranges')
+                if not obs_struct.units[index_obs] == '':
+                    ranges.set('unit', obs_struct.units[index_obs] )
+                min_item = SubElement(ranges, 'min')
+                min_item.text = str( obs_struct.ranges[index_obs][0])
+                max_item = SubElement(ranges, 'max')
+                max_item.text = str( obs_struct.ranges[index_obs][1])
+                
+                transform = SubElement(obs, 'transform')
+                transform.text = str( obs_struct.transform[index_obs] )
+    
+                averaging_method = SubElement(obs, 'averaging_method')
+                averaging_method.text = str( obs_struct.averaging_method[index_obs] )
             
             
         number_of_tests = SubElement(Estimate_elem, 'number_of_tests')
@@ -662,6 +663,258 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
     tree.write(open(configuration_file_xml, 'w'), encoding='unicode')
 
 
+def write_agb_configuration_file(configuration_params, configuration_file_xml):
+    """Write the configuration file of the AGB chain"""
+
+    chain_id = configuration_params.chain_id
+    if not chain_id == 'AGB':
+        error_str = 'This is not an AGB configuration file'
+        logging.error(error_str)
+        
+    ConfigurationL2_Item = Element('ConfigurationL2' + chain_id)
+    ConfigurationL2_Item.set('version', _XML_VERSION)
+
+    ground_canc_params = configuration_params.ground_cancellation
+    ConfigurationL2_Item = write_ground_cancellation_core(ConfigurationL2_Item,ground_canc_params)
+
+    Estimate_elem = SubElement(ConfigurationL2_Item, 'EstimateAGB')
+    write_estimateagb_core(Estimate_elem, configuration_params)
+
+    enable_resampling = SubElement(ConfigurationL2_Item, 'EnableResampling')
+    enable_resampling.text = str(configuration_params.enable_resampling)
+    compute_geometry = SubElement(ConfigurationL2_Item, 'ComputeGeometry')
+    compute_geometry.text = str(configuration_params.compute_geometry)
+    apply_calibration_screen = SubElement(ConfigurationL2_Item, 'ApplyCalibrationScreen')
+    apply_calibration_screen.text = str(configuration_params.apply_calibration_screen)
+    DEM_flattening = SubElement(ConfigurationL2_Item, 'DEMflattening')
+    DEM_flattening.text = str(configuration_params.DEM_flattening)
+    multilook_heading_correction = SubElement(ConfigurationL2_Item, 'MultilookHeadingCorrection')
+    multilook_heading_correction.text = str(configuration_params.multilook_heading_correction)
+    save_breakpoints = SubElement(ConfigurationL2_Item, 'SaveBreakpoints')
+    save_breakpoints.text = str(configuration_params.save_breakpoints)
+    delete_temporary_files = SubElement(ConfigurationL2_Item, 'DeleteTemporaryFiles')
+    delete_temporary_files.text = str(configuration_params.delete_temporary_files)
+    
+    # write to file
+    ElementTree_indent(ConfigurationL2_Item)
+    tree = ElementTree(ConfigurationL2_Item)
+    tree.write(open(configuration_file_xml, 'w'), encoding='unicode')
+
+
+def write_coreprocessing_agb_configuration_file(configuration_params, configuration_file_xml):
+    """Write the configuration file of the Core Processing AGB APP"""
+
+    ConfigurationL2_Item = Element('ConfigurationL2CoreProcessingAGB')
+    ConfigurationL2_Item.set('version', _XML_VERSION)
+
+    Estimate_elem = SubElement(ConfigurationL2_Item, 'EstimateAGB')
+    write_estimateagb_core(Estimate_elem, configuration_params)    
+
+    # write to file
+    ElementTree_indent(ConfigurationL2_Item)
+    tree = ElementTree(ConfigurationL2_Item)
+    tree.write(open(configuration_file_xml, 'w'), encoding='unicode')
+    
+
+def write_ground_cancellation_core(ConfigurationL2_Item, ground_canc_params):
+    
+    GroundCancellation = SubElement(ConfigurationL2_Item, 'GroundCancellation')
+    MultiMaster = SubElement(GroundCancellation, 'MultiMaster')
+    MultiMaster.text = str(ground_canc_params.multi_master_flag)
+    EnhancedForestHeight = SubElement(GroundCancellation, 'EnhancedForestHeight')
+    EnhancedForestHeight.text = str(ground_canc_params.enhanced_forest_height)
+    EnhancedForestHeight.set('unit', 'm')
+    ModelBasedEqualization = SubElement(GroundCancellation, 'ModelBasedEqualization')
+    ModelBasedEqualization.text = str(ground_canc_params.equalization_flag)
+    ModelBasedEqualization.set( 'always_off', '1')
+    ModelBasedEqualization.set( 'always_on', '2')
+    ModelBasedEqualization.set( 'on_if_two_acquisitions', '3')
+
+    if (
+        not ModelBasedEqualization.text == '1'
+        and not ModelBasedEqualization.text == '2'
+        and not ModelBasedEqualization.text == '3'
+    ):
+        error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
+            ModelBasedEqualization.text
+        )
+        logging.error(error_str)
+        raise ValueError( error_str )
+    return ConfigurationL2_Item
+
+
+def write_estimateagb_core(Estimate_elem, configuration_params):
+       
+    params_curr = getattr(configuration_params, 'AGB')
+    
+    if params_curr.residual_function:
+        Estimate_elem = write_residual_function_core(Estimate_elem, configuration_params)
+
+    number_of_tests = SubElement(Estimate_elem, 'number_of_tests')
+    number_of_tests.text = str(params_curr.number_of_tests)
+    
+    fraction_of_roi_per_test = SubElement(Estimate_elem, 'fraction_of_roi_per_test')
+    fraction_of_roi_per_test.text = str(params_curr.fraction_of_roi_per_test)
+    
+    fraction_of_cal_per_test = SubElement(Estimate_elem, 'fraction_of_cal_per_test')
+    fraction_of_cal_per_test.text = str(params_curr.fraction_of_cal_per_test)
+    
+    add_variability_on_cal_data = SubElement(Estimate_elem, 'add_variability_on_cal_data')
+    add_variability_on_cal_data.text = str(params_curr.add_variability_on_cal_data)
+    
+    intermediate_ground_averaging = SubElement(Estimate_elem, 'intermediate_ground_averaging')
+    intermediate_ground_averaging.text = str(params_curr.intermediate_ground_averaging)
+    
+    product_resolution = SubElement(Estimate_elem, 'product_resolution')
+    product_resolution.text = str(params_curr.product_resolution)
+    product_resolution.set('unit', 'm')
+    
+    distance_sampling_area = SubElement(Estimate_elem, 'distance_sampling_area')
+    distance_sampling_area.text = str(params_curr.distance_sampling_area)
+    distance_sampling_area.set('unit', 'm')
+    
+    parameter_block_size = SubElement(Estimate_elem, 'parameter_block_size')
+    parameter_block_size.text = str(params_curr.parameter_block_size)
+    parameter_block_size.set('unit', 'm')
+    
+    distance_parameter_block = SubElement(Estimate_elem, 'distance_parameter_block')
+    distance_parameter_block.text = str(params_curr.distance_parameter_block)
+    distance_parameter_block.set('unit', 'm')
+    
+    min_number_of_rois = SubElement(Estimate_elem, 'min_number_of_rois')
+    min_number_of_rois.text = str(params_curr.min_number_of_rois)
+    
+    min_number_of_rois_per_stack = SubElement(Estimate_elem, 'min_number_of_rois_per_stack')
+    min_number_of_rois_per_stack.text = str(params_curr.min_number_of_rois_per_stack)
+    
+    min_number_of_cals_per_test = SubElement(Estimate_elem, 'min_number_of_cals_per_test')
+    min_number_of_cals_per_test.text = str(params_curr.min_number_of_cals_per_test)
+    
+    min_number_of_rois_per_test = SubElement(Estimate_elem, 'min_number_of_rois_per_test')
+    min_number_of_rois_per_test.text = str(params_curr.min_number_of_rois_per_test)
+    
+    estimation_valid_values_limits = SubElement(Estimate_elem, 'EstimationValidValuesLimits')
+    min_item = SubElement(estimation_valid_values_limits, 'min')
+    min_item.text = str(params_curr.estimation_valid_values_limits.min)
+    min_item.set('unit', 't/ha')
+    max_item = SubElement(estimation_valid_values_limits, 'max')
+    max_item.text = str(params_curr.estimation_valid_values_limits.max)
+    max_item.set('unit', 't/ha')
+
+    return Estimate_elem
+
+
+def write_residual_function_core(Estimate_elem, configuration_params):
+    
+    residual_function = SubElement(Estimate_elem, 'residual_function')
+    formula = SubElement(residual_function, 'formula')
+    for raw_text in configuration_params.AGB.residual_function.formula:
+        row = SubElement(formula, 'row')
+        row.text = raw_text
+    
+    formula_parameters = SubElement(residual_function, 'formula_parameters')
+    number_of_parameters = len(configuration_params.AGB.residual_function.formula_parameters.name)
+    par_struct = configuration_params.AGB.residual_function.formula_parameters
+    for index in np.arange(number_of_parameters):
+        
+        par = SubElement(formula_parameters, 'par')
+        
+        name = SubElement(par, 'name')
+        name.text = par_struct.name[index]
+        
+        save_as_map = SubElement(par, 'save_as_map')
+        save_as_map.text = str( par_struct.save_as_map[index] )
+        
+        limits = SubElement(par, 'limits')
+        limits.set('unit', par_struct.units[index])
+        min_item = SubElement(limits, 'min')
+        min_item.text = str( par_struct.limits[index][0])
+        max_item = SubElement(limits, 'max')
+        max_item.text = str( par_struct.limits[index][1])
+        
+        FixedToInitValue = SubElement(par, 'FixedToInitValue')
+        FixedToInitValue.text = str( par_struct.FixedToInitValue[index] )
+        
+        ChangesAcrossSamples = SubElement(par, 'ChangesAcrossSamples')
+        ChangesAcrossSamples.text = str( par_struct.ChangesAcrossSamples[index] )
+        
+        ChangesAcrossForestClass = SubElement(par, 'ChangesAcrossForestClass')
+        ChangesAcrossForestClass.text = str( par_struct.ChangesAcrossForestClass[index] )
+        
+        ChangesAcrossStack = SubElement(par, 'ChangesAcrossStack')
+        ChangesAcrossStack.text = str( par_struct.ChangesAcrossStack[index] )
+        
+        ChangesAcrossGlobalCycle = SubElement(par, 'ChangesAcrossGlobalCycle')
+        ChangesAcrossGlobalCycle.text = str( par_struct.ChangesAcrossGlobalCycle[index] )
+        
+        ChangesAcrossHeading = SubElement(par, 'ChangesAcrossHeading')
+        ChangesAcrossHeading.text = str( par_struct.ChangesAcrossHeading[index] )
+        
+        ChangesAcrossSwath = SubElement(par, 'ChangesAcrossSwath')
+        ChangesAcrossSwath.text = str( par_struct.ChangesAcrossSwath[index] )
+        
+        ChangesAcrossSubswath = SubElement(par, 'ChangesAcrossSubswath')
+        ChangesAcrossSubswath.text = str( par_struct.ChangesAcrossSubswath[index] )
+        
+        ChangesAcrossAzimuth = SubElement(par, 'ChangesAcrossAzimuth')
+        ChangesAcrossAzimuth.text = str( par_struct.ChangesAcrossAzimuth[index] )
+    
+    
+    formula_observables = SubElement(residual_function, 'formula_observables')
+    obs_struct = configuration_params.AGB.residual_function.formula_observables
+    # obs_struct.source composition:
+    # obs_struct.source[index_obs][index_stack][index_file][index_layer]
+    # and each layer has two fields: path and layer id
+    # path = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
+    # layer_id = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
+    number_of_observables = len(obs_struct.source)
+    for index_obs in np.arange(number_of_observables):
+        source_curr = obs_struct.source[index_obs]
+        obs = SubElement(formula_observables, 'obs')
+        
+        name = SubElement(obs, 'name')
+        name.text = obs_struct.name[index_obs]
+        
+        is_required = SubElement(obs, 'is_required')
+        is_required.text = str( obs_struct.is_required[index_obs] )
+        
+        source_paths = SubElement(obs, 'source_paths')
+        number_of_stacks = len(source_curr)
+        for index_stack in np.arange( number_of_stacks) :
+            stack_curr = obs_struct.source[index_obs][index_stack]
+            
+            stack = SubElement(source_paths, 'stack')
+            number_of_files = len(stack_curr)
+            for index_file in np.arange( number_of_files ):
+                file_curr = obs_struct.source[index_obs][index_stack][index_file]
+                
+                file = SubElement(stack, 'file')
+                number_of_layers = len(file_curr)
+                for index_layer in np.arange( number_of_layers ):
+                    layer_curr = obs_struct.source[index_obs][index_stack][index_file][index_layer]
+                    
+                    layer = SubElement(file, 'layer')
+                    
+                    layer.text = layer_curr[0]
+                    layer.set( 'layer_id', str( layer_curr[1] ))
+                   
+        ranges = SubElement(obs, 'ranges')
+        if not obs_struct.units[index_obs] == '':
+            ranges.set('unit', obs_struct.units[index_obs] )
+        min_item = SubElement(ranges, 'min')
+        min_item.text = str( obs_struct.ranges[index_obs][0])
+        max_item = SubElement(ranges, 'max')
+        max_item.text = str( obs_struct.ranges[index_obs][1])
+        
+        transform = SubElement(obs, 'transform')
+        transform.text = str( obs_struct.transform[index_obs] )
+
+        averaging_method = SubElement(obs, 'averaging_method')
+        averaging_method.text = str( obs_struct.averaging_method[index_obs] )
+       
+    return Estimate_elem
+
+        
 def write_fd_lookup_table(lookup_table_file_name_xml, table_type, lut_dict):
     """Write the lookup table for fd chain fnf and covariance  outputs"""
 
@@ -1074,11 +1327,14 @@ def parse_biopal_configuration_file(biopal_configuration_file_xml):
 
 
 def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
-    """Parse the chains configuration files for AGB, FD, FH, TOMO, TOMO_FH"""
+    """Parse the chains configuration files for FD, FH, TOMO, TOMO_FH"""
 
     tree = ET.parse(configuration_file_xml)
     root = tree.getroot()
     chain_id = root.tag[15:]
+    
+    if chain_id == 'AGB':
+        raise ValueError('Please, use the parse_agb_configuration_file and parse_coreprocessing_agb_configuration_file')
 
     # interpolate_stack
     if chain_id == 'TOMO':
@@ -1091,26 +1347,9 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
         interpolate_stack = None
 
     # ground_cancellation
-    if chain_id == 'AGB' or chain_id == 'FD':
-        GroundCancellation_Item = root.find('GroundCancellation')
-        multi_master_flag = bool_from_string(GroundCancellation_Item.find('MultiMaster').text)
-        enhanced_forest_height = float(GroundCancellation_Item.find('EnhancedForestHeight').text)
-        equalization_flag = GroundCancellation_Item.find('ModelBasedEqualization').text
-        if (
-            not equalization_flag == '1'
-            and not equalization_flag == '2'
-            and not equalization_flag == '3'
-        ):
-            error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
-                equalization_flag
-            )
-            logging.error(error_str)
-            raise
-        ground_cancellation = ground_canc_params(
-            multi_master_flag, enhanced_forest_height, equalization_flag
-        )
-    else:
-        ground_cancellation = None
+    ground_cancellation = None
+    if chain_id == 'FD':
+        ground_cancellation = parse_ground_cancellation_core(root)
 
     # vertical_range
     if chain_id == 'TOMO' or chain_id == 'TOMO_FH':
@@ -1121,7 +1360,7 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
         vertical_range = vertical_range_params(maximum_height, minimum_height, sampling)
     else:
         vertical_range = None
-
+        
     enable_resampling = bool_from_string(root.find('EnableResampling').text)
     compute_geometry = bool_from_string(root.find('ComputeGeometry').text)
     apply_calibration_screen = bool_from_string(root.find('ApplyCalibrationScreen').text)
@@ -1129,10 +1368,8 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
     multilook_heading_correction = bool_from_string(root.find('MultilookHeadingCorrection').text)
     save_breakpoints = bool_from_string(root.find('SaveBreakpoints').text)
     delete_temporary_files = bool_from_string(root.find('DeleteTemporaryFiles').text)
-
-    if chain_id == 'AGB':
-        chain_field_name = 'EstimateAGB'
-    elif chain_id == 'FD':
+  
+    if chain_id == 'FD':
         chain_field_name = 'ChangeDetection'
     elif chain_id == 'FH' or chain_id == 'TOMO_FH':
         chain_field_name = 'EstimateFH'
@@ -1143,8 +1380,6 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
 
     if chain_id == 'TOMO' or chain_id == 'TOMO_FH':
         product_resolution = float(root.find('ProductResolution').text)
-    elif chain_id == 'AGB':
-        product_resolution = float(chain_field_Item.find('product_resolution').text)
     else:
         product_resolution = float(chain_field_Item.find('ProductResolution').text)
 
@@ -1153,169 +1388,7 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
     FD = None
     TOMO_FH = None
     TOMO = None
-    if chain_id == 'AGB':
-
-        residual_function_Item = chain_field_Item.find('residual_function')
-        formula_Item = residual_function_Item.find('formula')
-        formula_parameters_Item = residual_function_Item.find('formula_parameters')
-        formula_observables_Item = residual_function_Item.find('formula_observables')
-        
-        formula = []
-        for row_item in formula_Item.findall('row'):
-            formula.append( row_item.text )
-        
-        name = []
-        save_as_map = []
-        limits = []
-        units_par = []
-        FixedToInitValue = []
-        ChangesAcrossSamples = []
-        ChangesAcrossForestClass = []
-        ChangesAcrossStack = []
-        ChangesAcrossGlobalCycle = []
-        ChangesAcrossHeading = []
-        ChangesAcrossSwath = []
-        ChangesAcrossSubswath = []
-        ChangesAcrossAzimuth = []
-        for par_item in formula_parameters_Item.findall('par'):
-            
-            name.append( par_item.find('name').text )
-            save_as_map.append( bool_from_string( par_item.find('save_as_map').text ) )
-            min_limit = float(par_item.find('limits').find('min').text)
-            max_limit = float(par_item.find('limits').find('max').text)
-            units_par.append( par_item.find('limits').attrib['unit'])
-            limits.append( [min_limit, max_limit] )
-            FixedToInitValue.append( bool_from_string( par_item.find('FixedToInitValue').text ) )
-            ChangesAcrossSamples.append( bool_from_string( par_item.find('ChangesAcrossSamples').text ) )
-            ChangesAcrossForestClass.append( bool_from_string( par_item.find('ChangesAcrossForestClass').text ) )
-            ChangesAcrossStack.append( bool_from_string( par_item.find('ChangesAcrossStack').text ) )
-            ChangesAcrossGlobalCycle.append( bool_from_string( par_item.find('ChangesAcrossGlobalCycle').text ) )
-            ChangesAcrossHeading.append( bool_from_string( par_item.find('ChangesAcrossHeading').text ) )
-            ChangesAcrossSwath.append( bool_from_string( par_item.find('ChangesAcrossSwath').text ) )
-            ChangesAcrossSubswath.append( bool_from_string( par_item.find('ChangesAcrossSubswath').text ) )
-            ChangesAcrossAzimuth.append( bool_from_string( par_item.find('ChangesAcrossAzimuth').text ) )
-        
-        formula_parameters_struct = formula_parameters(
-            name,
-            save_as_map,
-            limits,
-            units_par,
-            FixedToInitValue,
-            ChangesAcrossSamples,
-            ChangesAcrossForestClass,
-            ChangesAcrossStack,
-            ChangesAcrossGlobalCycle,
-            ChangesAcrossHeading,
-            ChangesAcrossSwath,
-            ChangesAcrossSubswath,
-            ChangesAcrossAzimuth,
-        )  
-    
-        name = []
-        is_required = []
-        observables_sources = [] # contains one sub list for each observable:
-        # observables_sourcesobs_struct.source[index_obs][index_stack][index_file][index_layer]
-        units_obs = []
-        ranges = []
-        transform = []
-        averaging_method = []
-        for obs_item in formula_observables_Item.findall('obs'):
-            
-            name.append( obs_item.find('name').text )
-            is_required.append( bool_from_string( obs_item.find('is_required').text ) )
-            min_range = float(obs_item.find('ranges').find('min').text)
-            max_range = float(obs_item.find('ranges').find('max').text)
-            if obs_item.find('ranges').attrib == {}:
-                units_obs.append('')
-            else:
-                units_obs.append( obs_item.find('ranges').attrib['unit'] )
-            ranges.append( [min_range, max_range] )
-            transform.append( obs_item.find('transform').text )
-            averaging_method.append( obs_item.find('averaging_method').text )
-            
-            source_item = obs_item.find('source_paths')
-  
-            curr_obs_stacks = []
-            for stack_item in source_item.findall('stack'):
-
-                curr_stack_files = []
-                for file_item in stack_item.findall('file'): 
-                    
-                    curr_file_layers = []
-                    for layer_item in file_item.findall('layer'):  
-                        
-                        layer_path = os.path.join( os.path.dirname(output_folder), layer_item.text )
-                        layer_id = int( layer_item.attrib['layer_id'])
-                        curr_file_layers.append( [layer_path , layer_id]) 
-                    
-                    curr_stack_files.append(curr_file_layers)      
-                curr_obs_stacks.append(curr_stack_files) 
-            observables_sources.append(curr_obs_stacks)      
-                
-        formula_observables_struct = formula_observables(
-            name,
-            is_required,
-            observables_sources,
-            units_obs,
-            ranges,
-            transform,
-            averaging_method,
-        )
-        
-        residual_function_struct = residual_function(
-            formula,
-            formula_parameters_struct,
-            formula_observables_struct,
-        )
-        
-        number_of_tests = float(chain_field_Item.find('number_of_tests').text)
-        intermediate_ground_averaging = float(
-            chain_field_Item.find('intermediate_ground_averaging').text
-        )
-
-        distance_sampling_area = float(chain_field_Item.find('distance_sampling_area').text)
-        fraction_of_roi_per_test = int(chain_field_Item.find('fraction_of_roi_per_test').text)
-        fraction_of_cal_per_test = int(chain_field_Item.find('fraction_of_cal_per_test').text)
-
-        add_variability_on_cal_data = bool_from_string(
-            chain_field_Item.find('add_variability_on_cal_data').text
-        )
-
-        parameter_block_size = float(chain_field_Item.find('parameter_block_size').text)
-        distance_parameter_block = float(chain_field_Item.find('distance_parameter_block').text)
-        min_number_of_rois = int(chain_field_Item.find('min_number_of_rois').text)
-        min_number_of_rois_per_stack = int(
-            chain_field_Item.find('min_number_of_rois_per_stack').text
-        )
-        min_number_of_cals_per_test = int(chain_field_Item.find('min_number_of_cals_per_test').text)
-        min_number_of_rois_per_test = int(chain_field_Item.find('min_number_of_rois_per_test').text)
-
-        estimation_min_value = float(chain_field_Item.find('EstimationValidValuesLimits').find('min').text)
-        estimation_max_value = float(chain_field_Item.find('EstimationValidValuesLimits').find('max').text)
-        estimation_valid_values_limits = min_max(
-            estimation_min_value, 
-            estimation_max_value,
-            )
-
-        AGB = agb_est_params(
-            residual_function_struct,
-            number_of_tests,
-            fraction_of_roi_per_test,
-            fraction_of_cal_per_test,
-            add_variability_on_cal_data,
-            intermediate_ground_averaging,
-            product_resolution,
-            distance_sampling_area,
-            parameter_block_size,
-            distance_parameter_block,
-            min_number_of_rois,
-            min_number_of_rois_per_stack,
-            min_number_of_cals_per_test,
-            min_number_of_rois_per_test,
-            estimation_valid_values_limits,
-        )
-
-    elif chain_id == 'FD':
+    if chain_id == 'FD':
 
         confidence_level = float(chain_field_Item.find('ConfidenceLevel').text)
         FD = FD_est_params(product_resolution, confidence_level)
@@ -1405,8 +1478,12 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
 
         TOMO = TOMO_est_params(product_resolution)
 
+    if 'AGB' in chain_id:
+        chain_id_final = 'AGB'
+    else:
+        chain_id_final = chain_id
     proc_config = configuration_params(
-        chain_id,
+        chain_id_final,
         interpolate_stack,
         ground_cancellation,
         vertical_range,
@@ -1427,6 +1504,305 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=''):
     return proc_config
 
 
+def parse_agb_configuration_file(configuration_file_xml):
+    "Parse the chains configuration files for AGB Processor (main APP)"
+
+    tree = ET.parse(configuration_file_xml)
+    root = tree.getroot()
+    chain_id = root.tag[15:]
+
+    if not chain_id == 'AGB':
+        error_str = 'This is not an AGB configuration file'
+        logging.error(error_str)
+        
+    interpolate_stack = None
+    vertical_range = None
+    
+    ground_cancellation = parse_ground_cancellation_core(root)
+  
+    chain_field_Item = root.find('EstimateAGB')
+
+    AGB = parse_estimateagb_core( chain_field_Item )
+
+    enable_resampling = bool_from_string(root.find('EnableResampling').text)
+    compute_geometry = bool_from_string(root.find('ComputeGeometry').text)
+    apply_calibration_screen = bool_from_string(root.find('ApplyCalibrationScreen').text)
+    DEM_flattening = bool_from_string(root.find('DEMflattening').text)
+    multilook_heading_correction = bool_from_string(root.find('MultilookHeadingCorrection').text)
+    save_breakpoints = bool_from_string(root.find('SaveBreakpoints').text)
+    delete_temporary_files = bool_from_string(root.find('DeleteTemporaryFiles').text)
+
+    proc_config = configuration_params(
+        chain_id,
+        interpolate_stack,
+        ground_cancellation,
+        vertical_range,
+        AGB,
+        None,
+        None,
+        None,
+        None,
+        enable_resampling,
+        compute_geometry,
+        apply_calibration_screen,
+        DEM_flattening,
+        multilook_heading_correction,
+        save_breakpoints,
+        delete_temporary_files,
+    )
+
+    return proc_config
+
+
+def parse_coreprocessing_agb_configuration_file(configuration_file_xml, output_folder=''):
+    "Parse the configuration files for CoreProcessingAGB APP"
+
+    tree = ET.parse(configuration_file_xml)
+    root = tree.getroot()
+    chain_id = root.tag[15:]
+
+    # interpolate_stack
+    if not chain_id == 'CoreProcessingAGB':
+        error_str = 'This is not a Core Processing AGB APP configuration file'
+        logging.error(error_str)
+        
+    interpolate_stack = None
+    vertical_range = None
+    enable_resampling = None
+    compute_geometry = None
+    apply_calibration_screen = None
+    DEM_flattening = None
+    multilook_heading_correction = None
+    save_breakpoints = None
+    delete_temporary_files = None
+    
+    ground_cancellation = parse_ground_cancellation_core(root)
+
+   
+    chain_field_Item = root.find('EstimateAGB')
+
+    AGB = parse_estimateagb_core( chain_field_Item, output_folder )
+
+    chain_id_final = 'AGB'
+    
+    proc_config = configuration_params(
+        chain_id_final,
+        interpolate_stack,
+        ground_cancellation,
+        vertical_range,
+        AGB,
+        None,
+        None,
+        None,
+        None,
+        enable_resampling,
+        compute_geometry,
+        apply_calibration_screen,
+        DEM_flattening,
+        multilook_heading_correction,
+        save_breakpoints,
+        delete_temporary_files,
+    )
+
+    return proc_config
+
+
+def parse_ground_cancellation_core(root):
+    ground_cancellation = None
+    GroundCancellation_Item = root.find('GroundCancellation')
+    if GroundCancellation_Item:
+        multi_master_flag = bool_from_string(GroundCancellation_Item.find('MultiMaster').text)
+        enhanced_forest_height = float(GroundCancellation_Item.find('EnhancedForestHeight').text)
+        equalization_flag = GroundCancellation_Item.find('ModelBasedEqualization').text
+        if (
+            not equalization_flag == '1'
+            and not equalization_flag == '2'
+            and not equalization_flag == '3'
+        ):
+            error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
+                equalization_flag
+            )
+            logging.error(error_str)
+            raise ValueError(error_str )
+        ground_cancellation = ground_canc_params(
+            multi_master_flag, enhanced_forest_height, equalization_flag
+        )
+    return ground_cancellation
+
+        
+def parse_estimateagb_core( chain_field_Item, output_folder='' ):
+    residual_function_struct = None
+    residual_function_Item = chain_field_Item.find('residual_function')
+    if residual_function_Item:
+        residual_function_struct = parse_agb_residual_function_core(residual_function_Item, output_folder)
+        
+    number_of_tests = float(chain_field_Item.find('number_of_tests').text)
+    intermediate_ground_averaging = float(
+        chain_field_Item.find('intermediate_ground_averaging').text
+    )
+
+    distance_sampling_area = float(chain_field_Item.find('distance_sampling_area').text)
+    fraction_of_roi_per_test = int(chain_field_Item.find('fraction_of_roi_per_test').text)
+    fraction_of_cal_per_test = int(chain_field_Item.find('fraction_of_cal_per_test').text)
+
+    add_variability_on_cal_data = bool_from_string(
+        chain_field_Item.find('add_variability_on_cal_data').text
+    )
+
+    parameter_block_size = float(chain_field_Item.find('parameter_block_size').text)
+    distance_parameter_block = float(chain_field_Item.find('distance_parameter_block').text)
+    min_number_of_rois = int(chain_field_Item.find('min_number_of_rois').text)
+    min_number_of_rois_per_stack = int(
+        chain_field_Item.find('min_number_of_rois_per_stack').text
+    )
+    min_number_of_cals_per_test = int(chain_field_Item.find('min_number_of_cals_per_test').text)
+    min_number_of_rois_per_test = int(chain_field_Item.find('min_number_of_rois_per_test').text)
+
+    estimation_min_value = float(chain_field_Item.find('EstimationValidValuesLimits').find('min').text)
+    estimation_max_value = float(chain_field_Item.find('EstimationValidValuesLimits').find('max').text)
+    estimation_valid_values_limits = min_max(
+        estimation_min_value, 
+        estimation_max_value,
+        )
+
+    product_resolution = float(chain_field_Item.find('product_resolution').text)
+    
+    AGB = agb_est_params(
+        residual_function_struct,
+        number_of_tests,
+        fraction_of_roi_per_test,
+        fraction_of_cal_per_test,
+        add_variability_on_cal_data,
+        intermediate_ground_averaging,
+        product_resolution,
+        distance_sampling_area,
+        parameter_block_size,
+        distance_parameter_block,
+        min_number_of_rois,
+        min_number_of_rois_per_stack,
+        min_number_of_cals_per_test,
+        min_number_of_rois_per_test,
+        estimation_valid_values_limits,
+    )
+    return AGB
+
+
+def parse_agb_residual_function_core(residual_function_Item, output_folder=''):
+
+    formula_Item = residual_function_Item.find('formula')
+    formula_parameters_Item = residual_function_Item.find('formula_parameters')
+    formula_observables_Item = residual_function_Item.find('formula_observables')
+    
+    formula = []
+    for row_item in formula_Item.findall('row'):
+        formula.append( row_item.text )
+    
+    name = []
+    save_as_map = []
+    limits = []
+    units_par = []
+    FixedToInitValue = []
+    ChangesAcrossSamples = []
+    ChangesAcrossForestClass = []
+    ChangesAcrossStack = []
+    ChangesAcrossGlobalCycle = []
+    ChangesAcrossHeading = []
+    ChangesAcrossSwath = []
+    ChangesAcrossSubswath = []
+    ChangesAcrossAzimuth = []
+    for par_item in formula_parameters_Item.findall('par'):
+        
+        name.append( par_item.find('name').text )
+        save_as_map.append( bool_from_string( par_item.find('save_as_map').text ) )
+        min_limit = float(par_item.find('limits').find('min').text)
+        max_limit = float(par_item.find('limits').find('max').text)
+        units_par.append( par_item.find('limits').attrib['unit'])
+        limits.append( [min_limit, max_limit] )
+        FixedToInitValue.append( bool_from_string( par_item.find('FixedToInitValue').text ) )
+        ChangesAcrossSamples.append( bool_from_string( par_item.find('ChangesAcrossSamples').text ) )
+        ChangesAcrossForestClass.append( bool_from_string( par_item.find('ChangesAcrossForestClass').text ) )
+        ChangesAcrossStack.append( bool_from_string( par_item.find('ChangesAcrossStack').text ) )
+        ChangesAcrossGlobalCycle.append( bool_from_string( par_item.find('ChangesAcrossGlobalCycle').text ) )
+        ChangesAcrossHeading.append( bool_from_string( par_item.find('ChangesAcrossHeading').text ) )
+        ChangesAcrossSwath.append( bool_from_string( par_item.find('ChangesAcrossSwath').text ) )
+        ChangesAcrossSubswath.append( bool_from_string( par_item.find('ChangesAcrossSubswath').text ) )
+        ChangesAcrossAzimuth.append( bool_from_string( par_item.find('ChangesAcrossAzimuth').text ) )
+    
+    formula_parameters_struct = formula_parameters(
+        name,
+        save_as_map,
+        limits,
+        units_par,
+        FixedToInitValue,
+        ChangesAcrossSamples,
+        ChangesAcrossForestClass,
+        ChangesAcrossStack,
+        ChangesAcrossGlobalCycle,
+        ChangesAcrossHeading,
+        ChangesAcrossSwath,
+        ChangesAcrossSubswath,
+        ChangesAcrossAzimuth,
+    )  
+
+    name = []
+    is_required = []
+    observables_sources = [] # contains one sub list for each observable:
+    # observables_sourcesobs_struct.source[index_obs][index_stack][index_file][index_layer]
+    units_obs = []
+    ranges = []
+    transform = []
+    averaging_method = []
+    for obs_item in formula_observables_Item.findall('obs'):
+        
+        name.append( obs_item.find('name').text )
+        is_required.append( bool_from_string( obs_item.find('is_required').text ) )
+        min_range = float(obs_item.find('ranges').find('min').text)
+        max_range = float(obs_item.find('ranges').find('max').text)
+        if obs_item.find('ranges').attrib == {}:
+            units_obs.append('')
+        else:
+            units_obs.append( obs_item.find('ranges').attrib['unit'] )
+        ranges.append( [min_range, max_range] )
+        transform.append( obs_item.find('transform').text )
+        averaging_method.append( obs_item.find('averaging_method').text )
+        
+        source_item = obs_item.find('source_paths')
+  
+        curr_obs_stacks = []
+        for stack_item in source_item.findall('stack'):
+
+            curr_stack_files = []
+            for file_item in stack_item.findall('file'): 
+                
+                curr_file_layers = []
+                for layer_item in file_item.findall('layer'):  
+                    
+                    layer_path =  os.path.join( os.path.dirname(output_folder), layer_item.text )
+                    layer_id = int( layer_item.attrib['layer_id'])
+                    curr_file_layers.append( [layer_path , layer_id]) 
+                
+                curr_stack_files.append(curr_file_layers)      
+            curr_obs_stacks.append(curr_stack_files) 
+        observables_sources.append(curr_obs_stacks)      
+            
+    formula_observables_struct = formula_observables(
+        name,
+        is_required,
+        observables_sources,
+        units_obs,
+        ranges,
+        transform,
+        averaging_method,
+    )
+
+    residual_function_struct = residual_function(
+        formula,
+        formula_parameters_struct,
+        formula_observables_struct,
+    )  
+    return residual_function_struct
+ 
+    
 def check_chains_input_file(proc_inputs):
 
     if not os.path.exists(proc_inputs.L1c_repository):
@@ -1528,72 +1904,6 @@ def check_chains_input_file(proc_inputs):
         )
         logging.error(error_message)
         raise RuntimeError(error_message)
-
-
-def parse_campaign_params_simple(campaign_params_file_xml, tag, campaign_tag):
-    """Parse the campaign params file xml"""
-    # Parse each campaign _param.xml file ---------------------------------------
-    tree = ET.parse(campaign_params_file_xml)
-    root = tree.getroot()
-
-    scene_node = root.find('Scenes')
-    carrierFrequency = float(scene_node.attrib['frequency']) * 1000000
-
-    temp = [
-        sc.attrib['pixel_spacing'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag
-    ]
-    pixel_spacing_slant_rg_m = float(temp[0])
-    del temp
-
-    if campaign_tag in ['tropisar']:
-        pixel_spacing_az_m = 1.245
-    elif campaign_tag in ['afrisar_onera']:
-        pixel_spacing_az_m = 1.2
-    elif campaign_tag in ['afrisar_dlr']:
-        pixel_spacing_az_m = 0.90919
-    else:
-        pixel_spacing_az_m = 1
-
-    temp = [
-        sc.attrib['SLR_start'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag
-    ]
-    SLR_start_m = float(temp[0])
-    del temp
-
-    date = [sc.attrib['date'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag]
-
-    months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DIC']
-    month_str = months[int(date[0][3:5]) - 1]
-
-    date_UTC = (
-        date[0][:2]
-        + '-'
-        + month_str
-        + '-'
-        + date[0][6:10]
-        + ' '
-        + date[0][11:13]
-        + ':'
-        + date[0][14:17]
-        + ':00.000000000000'
-    )
-    '23-MAY-1998 08:25:12.123456789012345'
-
-    temp = [sc.attrib['master'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag]
-    master = temp[0]
-
-    temp = [sc.attrib['heading'] for sc in scene_node.findall('Scene') if sc.attrib['name'] in tag]
-    heading = float(temp[0])
-
-    return (
-        pixel_spacing_az_m,
-        pixel_spacing_slant_rg_m,
-        date_UTC,
-        SLR_start_m,
-        master,
-        carrierFrequency,
-        heading,
-    )
 
 
 class XmlIO:

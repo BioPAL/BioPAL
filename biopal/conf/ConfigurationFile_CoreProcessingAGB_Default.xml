@@ -1,9 +1,4 @@
-<ConfigurationL2AGB version="1.0">
-	<GroundCancellation>
-		<MultiMaster>True</MultiMaster><!--default True-->
-		<EnhancedForestHeight unit="m">50</EnhancedForestHeight>
-		<ModelBasedEqualization always_off="1" always_on="2" on_if_two_acquisitions="3">1</ModelBasedEqualization>
-	</GroundCancellation>
+<ConfigurationL2CoreProcessingAGB version="1.0">
 	<EstimateAGB>
 		<residual_function>
 			<formula>
@@ -238,8 +233,7 @@
 				<obs>
 					<name>neg_sigma0_hh_db</name>
 					<is_required>True</is_required>
-					<source_paths>
-					</source_paths>
+          <source_paths />
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -250,8 +244,7 @@
 				<obs>
 					<name>neg_sigma0_hv_db</name>
 					<is_required>True</is_required>
-					<source_paths>
-					</source_paths>
+          <source_paths />
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -262,8 +255,7 @@
 				<obs>
 					<name>neg_sigma0_vv_db</name>
 					<is_required>True</is_required>
-					<source_paths>
-					</source_paths>
+          <source_paths />
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -274,8 +266,7 @@
 				<obs>
 					<name>cos_local_db</name>
 					<is_required>True</is_required>
-					<source_paths>
-					</source_paths>
+          <source_paths />
 					<ranges unit='Deg'>
 						<min>20</min>
 						<max>60</max>
@@ -286,13 +277,7 @@
 				<obs>
 					<name>agb_1_db</name>
 					<is_required>False</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="0">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
+          <source_paths />
 					<ranges unit='t/ha'>
 						<min>1</min>
 						<max>700</max>
@@ -303,13 +288,7 @@
 				<obs>
 					<name>agb_2_db</name>
 					<is_required>False</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="1">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
+          <source_paths />
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -320,13 +299,7 @@
 				<obs>
 					<name>agb_3_db</name>
 					<is_required>False</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="2">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
+          <source_paths />
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -337,13 +310,7 @@
 				<obs>
 					<name>agb_4_db</name>
 					<is_required>False</is_required>
-					<source_paths>
-						<stack>
-							<file>
-								<layer layer_id="3">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
-							</file>
-						</stack>
-					</source_paths>
+          <source_paths />
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -371,11 +338,4 @@
 			<max unit="t/ha">1000</max>
 		</EstimationValidValuesLimits>
 	</EstimateAGB>
-	<EnableResampling>False</EnableResampling>
-	<ComputeGeometry>False</ComputeGeometry>
-	<ApplyCalibrationScreen>False</ApplyCalibrationScreen>
-	<DEMflattening>False</DEMflattening>
-	<MultilookHeadingCorrection>True</MultilookHeadingCorrection>
-	<SaveBreakpoints>True</SaveBreakpoints>
-	<DeleteTemporaryFiles>False</DeleteTemporaryFiles>
-</ConfigurationL2AGB>
+</ConfigurationL2CoreProcessingAGB>
