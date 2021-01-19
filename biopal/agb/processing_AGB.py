@@ -81,60 +81,6 @@ def initialize_inversion_parameters(
         proc_confAGB.parameter_block_size
     )  # dN_par*2 # 3/2 times spacing means that each tile shares 33.3% with its neighbour
 
-    # parameter variability across acquisitions
-    # columns are polarisation id, acquisition id, global cycle id, phi angle, swath id, subswath id, azimuth id
-    # determine how to vary each parameter, 1 means that parameter is varied in this direction, 0 means its constant for all
-    var_pol = proc_confAGB.model_parameters.changes_across_pol
-    var_stack = proc_confAGB.model_parameters.changes_across_stacks
-    var_gc = proc_confAGB.model_parameters.changes_across_global_cycle
-    var_h = proc_confAGB.model_parameters.changes_across_heading
-    var_sw = proc_confAGB.model_parameters.changes_across_swath
-    var_subsw = proc_confAGB.model_parameters.changes_across_subswath
-    var_az = proc_confAGB.model_parameters.changes_across_azimuth
-
-    all_vars = [
-        np.array(
-            [
-                var_pol.agb_model_scaling,
-                var_stack.agb_model_scaling,
-                var_gc.agb_model_scaling,
-                var_h.agb_model_scaling,
-                var_sw.agb_model_scaling,
-                var_subsw.agb_model_scaling,
-                var_az.agb_model_scaling,
-            ]
-        ),
-        np.array(
-            [
-                var_pol.agb_model_exponent,
-                var_stack.agb_model_exponent,
-                var_gc.agb_model_exponent,
-                var_h.agb_model_exponent,
-                var_sw.agb_model_exponent,
-                var_subsw.agb_model_exponent,
-                var_az.agb_model_exponent,
-            ]
-        ),
-        np.array(
-            [
-                var_pol.agb_cosine_exponent,
-                var_stack.agb_cosine_exponent,
-                var_gc.agb_cosine_exponent,
-                var_h.agb_cosine_exponent,
-                var_sw.agb_cosine_exponent,
-                var_subsw.agb_cosine_exponent,
-                var_az.agb_cosine_exponent,
-            ]
-        ),
-    ]
-
-    # parameter ranges
-    l_lims = proc_confAGB.model_parameters.agb_model_scaling_limits
-    a_lims = proc_confAGB.model_parameters.agb_model_exponent_limits
-    n_lims = proc_confAGB.model_parameters.agb_cosine_exponent_limits
-    W_lims = proc_confAGB.model_parameters.agb_estimation_limits
-    w_lims = 10 * np.log10(W_lims)
-
     # number of tests to run (i.e., subsets of cals)
     N_tests = int(proc_confAGB.number_of_tests)
 
@@ -158,6 +104,26 @@ def initialize_inversion_parameters(
         )
     )
 
+    _,
+    # first_pixel_north,
+    # first_pixel_east,
+    # last_pixel_north,
+    # last_pixel_east,
+    # pixel_size_east,
+    # pixel_size_north,
+    # sample_spacing_east,
+    # sample_spacing_north,
+    # sample_size_east,
+    # sample_size_north,
+    # block_spacing_east,
+    # block_spacing_north,
+    # block_size_east,
+    # block_size_north,
+    # number_of_subsets,
+    # geographic_grid_sampling,
+    # sub_grid_string,
+
+
     return (
         dx_in,
         N0,
@@ -174,11 +140,6 @@ def initialize_inversion_parameters(
         dN_par,
         wE_par,
         wN_par,
-        all_vars,
-        l_lims,
-        a_lims,
-        n_lims,
-        w_lims,
         N_tests,
         geographic_grid_sampling,
         sub_grid_string,
