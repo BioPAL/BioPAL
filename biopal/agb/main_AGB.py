@@ -114,13 +114,13 @@ class AboveGroundBiomass(Task):
         )
 
         # Run Main APP #1: Stack Based Processing
-        (coreprocessing_configuration_file_xml, lut_cal, lut_fnf, lut_stacks, equi7_initialization) = stack_based_processing_obj.run(
+        (coreprocessing_configuration_file, lut_cal, lut_fnf, lut_stacks, equi7_initialization) = stack_based_processing_obj.run(
             input_file_xml
         )
 
         # Main APP #2: AGB Core Processing
         agb_processing_obj = CoreProcessingAGB(
-            coreprocessing_configuration_file_xml,
+            coreprocessing_configuration_file,
             self.geographic_boundaries,
             self.gdal_path,
             lut_cal,
@@ -831,8 +831,106 @@ class StackBasedProcessingAGB(Task):
             'e7g_intermediate': e7g_intermediate,
         }
 
+        # create the CoreProcessingAGB configuration file, starting from the default one
+        # Read the default conf file:
+        default_coreprocessing_conf_file = os.path.join( os.path.dirname(self.configuration_file_xml),  'ConfigurationFile_CoreProcessingAGB_Default.xml')
+        conf_params_default = parse_coreprocessing_agb_configuration_file(default_coreprocessing_conf_file)
+        # update the conf paths:
+        # source composition:
+        # source[index_obs][index_stack][index_file][index_layer]
+        for index_obs, name in enumerate(conf_params_default.AGB.residual_function.formula_observables.name):
+            if not conf_params_default.AGB.residual_function.formula_observables.source[index_obs]:
+                
+                layer_list_agb = ['','','','']
+                
+                print('index_obs {}, name {}'.format(index_obs, name ))
+                if name == 'neg_sigma0_hh_db':
+                    print('neg_sigma0_hh_db')
+                    pol_name = 'hh'
+                    stack_list = []
+                    for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
+                        sigma0_file_names_list = sigma0_pols_dict[pol_name]
+                        file_list = []
+                        for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
+                            layer_list = [sigma0_file_name, 0]
+                            file_list.append(layer_list)  
+                        stack_list.append(file_list) 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+
+                elif name == 'neg_sigma0_hv_db':
+                    print('neg_sigma0_hv_db')
+                    pol_name = 'vh'
+                    stack_list = []
+                    for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
+                        sigma0_file_names_list = sigma0_pols_dict[pol_name]
+                        file_list = []
+                        for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
+                            layer_list = [sigma0_file_name, 0]
+                            file_list.append(layer_list)  
+                        stack_list.append(file_list) 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+
+                elif name == 'neg_sigma0_vv_db':
+                    print('neg_sigma0_vv_db')
+                    pol_name = 'vv'
+                    stack_list = []
+                    for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
+                        sigma0_file_names_list = sigma0_pols_dict[pol_name]
+                        file_list = []
+                        for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
+                            layer_list = [sigma0_file_name, 0]
+                            file_list.append(layer_list)  
+                        stack_list.append(file_list) 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+
+                elif name == 'cos_local_db':
+                    print('cos_local_db')
+                    stack_list = []
+                    for index_stack, theta_list in enumerate(theta_equi7_fnames.values()):
+                        file_list = []
+                        for index_file, theta_file_name in enumerate(theta_list):
+                            layer_list = [sigma0_file_name, 0]
+                            file_list.append(layer_list) 
+                        stack_list.append(file_list) 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+                            
+                elif name == 'agb_1_db':
+                    index_layer_agb = 0
+                    print('agb_1_db')
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    file_list = [layer_list_agb]
+                    stack_list = [file_list] 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list  
+   
+                elif name == 'agb_2_db':
+                    index_layer_agb = 1
+                    print('agb_2_db')
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    file_list = [layer_list_agb]
+                    stack_list = [file_list] 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list 
+                    
+                elif name == 'agb_3_db':
+                    index_layer_agb = 2
+                    print('agb_3_db')
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    file_list = [layer_list_agb]
+                    stack_list = [file_list] 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list 
+                    
+                elif name == 'agb_4_db':
+                    index_layer_agb = 3
+                    print('agb_4_db')
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    file_list = [layer_list_agb]
+                    stack_list = [file_list] 
+                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list 
+                    
+        # write the updatec conf file:
+        coreprocessing_configuration_file_xml = os.path.join( proc_inputs.output_folder,  'ConfigurationFile_CoreProcessingAGB.xml')
+        write_coreprocessing_agb_configuration_file(conf_params_default, coreprocessing_configuration_file_xml)
+        
         ########################## END OF STACK BASED STEPS ######################
-        coreprocessing_configuration_file_xml = r"C:\ARESYS_PROJ\BioPAL\biopal\conf\ConfigurationFile_CoreProcessingAGB_Mio.xml"
         
         return (
             coreprocessing_configuration_file_xml,
