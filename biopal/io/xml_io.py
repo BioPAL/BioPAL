@@ -151,7 +151,6 @@ formula_parameters = namedtuple(
      save_as_map \
      limits \
      units \
-     FixedToInitValue \
      ChangesAcrossSamples \
      ChangesAcrossForestClass \
      ChangesAcrossStack \
@@ -362,6 +361,7 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
     if chain_id == 'AGB':
         error_str = 'To write the AGB configuratin files, use its own specific functions'
         logging.error(error_str)
+        raise ValueError(error_str)
         
     ConfigurationL2_Item = Element('ConfigurationL2' + chain_id)
     ConfigurationL2_Item.set('version', _XML_VERSION)
@@ -476,6 +476,7 @@ def write_agb_configuration_file(configuration_params, configuration_file_xml):
     if not chain_id == 'AGB':
         error_str = 'This is not an AGB configuration file'
         logging.error(error_str)
+        raise ValueError(error_str)
         
     ConfigurationL2_Item = Element('ConfigurationL2' + chain_id)
     ConfigurationL2_Item.set('version', _XML_VERSION)
@@ -645,9 +646,6 @@ def write_residual_function_core(Estimate_elem, configuration_params):
         min_item.text = str( par_struct.limits[index][0])
         max_item = SubElement(limits, 'max')
         max_item.text = str( par_struct.limits[index][1])
-        
-        FixedToInitValue = SubElement(par, 'FixedToInitValue')
-        FixedToInitValue.text = str( par_struct.FixedToInitValue[index] )
         
         ChangesAcrossSamples = SubElement(par, 'ChangesAcrossSamples')
         ChangesAcrossSamples.text = str( par_struct.ChangesAcrossSamples[index] )
@@ -1379,6 +1377,7 @@ def parse_coreprocessing_agb_configuration_file(configuration_file_xml, output_f
     if not chain_id == 'CoreProcessingAGB':
         error_str = 'This is not a Core Processing AGB APP configuration file'
         logging.error(error_str)
+        raise ValueError(error_str)
         
     interpolate_stack = None
     vertical_range = None
@@ -1535,7 +1534,6 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=''):
     save_as_map = []
     limits = []
     units_par = []
-    FixedToInitValue = []
     ChangesAcrossSamples = []
     ChangesAcrossForestClass = []
     ChangesAcrossStack = []
@@ -1552,7 +1550,6 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=''):
         max_limit = float(par_item.find('limits').find('max').text)
         units_par.append( par_item.find('limits').attrib['unit'])
         limits.append( [min_limit, max_limit] )
-        FixedToInitValue.append( bool_from_string( par_item.find('FixedToInitValue').text ) )
         ChangesAcrossSamples.append( bool_from_string( par_item.find('ChangesAcrossSamples').text ) )
         ChangesAcrossForestClass.append( bool_from_string( par_item.find('ChangesAcrossForestClass').text ) )
         ChangesAcrossStack.append( bool_from_string( par_item.find('ChangesAcrossStack').text ) )
@@ -1567,7 +1564,6 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=''):
         save_as_map,
         limits,
         units_par,
-        FixedToInitValue,
         ChangesAcrossSamples,
         ChangesAcrossForestClass,
         ChangesAcrossStack,

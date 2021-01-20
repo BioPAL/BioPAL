@@ -14,7 +14,6 @@
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -31,7 +30,6 @@
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -48,7 +46,6 @@
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -65,7 +62,6 @@
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -82,7 +78,6 @@
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -99,7 +94,6 @@
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -116,7 +110,6 @@
 						<min>0</min>
 						<max>3</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -133,7 +126,6 @@
 						<min>0</min>
 						<max>3</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -150,7 +142,6 @@
 						<min>0</min>
 						<max>3</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -167,7 +158,6 @@
 						<min>1</min>
 						<max>600</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -184,7 +174,6 @@
 						<min>0</min>
 						<max>10</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -201,7 +190,6 @@
 						<min>0</min>
 						<max>10</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -218,7 +206,6 @@
 						<min>0</min>
 						<max>10</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -232,19 +219,19 @@
 			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
 				<obs>
 					<name>neg_sigma0_hh_db</name>
-					<is_required>True</is_required>
-          <source_paths />
+					<is_required>True</is_required><!-- is it needed?-->
+					<source_paths />
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
 					</ranges>
-					<transform>-db</transform>
+					<transform>-db</transform><!-- add inverse transform in parameters too?-->
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
 					<name>neg_sigma0_hv_db</name>
 					<is_required>True</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -255,7 +242,7 @@
 				<obs>
 					<name>neg_sigma0_vv_db</name>
 					<is_required>True</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges>
 						<min>1e-8</min>
 						<max>20</max>
@@ -266,7 +253,7 @@
 				<obs>
 					<name>cos_local_db</name>
 					<is_required>True</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges unit='Deg'>
 						<min>20</min>
 						<max>60</max>
@@ -277,7 +264,7 @@
 				<obs>
 					<name>agb_1_db</name>
 					<is_required>False</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges unit='t/ha'>
 						<min>1</min>
 						<max>700</max>
@@ -288,7 +275,7 @@
 				<obs>
 					<name>agb_2_db</name>
 					<is_required>False</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -299,7 +286,7 @@
 				<obs>
 					<name>agb_3_db</name>
 					<is_required>False</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges>
 						<min>0</min>
 						<max>10</max>
@@ -310,7 +297,7 @@
 				<obs>
 					<name>agb_4_db</name>
 					<is_required>False</is_required>
-          <source_paths />
+					<source_paths />
 					<ranges>
 						<min>0</min>
 						<max>10</max>
