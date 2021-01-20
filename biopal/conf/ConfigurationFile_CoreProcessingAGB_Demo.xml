@@ -1,4 +1,9 @@
 <ConfigurationL2CoreProcessingAGB version="1.0">
+	<GroundCancellation>
+		<MultiMaster>True</MultiMaster><!--default True-->
+		<EnhancedForestHeight unit="m">50</EnhancedForestHeight>
+		<ModelBasedEqualization always_off="1" always_on="2" on_if_two_acquisitions="3">1</ModelBasedEqualization>
+	</GroundCancellation>
 	<EstimateAGB>
 		<residual_function>
 			<formula>
@@ -14,7 +19,6 @@
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -31,7 +35,6 @@
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -48,7 +51,6 @@
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -65,7 +67,6 @@
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -82,7 +83,6 @@
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -99,7 +99,54 @@
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>n_hh</name><!-- "n" = agb cosine exponent-->
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>3</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>n_hv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>3</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>n_vv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>3</max>
+					</limits>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -116,7 +163,6 @@
 						<min>1</min>
 						<max>600</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -133,7 +179,6 @@
 						<min>0</min>
 						<max>10</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -150,7 +195,6 @@
 						<min>0</min>
 						<max>10</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -167,7 +211,6 @@
 						<min>0</min>
 						<max>10</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>True</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -184,7 +227,6 @@
 						<min>0</min>
 						<max>0.99</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -201,7 +243,6 @@
 						<min>0</min>
 						<max>0.99</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -218,7 +259,6 @@
 						<min>0</min>
 						<max>0.99</max>
 					</limits>
-					<FixedToInitValue>False</FixedToInitValue>
 					<ChangesAcrossSamples>False</ChangesAcrossSamples>
 					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
 					<ChangesAcrossStack>False</ChangesAcrossStack>
@@ -229,14 +269,102 @@
 					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
 				</par>
 			</formula_parameters>
-			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
+			<formula_observables>
+				<obs>
+					<name>neg_sigma0_hh_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_hh\EQUI7_AF050M\E045N048T3\sigma0_hh_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_hh\EQUI7_AF050M\E045N048T3\sigma0_hh_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>neg_sigma0_hv_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vh\EQUI7_AF050M\E045N048T3\sigma0_vh_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vh\EQUI7_AF050M\E045N048T3\sigma0_vh_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-2db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>neg_sigma0_vv_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vv\EQUI7_AF050M\E045N048T3\sigma0_vv_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\sigma0_vv\EQUI7_AF050M\E045N048T3\sigma0_vv_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>cos_local_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00\theta\EQUI7_AF050M\E045N048T3\theta_GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+						<stack>
+							<file>
+								<layer layer_id="0">out_stack_based_folder\AGB\Products\temporary_processing\ground_equi7_geometry\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00\theta\EQUI7_AF050M\E045N048T3\theta_GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges unit='Deg'>
+						<min>20</min>
+						<max>60</max>
+					</ranges>
+					<transform>cosdb</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
 				<obs>
 					<name>agb_1_db</name>
 					<is_required>False</is_required>
 					<source_paths>
 						<stack>
 							<file>
-								<layer layer_id="0">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+								<layer layer_id="0">data_folder\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
 							</file>
 						</stack>
 					</source_paths>
@@ -253,7 +381,7 @@
 					<source_paths>
 						<stack>
 							<file>
-								<layer layer_id="1">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+								<layer layer_id="1">data_folder\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
 							</file>
 						</stack>
 					</source_paths>
@@ -270,7 +398,7 @@
 					<source_paths>
 						<stack>
 							<file>
-								<layer layer_id="2">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+								<layer layer_id="2">data_folder\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
 							</file>
 						</stack>
 					</source_paths>
@@ -287,7 +415,7 @@
 					<source_paths>
 						<stack>
 							<file>
-								<layer layer_id="3">C:\bio\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
+								<layer layer_id="3">data_folder\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif</layer>
 							</file>
 						</stack>
 					</source_paths>
@@ -296,6 +424,23 @@
 						<max>10</max>
 					</ranges>
 					<transform>none</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>lidar_h_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\lope_lidar\lidar_chm\EQUI7_AF050M\E045N048T3\lidar_chm_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges unit='m'>
+						<min>0.1</min>
+						<max>100</max>
+					</ranges>
+					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
@@ -367,6 +512,57 @@
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
+					<name>neg_cov_hh_40_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_hh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>neg_cov_hv_40_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-2db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>neg_cov_vv_40_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\out_tomo_GGS_50m_RES_200m\slice_40_m\EQUI7_AF050M\E045N048T3\cov_vh_40_m_EQUI7_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
 					<name>cos_tomo_theta_db</name>
 					<is_required>True</is_required>
 					<source_paths>
@@ -381,6 +577,23 @@
 						<max>60</max>
 					</ranges>
 					<transform>cosdb</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>ref_lidar_agb_db</name>
+					<is_required>True</is_required>
+					<source_paths>
+						<stack>
+							<file>
+								<layer layer_id="0">C:\bio\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_AF050M_E045N048T3.tif</layer>
+							</file>
+						</stack>
+					</source_paths>
+					<ranges unit='t/ha'>
+						<min>1</min>
+						<max>700</max>
+					</ranges>
+					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
@@ -420,4 +633,11 @@
 			<max unit="t/ha">1000</max>
 		</EstimationValidValuesLimits>
 	</EstimateAGB>
+	<EnableResampling>False</EnableResampling>
+	<ComputeGeometry>False</ComputeGeometry>
+	<ApplyCalibrationScreen>False</ApplyCalibrationScreen>
+	<DEMflattening>False</DEMflattening>
+	<MultilookHeadingCorrection>True</MultilookHeadingCorrection>
+	<SaveBreakpoints>True</SaveBreakpoints>
+	<DeleteTemporaryFiles>False</DeleteTemporaryFiles>
 </ConfigurationL2CoreProcessingAGB>
