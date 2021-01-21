@@ -891,13 +891,15 @@ def parse_fd_lookup_table(lookup_table_file_name_xml):
 def parse_biopal_configuration_file(biopal_configuration_file_xml):
     """Parse the biopal configuration file"""
 
+    gdal_path = gdal_environment_path = None
+    
     tree = ET.parse(biopal_configuration_file_xml)
     root = tree.getroot()
 
-    GDAL_Item = root.find('GDAL')
-
-    gdal_path = GDAL_Item.find('gdal_path').text
-    gdal_environment_path = GDAL_Item.find('gdal_environment_path').text
+    gdal_item = root.find('GDAL')
+    if gdal_item:
+        gdal_path = gdal_item.find('gdal_path').text
+        gdal_environment_path = gdal_item.find('gdal_environment_path').text
 
     return gdal_path, gdal_environment_path
 
