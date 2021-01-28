@@ -1,7 +1,6 @@
 # this path is temporary:
 from pathlib import Path
-path_aux = Path( 'C:/bio/aux_for_agb_dev' )
-      
+     
 # import libraries
 import os
 import numpy as np
@@ -55,6 +54,7 @@ from biopal.utility.utility_functions import (
     resolution_heading_correction,
     decode_unique_acquisition_id_string,
     save_breakpoints,
+    set_gdal_paths,
 )
 from biopal.geocoding.geocoding import (
     geocoding,
@@ -65,6 +65,10 @@ from biopal.io.xml_io import (
     parse_agb_configuration_file,
     parse_coreprocessing_agb_configuration_file,
     write_coreprocessing_agb_configuration_file,
+    parse_boundaries_files,
+    parse_lut_files,
+    write_lut_files,
+    proc_flags,
 )
 
 from biopal.io.data_io import (
@@ -108,9 +112,9 @@ class AboveGroundBiomass(Task):
         # Main APP #1: Stack Based Processing
         stack_based_processing_obj = StackBasedProcessingAGB(
             self.configuration_file_xml,
-            self.geographic_boundaries,
-            self.geographic_boundaries_per_stack,
-            self.gdal_path,
+            self.geographic_boundaries, # can be a named tuple or a path to xml file
+            self.geographic_boundaries_per_stack, # can be a named tuple or a path to xml file
+            self.gdal_path, # optional
         )
 
         # Run Main APP #1: Stack Based Processing
@@ -118,15 +122,16 @@ class AboveGroundBiomass(Task):
             input_file_xml
         )
 
+        
         # Main APP #2: AGB Core Processing
         agb_processing_obj = CoreProcessingAGB(
             coreprocessing_configuration_file,
-            self.geographic_boundaries,
-            self.gdal_path,
-            lut_cal,
-            lut_fnf,
-            lut_stacks,
-            equi7_initialization,
+            self.geographic_boundaries, # can be a named tuple or a path to xml file
+            lut_cal, # can be a list or a path to xml file
+            lut_fnf, # can be a list or a path to xml file
+            lut_stacks, # can be a list or a path to xml file
+            equi7_initialization, # optional
+            self.gdal_path, # optional
         )
 
         # Run Main APP #2: AGB Core Processing
@@ -139,15 +144,32 @@ class StackBasedProcessingAGB(Task):
         configuration_file_xml,
         geographic_boundaries,
         geographic_boundaries_per_stack,
-        gdal_path,
+        gdal_path=None,
     ):
+        if gdal_path is None:
+            gdal_path = '' 
         super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
-        self.geographic_boundaries_per_stack = geographic_boundaries_per_stack
+        if isinstance(geographic_boundaries, str):
+            self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)
+        else:
+            self.geographic_boundaries = geographic_boundaries
+        if isinstance(geographic_boundaries_per_stack, str):
+            self.geographic_boundaries_per_stack = parse_boundaries_files(geographic_boundaries_per_stack)
+        else:
+            self.geographic_boundaries_per_stack = geographic_boundaries_per_stack 
         self.gdal_path = gdal_path
+        
+    def check_auxiliaries(self):
+        if not self.gdal_path:
+            # initialize the gdal_path
+            self.gdal_path, _ = set_gdal_paths( self.gdal_path )
+
 
     def _run(self, input_file_xml):
-
+        
+        self.check_auxiliaries()
+        
+        logging.info('AGB stack-based processing APP starting\n')
         ########################## INITIAL STEPS ##############################
 
         logging.info('AGB: Reading chains configuration files')
@@ -183,7 +205,7 @@ class StackBasedProcessingAGB(Task):
             cal_fnames = get_raster_cal_names(proc_inputs.reference_agb_folder)
 
             # LUT: CAL
-            lut_cal = np.zeros((len(cal_fnames), 5))
+            lut_cal_boundaries = np.zeros((len(cal_fnames), 5))
             lut_cal_paths = []
             for idx_cal, equi7_cal_fname in enumerate(cal_fnames):
 
@@ -200,7 +222,7 @@ class StackBasedProcessingAGB(Task):
                 north_in = geotransform_equi7[3]
                 north_out = north_in + geotransform_equi7[5] * north_len
 
-                lut_cal[idx_cal, :] = [
+                lut_cal_boundaries[idx_cal, :] = [
                     east_min,
                     east_max,
                     min(north_in, north_out),
@@ -253,7 +275,7 @@ class StackBasedProcessingAGB(Task):
             )
 
         # LUT: FNF
-        lut_fnf = np.zeros((len(equi7_fnf_mask_fnames), 4))
+        lut_fnf_boundaries = np.zeros((len(equi7_fnf_mask_fnames), 4))
         lut_fnf_paths = []
         for fnf_idx, fnf_name_curr in enumerate(equi7_fnf_mask_fnames):
 
@@ -269,7 +291,7 @@ class StackBasedProcessingAGB(Task):
             north_in = geotransform_equi7[3]
             north_out = north_in + geotransform_equi7[5] * north_len
 
-            lut_fnf[fnf_idx, :] = [
+            lut_fnf_boundaries[fnf_idx, :] = [
                 east_min,
                 east_max,
                 min(north_in, north_out),
@@ -929,18 +951,27 @@ class StackBasedProcessingAGB(Task):
         # write the updatec conf file:
         coreprocessing_configuration_file_xml = os.path.join( proc_inputs.output_folder,  'ConfigurationFile_CoreProcessingAGB.xml')
         write_coreprocessing_agb_configuration_file(conf_params_default, coreprocessing_configuration_file_xml)
+ 
+        lut_cal = LookupTableAGB(paths=lut_cal_paths, boundaries=lut_cal_boundaries, progressive=None)
+        lut_fnf = LookupTableAGB(paths=lut_fnf_paths, boundaries=lut_fnf_boundaries, progressive=None)
+        lut_stacks = LookupTableAGB(
+            paths=lut_stacks_paths,
+            boundaries=lut_stacks_boundaries,
+            progressive=lut_progressive_stacks,
+        )
         
+        write_lut_files( lut_stacks, 'stacks', proc_inputs.output_folder)
+        write_lut_files( lut_cal, 'cal', proc_inputs.output_folder)
+        write_lut_files( lut_fnf, 'fnf', proc_inputs.output_folder)
+        
+        logging.info('AGB stack-based processing APP ended correctly.\n')
         ########################## END OF STACK BASED STEPS ######################
         
         return (
             coreprocessing_configuration_file_xml,
-            LookupTableAGB(paths=lut_cal_paths, boundaries=lut_cal, progressive=None),
-            LookupTableAGB(paths=lut_fnf_paths, boundaries=lut_fnf, progressive=None),
-            LookupTableAGB(
-                paths=lut_stacks_paths,
-                boundaries=lut_stacks_boundaries,
-                progressive=lut_progressive_stacks,
-            ),
+            lut_cal,
+            lut_fnf,
+            lut_stacks,
             equi7_initialization,
         )
 
@@ -950,27 +981,44 @@ class CoreProcessingAGB(Task):
         self,
         configuration_file_xml,
         geographic_boundaries,
-        gdal_path,
         lut_cal,
         lut_fnf,
         lut_stacks,
         equi7_conf=None,
+        gdal_path=None
     ):
         if equi7_conf is None:
             equi7_conf = {}
+        if gdal_path is None:
+            gdal_path = ''    
         super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
-        self.gdal_path = gdal_path
-        self.lut_cal_paths = lut_cal.paths
-        self.lut_cal = lut_cal.boundaries
-        self.lut_fnf_paths = lut_fnf.paths
-        self.lut_fnf = lut_fnf.boundaries
-        self.lut_stacks_paths = lut_stacks.paths
-        self.lut_stacks_boundaries = lut_stacks.boundaries
-        self.lut_progressive_stacks = lut_stacks.progressive
+        self.stand_alone_call = False
+        if isinstance(geographic_boundaries, str):
+            self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)  
+            self.stand_alone_call = True
+        else:
+            self.geographic_boundaries = geographic_boundaries
+        if isinstance(lut_cal, str):
+            self.lut_cal_paths, self.lut_cal, _ = parse_lut_files(lut_cal)
+        else:
+            self.lut_cal_paths = lut_cal.paths
+            self.lut_cal = lut_cal.boundaries
+        if isinstance(lut_fnf, str):
+            self.lut_fnf_paths, self.lut_fnf, _ = parse_lut_files(lut_fnf)
+        else:
+            self.lut_fnf_paths = lut_fnf.paths
+            self.lut_fnf = lut_fnf.boundaries
+        if isinstance(lut_stacks, str):
+            self.lut_stacks_paths, self.lut_stacks_boundaries, self.lut_progressive_stacks = parse_lut_files(lut_stacks)
+        else:
+            self.lut_stacks_paths = lut_stacks.paths
+            self.lut_stacks_boundaries = lut_stacks.boundaries
+            self.lut_progressive_stacks = lut_stacks.progressive
+        
         self.equi7_sampling_intermediate = equi7_conf.get('equi7_sampling_intermediate')
         self.e7g_intermediate = equi7_conf.get('e7g_intermediate')
-
+        self.gdal_path = gdal_path
+        
     def check_auxiliaries(self, proc_conf):
         if not self.equi7_sampling_intermediate:
             # initialize the equi7 sampling grid
@@ -978,21 +1026,28 @@ class CoreProcessingAGB(Task):
                 proc_conf.AGB.intermediate_ground_averaging,
                 proc_conf.AGB.intermediate_ground_averaging / 2,
             )
-            if self.equi7_sampling_intermediate:
-                logging.warning(
-                    'Redefining EQUI7 Grid sampling used for intermediate products: {}'.format(
-                        self.equi7_sampling_intermediate
-                    )
-                )
-            else:
-                logging.info(
-                    'EQUI7 Grid sampling used for intermediate products: {}'.format(
-                        self.equi7_sampling_intermediate
-                    )
-                )
             self.e7g_intermediate = Equi7Grid(self.equi7_sampling_intermediate)
+    
+        if not self.gdal_path:
+            # initialize the gdal_path
+            self.gdal_path, _ = set_gdal_paths( self.gdal_path )
+    
     # %%
     def _run(self, input_file_xml):
+        
+        if self.stand_alone_call:
+            proc_flags_struct = proc_flags( True,False,False,False,False)
+            proc_inputs = parse_chains_input_file(input_file_xml)
+            # log_file_name = start_logging(proc_inputs.output_folder, proc_flags_struct, 'DEBUG', app_name='AGB Core Processing')
+        
+        logging.info('AGB core-processing APP starting\n')
+        
+        if self.stand_alone_call:
+            logging.info(
+                'EQUI7 Grid sampling used for intermediate products: {}'.format(
+                    self.equi7_sampling_intermediate
+                )
+            )
 
         # AGB: Reading chains configuration files
         logging.info('AGB: Reading chains configuration files')
@@ -1013,8 +1068,10 @@ class CoreProcessingAGB(Task):
         # preparing folders for final and temporary output
         global_agb_folder = os.path.join(products_folder, 'global_AGB')
         temp_agb_folder = os.path.join(temp_proc_folder, 'agb_estimation')
-        os.makedirs(global_agb_folder)
-        os.makedirs(temp_agb_folder)
+        if not os.path.exists(global_agb_folder):
+            os.makedirs(global_agb_folder)
+        if not os.path.exists(temp_agb_folder):
+            os.makedirs(temp_agb_folder)
         
 
 
@@ -1131,7 +1188,7 @@ class CoreProcessingAGB(Task):
 
         ### read additional polygons (e.q., cals not on a grid)
         # (read from xml file or external shapefiles?)
-        additional_sampling_polygons = []
+        additional_sampling_polygons = [] # gdal.rasterize()
 
         ### DERIVED QUANTITIES
         
@@ -1708,10 +1765,6 @@ class CoreProcessingAGB(Task):
                     
         
         # %% FINAL MERGING OF THE IMAGES
-            
-        
-        
-        
         try:
             logging.info('AGB: creating wall-to-wall maps...')
             for parameter_idx,parameter_name in enumerate(parameter_names):
@@ -1782,14 +1835,8 @@ class CoreProcessingAGB(Task):
                             "... successful for parameter '{}' and filename '{}'".format(parameter_name, current_merged_file_path)
                         )
                     
-                    # if proc_conf.delete_temporary_files:
-                    #     try:
-                    #         shutil.rmtree(temp_proc_folder)
-                    #     except:
-                    #         pass
-            logging.info('AGB: estimation ended correctly.\n')
-        
+            logging.info('AGB core-processing APP ended correctly.\n')
         
         except Exception as e:
-            logging.error('AGB: error during creation of wall-to-wall maps.' + str(e), exc_info=True)
+            logging.error('AGB: core-processing APP error during creation of wall-to-wall maps.' + str(e), exc_info=True)
             raise

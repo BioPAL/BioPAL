@@ -2,6 +2,7 @@ import os
 import logging
 import numpy as np
 import pyproj as proj
+from shutil import which
 from datetime import datetime
 from arepytools.timing.precisedatetime import PreciseDateTime
 from arepytools.io.productfolder import ProductFolder
@@ -32,7 +33,7 @@ class Task:
             logging.info('Starting {}'.format(self.name()))
             output = self._run(input_file_xml)
             logging.info('Finished {}'.format(self.name()))
-    
+
             return output
 
         except Exception as e:
@@ -41,6 +42,27 @@ class Task:
             raise RuntimeError(error_msg)
 
 
+def set_gdal_paths( gdal_path, gdal_environment_path=None ):
+    if gdal_path is None or not gdal_path:
+        gdal_info_path = which('gdalinfo')
+        if not gdal_info_path:
+            raise RuntimeError('Missing gdalinfo executable')
+        gdal_path = os.path.dirname(gdal_info_path)
+        
+    if gdal_environment_path is None or not gdal_environment_path:
+        gdal_environment_path = os.environ.get('GDAL_DATA')
+        if not gdal_environment_path:
+            raise RuntimeError('Missing GDAL_DATA environment variable')
+    else:
+        # Set the enviroment
+        os.environ['GDAL_DATA'] = gdal_environment_path
+     
+    logging.info('gdal_path ' + gdal_path)
+    logging.info('gdal_environment_path ' + gdal_environment_path)
+    
+    return gdal_path, gdal_environment_path
+        
+        
 def get_data_time_stamp(folder, pf_name):
     # reads a data:
     # it is supposed to contain one or more polarizations (the "SwathInfo" is read to retrive it)

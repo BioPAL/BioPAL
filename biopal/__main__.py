@@ -23,6 +23,7 @@ from biopal.utility.utility_functions import (
     format_folder_name,
     getBinaryNameFromChannelIDX,
     decode_unique_acquisition_id_string,
+    set_gdal_paths,
 )
 from biopal.io.xml_io import (
     parse_biomassL2_main_input_file,
@@ -30,6 +31,7 @@ from biopal.io.xml_io import (
     geographic_boundaries,
     write_chains_input_file,
     input_params,
+    write_boundaries_files,
 )
 from biopal.io.data_io import readBiomassHeader_core
 
@@ -92,24 +94,8 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     gdal_path, gdal_environment_path = parse_biopal_configuration_file(
         biopal_configuration_file_xml
     )
-    if gdal_path is None:
-        gdal_info_path = which('gdalinfo')
-        if not gdal_info_path:
-            raise RuntimeError('Missing gdalinfo executable')
-        gdal_path = os.path.dirname(gdal_info_path)
-        
-    if gdal_environment_path is None:
-        gdal_environment_path = os.environ.get('GDAL_DATA')
-        if not gdal_environment_path:
-            raise RuntimeError('Missing GDAL_DATA environment variable')
-    else:
-        # Set the enviroment
-        os.environ['GDAL_DATA'] = gdal_environment_path
-
-         
-    print('gdal_path ' + gdal_path)
-    print('gdal_environment_path ' + gdal_environment_path)
-
+    gdal_path, gdal_environment_path = set_gdal_paths( gdal_path, gdal_environment_path )
+     
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
 
@@ -152,6 +138,8 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         logging.error(e, exc_info=True)
         raise
 
+    write_boundaries_files(geographic_boundaries, geographic_boundaries_per_stack, output_folder)
+    
     logging.info('Geographic Boundaries extracted [deg]:')
     logging.info('Latitude  min: ' + str(geographic_boundaries.lat_min))
     logging.info('Latitude  max: ' + str(geographic_boundaries.lat_max))
@@ -241,7 +229,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     return True
 
 
-def start_logging(output_folder, proc_flags, log_level):
+def start_logging(output_folder, proc_flags, log_level, app_name=''):
     # CRITICAL 50
     # ERROR 40
     # WARNING 30
@@ -258,7 +246,10 @@ def start_logging(output_folder, proc_flags, log_level):
     elif log_level == 'ERROR':
         level_to_set = logging.ERROR
 
-    log_file_name = os.path.join(output_folder, 'biomassL2.log')
+    if not app_name:
+        log_file_name = os.path.join(output_folder, 'biomassL2.log')
+    else:
+        log_file_name = os.path.join(output_folder, app_name+'.log')
 
     logging.basicConfig(
         handlers=[
@@ -271,19 +262,23 @@ def start_logging(output_folder, proc_flags, log_level):
     )
 
     logging.getLogger('matplotlib.font_manager').disabled = True
+    
+    if not app_name:
+        logging.info(' --BIOMASS L2 Processor-- ')
+        logging.info('Following chains will be executed: ')
+        if proc_flags.AGB:
+            logging.info('AGB')
+        if proc_flags.FD:
+            logging.info('FD')
+        if proc_flags.FH:
+            logging.info('FH (Interferometric phase)')
+        if proc_flags.TOMO_FH:
+            logging.info('FH (Tomographic phase)')
+        if proc_flags.TOMO:
+            logging.info('TOMO (Tomographic cube generation)')
+    else:
+        logging.info(' --BIOMASS L2 Processor: '+app_name+' APP-- ')
 
-    logging.info(' --BIOMASS L2 Processor-- ')
-    logging.info('Following chains will be executed: ')
-    if proc_flags.AGB:
-        logging.info('AGB')
-    if proc_flags.FD:
-        logging.info('FD')
-    if proc_flags.FH:
-        logging.info('FH (Interferometric phase)')
-    if proc_flags.TOMO_FH:
-        logging.info('FH (Tomographic phase)')
-    if proc_flags.TOMO:
-        logging.info('TOMO (Tomographic cube generation)')
     logging.info(' \n')
 
     return log_file_name
