@@ -260,6 +260,202 @@ def bool_from_string(in_string):
     return bool_value
 
 
+def write_boundaries_files(geographic_boundaries_whole, geographic_boundaries_per_stack, output_folder):
+    """Write the two xmls containing boundaries"""
+
+    # 1 of 2) boundaries file
+    boundaries_fname = os.path.join(output_folder, 'geographic_boundaries.xml')
+
+    boundaries_Item = Element('boundaries')
+    boundaries_Item.set('version', _XML_VERSION)
+    
+    boundaries_Item = write_boundaries_latlon_core(boundaries_Item, geographic_boundaries_whole)
+    
+    ElementTree_indent(boundaries_Item)
+    tree = ElementTree(boundaries_Item)
+    tree.write(open(boundaries_fname, 'w'), encoding='unicode')
+    
+    
+    # 2 of 2) boundaries per stack file
+    boundaries_per_stack_fname = os.path.join(output_folder, 'geographic_boundaries_per_stack.xml')
+    
+    boundaries_per_stack_Item = Element('boundaries_per_stack')
+    boundaries_per_stack_Item.set('version', _XML_VERSION)
+    
+    for stack_id, geographic_boundaries_curr in geographic_boundaries_per_stack.items():
+        stack_Item = SubElement(boundaries_per_stack_Item, 'stack')
+        stack_Item.set('stack_id', stack_id)
+        stack_Item = write_boundaries_latlon_core(stack_Item, geographic_boundaries_curr)
+        
+    ElementTree_indent(boundaries_per_stack_Item)
+    tree = ElementTree(boundaries_per_stack_Item)
+    tree.write(open(boundaries_per_stack_fname, 'w'), encoding='unicode')
+    
+    return boundaries_fname, boundaries_per_stack_fname
+
+
+def write_boundaries_latlon_core(boundaries_Item, geographic_boundaries_struct):
+    latitude_Item = SubElement(boundaries_Item, 'latitude')
+    latitude_Item.set('units', 'Deg')
+    max_latitude_Item = SubElement(latitude_Item, 'max')
+    max_latitude_Item.text = str( geographic_boundaries_struct.lat_max )
+    min_latitude_Item = SubElement(latitude_Item, 'min')
+    min_latitude_Item.text = str( geographic_boundaries_struct.lat_min )
+    
+    longitude_Item = SubElement(boundaries_Item, 'longitude')
+    longitude_Item.set('units', 'Deg')
+    max_longitude_Item = SubElement(longitude_Item, 'max')
+    max_longitude_Item.text = str( geographic_boundaries_struct.lon_max )
+    min_longitude_Item = SubElement(longitude_Item, 'min')
+    min_longitude_Item.text = str( geographic_boundaries_struct.lon_min )
+    
+    return boundaries_Item
+
+
+def parse_boundaries_files(boundaries_fname):
+    """Parse the two xmls containing boundaries (input can be the file name of 
+    geographic_boundaries or geographic_boundaries_per_stack file name)"""
+    
+    tree = ET.parse(boundaries_fname)
+    root = tree.getroot()
+    
+    if root.tag == 'boundaries':
+        geographic_boundaries_out = geographic_boundaries(None, None, None, None)
+        geographic_boundaries_out.lon_min = float( root.find('longitude').find('min').text )
+        geographic_boundaries_out.lon_max = float( root.find('longitude').find('max').text )
+        geographic_boundaries_out.lat_min = float( root.find('latitude').find('min').text )
+        geographic_boundaries_out.lat_max = float( root.find('latitude').find('max').text )
+        
+    elif root.tag == 'boundaries_per_stack':
+        geographic_boundaries_out = {}
+        for stack_Item in root.findall('stack'):
+            stack_id = stack_Item.attrib['stack_id']
+            
+            geographic_boundaries_out[stack_id] = geographic_boundaries(None, None, None, None)
+            geographic_boundaries_out[stack_id].lon_min = float( stack_Item.find('longitude').find('min').text )
+            geographic_boundaries_out[stack_id].lon_max = float( stack_Item.find('longitude').find('max').text )
+            geographic_boundaries_out[stack_id].lat_min = float( stack_Item.find('latitude').find('min').text )
+            geographic_boundaries_out[stack_id].lat_max = float( stack_Item.find('latitude').find('max').text )
+        
+    return geographic_boundaries_out
+
+def write_lut_files( lut, lut_type, output_folder):
+    """Write loolup table for lut_cal, lut_fnf and lut_stacks in xml format"""
+    
+    if not (lut_type == 'cal' or lut_type == 'fnf' or lut_type == 'stacks'):
+        errormessage = 'type {} not recognized'.format(lut_type)
+        raise ValueError( errormessage )
+        
+    lut_fname = os.path.join(output_folder, 'lut_'+lut_type+'.xml')
+
+    lut_Item = Element('lookpu_table_'+lut_type)
+    lut_Item.set('version', _XML_VERSION)
+
+    boundaries_elem = SubElement(lut_Item, 'boundaries')
+    boundaries_elem.set('units', 'm')
+    for boundaries in lut.boundaries:
+        coordinates_elem = SubElement(boundaries_elem, 'boundary_coordinates')
+        
+        east_min = SubElement(coordinates_elem, 'east_min')
+        east_min.text = str( boundaries[0] )
+        east_max = SubElement(coordinates_elem, 'east_max')
+        east_max.text = str( boundaries[1] )
+        north_min = SubElement(coordinates_elem, 'north_min')
+        north_min.text = str( boundaries[2] )
+        north_max = SubElement(coordinates_elem, 'north_max')
+        north_max.text = str( boundaries[3] )
+        
+        if len(boundaries) == 5:
+            flag_cal = SubElement(coordinates_elem, 'flag_cal_format')
+            flag_cal.set('formats', '1= RASTER ; 0=GeoJSON' )
+            flag_cal.text = str( int(boundaries[4]) )
+
+    paths_elem = SubElement(lut_Item, 'paths')
+    for path_curr in lut.paths:
+        path_elem = SubElement(paths_elem, 'path')
+        path_elem.text = str( path_curr )
+        
+    if not lut.progressive is None:
+        progressive_Item = SubElement(lut_Item, 'progressive_stacks_indexes')    
+        for progressive_stack in lut.progressive:
+            progressive_stack_elem = SubElement(progressive_Item, 'progressive_stack')    
+            stack_progressive_index = SubElement(progressive_stack_elem, 'stack_progressive_index')
+            stack_progressive_index.text = str( int( progressive_stack[0] ) )
+            global_cycle_index = SubElement(progressive_stack_elem, 'global_cycle_index')
+            global_cycle_index.text = str( int( progressive_stack[1] ) )
+            heading = SubElement(progressive_stack_elem, 'heading')
+            heading.set('units','Deg')
+            heading.text = str( progressive_stack[2] )
+            range_swath_index = SubElement(progressive_stack_elem, 'range_swath_index')
+            range_swath_index.text = str( int( progressive_stack[3] ) )
+            range_sub_swath_index = SubElement(progressive_stack_elem, 'range_sub_swath_index')
+            range_sub_swath_index.text = str( int( progressive_stack[4] ) )
+            azimuth_swath_index = SubElement(progressive_stack_elem, 'azimuth_swath_index')
+            azimuth_swath_index.text = str( int( progressive_stack[5] ) )
+  
+    ElementTree_indent(lut_Item)
+    tree = ElementTree(lut_Item)
+
+    tree.write(open(lut_fname, 'w'), encoding='unicode')
+
+def parse_lut_files( lut_fname ):
+    
+    tree = ET.parse(lut_fname)
+    root = tree.getroot()
+
+    boundaries_Item = root.find('boundaries')
+    number_of_stacks = len(boundaries_Item.findall('boundary_coordinates'))
+    
+    if boundaries_Item.find('boundary_coordinates').find('flag_cal_format')==None:
+        lut_type = 'not_cal'
+    else:
+        lut_type = 'cal'
+    
+    if lut_type == 'cal':
+        lut_boundaries = np.zeros((number_of_stacks, 5)) # additional element (flag cal)
+    else:
+        lut_boundaries = np.zeros((number_of_stacks, 4))
+        
+    for stack_idx, coord_item in enumerate(boundaries_Item.findall('boundary_coordinates')):
+        if lut_type == 'cal':
+            lut_boundaries[stack_idx, :] = [
+                float( coord_item.find('east_min').text ),
+                float( coord_item.find('east_max').text ),
+                float( coord_item.find('north_min').text ),
+                float( coord_item.find('north_max').text ),
+                int( coord_item.find('flag_cal_format').text ),
+            ]
+        else:
+            lut_boundaries[stack_idx, :] = [
+                float( coord_item.find('east_min').text ),
+                float( coord_item.find('east_max').text ),
+                float( coord_item.find('north_min').text ),
+                float( coord_item.find('north_max').text ),
+            ]
+            
+    paths_Item = root.find('paths')
+    lut_paths = []
+    for path_elem in paths_Item.findall('path'):
+        lut_paths.append( str(path_elem.text) )
+    
+    progressive_Item = root.find('progressive_stacks_indexes')
+    if progressive_Item:
+        lut_progressive = np.zeros((number_of_stacks, 6))
+        for stack_idx, progressive_stack_item in enumerate( progressive_Item.findall('progressive_stack') ):
+            lut_progressive[stack_idx, :] = [
+                int( float( progressive_stack_item.find('stack_progressive_index').text ) ),
+                int( float( progressive_stack_item.find('global_cycle_index').text ) ),
+                float( progressive_stack_item.find('heading').text ),
+                int( float( progressive_stack_item.find('range_swath_index').text ) ),
+                int( float( progressive_stack_item.find('range_sub_swath_index').text ) ),
+                int( float( progressive_stack_item.find('azimuth_swath_index').text ) ),
+        ]
+    else:
+        lut_progressive = None
+
+    return lut_paths, lut_boundaries, lut_progressive
+
+   
 def write_chains_input_file(input_params, input_file_xml):
     """Write the input file of the inner chains"""
 
