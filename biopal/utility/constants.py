@@ -9,10 +9,10 @@ MAX_EARTH_RADIUS_METERS = 6378000
 # consisting of 3 orthogonal axes with X and Y axes in the equatorial plane,
 # positive Z-axis parallel to mean earth rotation axis and pointing towards
 # North Pole. UoM: m.
-EPSG_CODE_ECEF = 'EPSG:4978'
+EPSG_CODE_ECEF = "EPSG:4978"
 
 # Ellipsoidal 2D CS. Axes: latitude, longitude. Orientations: north, east. UoM: degree
-EPSG_CODE_LLA = 'EPSG:4326'
+EPSG_CODE_LLA = "EPSG:4326"
 
 # Oversampling factor to be aplied to input data and auxiliary data when
 # resolution / pixel_spacing is < 2

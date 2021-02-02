@@ -38,17 +38,15 @@ def compute_and_oversample_geometry_auxiliaries(
     R = None
     slope = None
 
-    logging.info('Geometry library: loading auxiliary data: DEM...')
+    logging.info("Geometry library: loading auxiliary data: DEM...")
     pf_name = os.path.basename(aux_file_names.dem_folder)
     folder = os.path.dirname(aux_file_names.dem_folder)
     path_dem = os.path.join(folder, pf_name)
 
     try:
-        pf_dem = ProductFolder(path_dem, 'r')
+        pf_dem = ProductFolder(path_dem, "r")
     except Exception as e:
-        logging.error(
-            'Geometry library:  error during auxiliary DEM reading: ' + str(e), exc_info=True
-        )
+        logging.error("Geometry library:  error during auxiliary DEM reading: " + str(e), exc_info=True)
         raise
 
     ch_dem = pf_dem.get_channel(0)
@@ -56,32 +54,30 @@ def compute_and_oversample_geometry_auxiliaries(
 
     dem_samples = ri_dem.samples
     lat_axis = (np.arange(0, ri_dem.lines) * ri_dem.lines_step + ri_dem.lines_start) * np.pi / 180
-    lon_axis = (
-        (np.arange(0, dem_samples) * ri_dem.samples_step + ri_dem.samples_start) * np.pi / 180
-    )
+    lon_axis = (np.arange(0, dem_samples) * ri_dem.samples_step + ri_dem.samples_start) * np.pi / 180
 
     dem = pf_dem.read_data(0, [0, 0, ri_dem.lines, dem_samples])
 
     if force_ellipsoid:
         logging.info(
-            'Geometry library: the ellipsoid altitude has been forced by input flag, only the slope over ellipsoid will be computed, after used to correcting geometry global / local reference.'
+            "Geometry library: the ellipsoid altitude has been forced by input flag, only the slope over ellipsoid will be computed, after used to correcting geometry global / local reference."
         )
         dem = 0 * dem
 
-    logging.info('...done\n')
+    logging.info("...done\n")
 
-    logging.info('Geometry library: loading orbits from stack metadata...')
+    logging.info("Geometry library: loading orbits from stack metadata...")
     ch_list = []
     dsi_list = []
     swath_id_list = []
     swath_info_list = []
 
     # read master alone to absure it will be first in the list
-    pf_master = ProductFolder(os.path.join(L1c_repository, master_id), 'r')
+    pf_master = ProductFolder(os.path.join(L1c_repository, master_id), "r")
     ch_master = pf_master.get_channel(0)
     ch_list.append(ch_master)
     ri_temp = ch_master.get_raster_info(0)
-    if ri_temp.samples_step_unit == 'm':
+    if ri_temp.samples_step_unit == "m":
         ri_master = convert_rasterinfo_meters_to_seconds(ri_temp)
 
         # ri_list.append( ri_master )
@@ -122,9 +118,7 @@ def compute_and_oversample_geometry_auxiliaries(
     flag_compute_sar_geometry = False
     if not sar_geometry_master:
         flag_compute_sar_geometry = True
-        sar_geometry_master = geometric_lib.SARGeometry(
-            ri_master, sv_master, lat_axis, lon_axis, dem
-        )
+        sar_geometry_master = geometric_lib.SARGeometry(ri_master, sv_master, lat_axis, lon_axis, dem)
         sar_geometry_master.compute_xyz()
 
     dsi_master = ch_master.get_dataset_info(0)
@@ -135,12 +129,12 @@ def compute_and_oversample_geometry_auxiliaries(
 
     for acq_id in acquisition_pf_names:
         if not acq_id == master_id:
-            pf_slave = ProductFolder(os.path.join(L1c_repository, acq_id), 'r')
+            pf_slave = ProductFolder(os.path.join(L1c_repository, acq_id), "r")
             ch_slave = pf_slave.get_channel(0)
             ch_list.append(ch_slave)
 
             ri_temp = ch_slave.get_raster_info(0)
-            if ri_temp.samples_step_unit == 'm':
+            if ri_temp.samples_step_unit == "m":
                 ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp)
             else:
                 ri_slave = ri_temp
@@ -150,9 +144,9 @@ def compute_and_oversample_geometry_auxiliaries(
             swath_id_list.append(ch_slave.get_swath_info(0).swath)
             swath_info_list.append(ch_slave.get_swath_info(0))
 
-    logging.info('...done\n')
+    logging.info("...done\n")
 
-    logging.info('Geometry library: computing auxiliary data: slope...')
+    logging.info("Geometry library: computing auxiliary data: slope...")
 
     if flag_compute_sar_geometry:
         sar_geometry_master.compute_terrain_slope()
@@ -174,16 +168,16 @@ def compute_and_oversample_geometry_auxiliaries(
         out_pf_name = os.path.join(folder_name, stack_id)
 
         if os.path.exists(out_pf_name):
-            logging.warning('Overwriting of Auxiliary slope for stack ' + stack_id)
+            logging.warning("Overwriting of Auxiliary slope for stack " + stack_id)
             shutil.rmtree(out_pf_name)
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
         # slope = sar_geometry_master.terrain_slope
-        pf = ProductFolder(out_pf_name, 'w')
+        pf = ProductFolder(out_pf_name, "w")
 
         # append a channel with the correct dimensions
-        pf.append_channel(num_lines, num_samples, 'FLOAT32', header_offset=0)
+        pf.append_channel(num_lines, num_samples, "FLOAT32", header_offset=0)
 
         # write the ECEF coordinate to the channel
         pf.write_data(0, slope)
@@ -194,26 +188,26 @@ def compute_and_oversample_geometry_auxiliaries(
         metadatachannel_obj = metadata_obj.get_metadata_channels(0)
 
         # Raster Info
-        ri = metadatachannel_obj.get_element('RasterInfo')
+        ri = metadatachannel_obj.get_element("RasterInfo")
         ri.set_lines_axis(lines_start, lines_start_unit, lines_step, lines_step_unit)
         ri.set_samples_axis(samples_start, samples_start_unit, samples_step, samples_step_unit)
 
         # DataSetInfo: to insert the X, Y or Z description
-        dsi_list[0].description = 'Auxiliary data: Slope [rad]'
+        dsi_list[0].description = "Auxiliary data: Slope [rad]"
         metadatachannel_obj.insert_element(dsi_list[0])
 
         pf.write_metadata(0)
 
         pf = None
 
-    print('...done.\n')
+    print("...done.\n")
 
-    logging.info('Geometry library: computing auxiliary data: ECEFGRID...')
+    logging.info("Geometry library: computing auxiliary data: ECEFGRID...")
 
     ecef_grid = {
-        'X': sar_geometry_master.x_sar_coords,
-        'Y': sar_geometry_master.y_sar_coords,
-        'Z': sar_geometry_master.z_sar_coords,
+        "X": sar_geometry_master.x_sar_coords,
+        "Y": sar_geometry_master.y_sar_coords,
+        "Z": sar_geometry_master.z_sar_coords,
     }
 
     if enable_resampling:
@@ -224,28 +218,28 @@ def compute_and_oversample_geometry_auxiliaries(
     out_pf_name = os.path.join(folder_name, stack_id)
 
     if os.path.exists(out_pf_name):
-        logging.warning('Overwriting of Auxiliary ECEFGRID for stack ' + stack_id)
+        logging.warning("Overwriting of Auxiliary ECEFGRID for stack " + stack_id)
         shutil.rmtree(out_pf_name)
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
-    pf = ProductFolder(out_pf_name, 'w')
-    dsi_ecefgrid = DataSetInfo('STRIPMAP', 435000000)
-    dsi_ecefgrid.description = ''
-    dsi_ecefgrid.image_type = 'SLC'
-    dsi_ecefgrid.projection = 'SLANT RANGE'
-    dsi_ecefgrid.side_looking = 'RIGHT'
-    dsi_ecefgrid.sensor_name = 'BIOMASS'
+    pf = ProductFolder(out_pf_name, "w")
+    dsi_ecefgrid = DataSetInfo("STRIPMAP", 435000000)
+    dsi_ecefgrid.description = ""
+    dsi_ecefgrid.image_type = "SLC"
+    dsi_ecefgrid.projection = "SLANT RANGE"
+    dsi_ecefgrid.side_looking = "RIGHT"
+    dsi_ecefgrid.sensor_name = "BIOMASS"
     dsi_ecefgrid.sense_date = PreciseDateTime()
-    dsi_ecefgrid.acquisition_station = 'NOT_AVAILABLE'
-    dsi_ecefgrid.processing_center = 'NOT_AVAILABLE'
+    dsi_ecefgrid.acquisition_station = "NOT_AVAILABLE"
+    dsi_ecefgrid.processing_center = "NOT_AVAILABLE"
     dsi_ecefgrid.processing_date = PreciseDateTime()
-    dsi_ecefgrid.processing_software = 'NOT_AVAILABLE'
+    dsi_ecefgrid.processing_software = "NOT_AVAILABLE"
 
-    coord_names = ['X', 'Y', 'Z']
+    coord_names = ["X", "Y", "Z"]
     for channel_idx, coord_name in enumerate(coord_names):
 
-        pf.append_channel(num_lines, num_samples, 'FLOAT32', header_offset=0)
+        pf.append_channel(num_lines, num_samples, "FLOAT32", header_offset=0)
         pf.write_data(channel_idx, ecef_grid[coord_name])
 
         # prepare the metadata elements
@@ -254,18 +248,18 @@ def compute_and_oversample_geometry_auxiliaries(
         metadatachannel_obj = metadata_obj.get_metadata_channels(0)
 
         # Raster Info
-        ri = metadatachannel_obj.get_element('RasterInfo')
+        ri = metadatachannel_obj.get_element("RasterInfo")
         ri.set_lines_axis(lines_start, lines_start_unit, lines_step, lines_step_unit)
         ri.set_samples_axis(samples_start, samples_start_unit, samples_step, samples_step_unit)
 
         # DataSetInfo: to insert the X, Y or Z description
-        dsi_ecefgrid.description = 'Auxiliary data: ' + coord_name + ' ECEF GRID [m]'
+        dsi_ecefgrid.description = "Auxiliary data: " + coord_name + " ECEF GRID [m]"
         metadatachannel_obj.insert_element(dsi_ecefgrid)
 
         pf.write_metadata(channel_idx)
 
     pf = None
-    logging.info('...done\n')
+    logging.info("...done\n")
 
     targets_coords = np.vstack(
         (
@@ -276,7 +270,7 @@ def compute_and_oversample_geometry_auxiliaries(
     )
 
     if comp_ref_h:
-        logging.info('Geometry library: computing auxiliary data: reference height...')
+        logging.info("Geometry library: computing auxiliary data: reference height...")
         reference_height = sar_geometry_master.dem_sar
 
         if enable_resampling:
@@ -287,15 +281,15 @@ def compute_and_oversample_geometry_auxiliaries(
         out_pf_name = os.path.join(folder_name, stack_id)
 
         if os.path.exists(out_pf_name):
-            logging.warning('Overwriting of Auxiliary reference height for stack ' + stack_id)
+            logging.warning("Overwriting of Auxiliary reference height for stack " + stack_id)
             shutil.rmtree(out_pf_name)
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
         # create the Product Folder in writing mode:
-        pf = ProductFolder(out_pf_name, 'w')
+        pf = ProductFolder(out_pf_name, "w")
         # append a channel with the correct dimensions
-        pf.append_channel(num_lines, num_samples, 'FLOAT32', header_offset=0)
+        pf.append_channel(num_lines, num_samples, "FLOAT32", header_offset=0)
         # write the DTM to PF (reference height)
         pf.write_data(0, reference_height)
 
@@ -305,45 +299,45 @@ def compute_and_oversample_geometry_auxiliaries(
         metadatachannel_obj = metadata_obj.get_metadata_channels(0)
 
         # Raster Info
-        ri = metadatachannel_obj.get_element('RasterInfo')
+        ri = metadatachannel_obj.get_element("RasterInfo")
         ri.set_lines_axis(lines_start, lines_start_unit, lines_step, lines_step_unit)
 
         ri.set_samples_axis(samples_start, samples_start_unit, samples_step, samples_step_unit)
 
         # DataSetInfo
-        dsi = DataSetInfo('STRIPMAP', 435000000)
-        dsi.description = 'Auxiliary data: Reference height (DTM)'
-        dsi.image_type = 'SLC'
-        dsi.projection = 'SLANT RANGE'
-        dsi.side_looking = 'RIGHT'
-        dsi.sensor_name = 'BIOMASS'
+        dsi = DataSetInfo("STRIPMAP", 435000000)
+        dsi.description = "Auxiliary data: Reference height (DTM)"
+        dsi.image_type = "SLC"
+        dsi.projection = "SLANT RANGE"
+        dsi.side_looking = "RIGHT"
+        dsi.sensor_name = "BIOMASS"
         dsi.sense_date = PreciseDateTime()
-        dsi.acquisition_station = 'NOT_AVAILABLE'
-        dsi.processing_center = 'NOT_AVAILABLE'
+        dsi.acquisition_station = "NOT_AVAILABLE"
+        dsi.processing_center = "NOT_AVAILABLE"
         dsi.processing_date = PreciseDateTime()
-        dsi.processing_software = 'NOT_AVAILABLE'
+        dsi.processing_software = "NOT_AVAILABLE"
 
         metadatachannel_obj.insert_element(dsi)
 
         pf.write_metadata(0)
         pf = None
 
-        print('...done.\n')
+        print("...done.\n")
 
     if comp_dist:
-        logging.info('Geometry library: computing auxiliary data: slant range distances...')
+        logging.info("Geometry library: computing auxiliary data: slant range distances...")
 
         pf_name = os.path.basename(aux_file_names.slant_range_distances_file_names[stack_id])
         folder_name = os.path.dirname(aux_file_names.slant_range_distances_file_names[stack_id])
         out_pf_name = os.path.join(folder_name, stack_id)
 
         if os.path.exists(out_pf_name):
-            logging.warning('Overwriting of Auxiliary slant range distances for stack ' + stack_id)
+            logging.warning("Overwriting of Auxiliary slant range distances for stack " + stack_id)
             shutil.rmtree(out_pf_name)
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
-        pf = ProductFolder(out_pf_name, 'w')
+        pf = ProductFolder(out_pf_name, "w")
         R = {}
         for channel_idx, channel_curr in enumerate(ch_list):
 
@@ -354,7 +348,7 @@ def compute_and_oversample_geometry_auxiliaries(
 
                 # distance between targets and slave orbit
                 ri_temp = channel_curr.get_raster_info(0)
-                if ri_temp.samples_step_unit == 'm':
+                if ri_temp.samples_step_unit == "m":
                     ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp)
                 else:
                     ri_slave = ri_temp
@@ -367,9 +361,7 @@ def compute_and_oversample_geometry_auxiliaries(
 
                 gso_slave = create_general_sar_orbit(sv_slave)
 
-                _, range_points_master_slave = geometric_lib.perform_inverse_geocoding(
-                    gso_slave, targets_coords
-                )
+                _, range_points_master_slave = geometric_lib.perform_inverse_geocoding(gso_slave, targets_coords)
 
                 distance_slave = range_points_master_slave * LIGHTSPEED / 2
                 distance_slave.shape = sar_geometry_master.x_sar_coords.shape
@@ -382,7 +374,7 @@ def compute_and_oversample_geometry_auxiliaries(
                 )[0]
 
             # append a channel with the correct dimensions
-            pf.append_channel(num_lines, num_samples, 'FLOAT32', header_offset=0)
+            pf.append_channel(num_lines, num_samples, "FLOAT32", header_offset=0)
 
             # write the R coordinate to the channel
             pf.write_data(channel_idx, R[swath_id_list[channel_idx]])
@@ -393,12 +385,12 @@ def compute_and_oversample_geometry_auxiliaries(
             metadatachannel_obj = metadata_obj.get_metadata_channels(0)
 
             # Raster Info
-            ri = metadatachannel_obj.get_element('RasterInfo')
+            ri = metadatachannel_obj.get_element("RasterInfo")
             ri.set_lines_axis(lines_start, lines_start_unit, lines_step, lines_step_unit)
             ri.set_samples_axis(samples_start, samples_start_unit, samples_step, samples_step_unit)
 
             # DataSetInfo: to insert the X, Y or Z description
-            dsi_list[channel_idx].description = 'Auxiliary data: slant range distances [m]'
+            dsi_list[channel_idx].description = "Auxiliary data: slant range distances [m]"
             metadatachannel_obj.insert_element(dsi_list[channel_idx])
 
             metadatachannel_obj.insert_element(swath_info_list[channel_idx])
@@ -406,21 +398,21 @@ def compute_and_oversample_geometry_auxiliaries(
             pf.write_metadata(channel_idx)
         pf = None
 
-        print('...done.\n')
+        print("...done.\n")
 
-    logging.info('Geometry library: computing auxiliary data: off nadir...')
+    logging.info("Geometry library: computing auxiliary data: off nadir...")
 
     pf_name = os.path.basename(aux_file_names.off_nadir_angle_file_names[stack_id])
     folder_name = os.path.dirname(aux_file_names.off_nadir_angle_file_names[stack_id])
     out_pf_name = os.path.join(folder_name, stack_id)
 
     if os.path.exists(out_pf_name):
-        logging.warning('Overwriting of Auxiliary off nadir for stack ' + stack_id)
+        logging.warning("Overwriting of Auxiliary off nadir for stack " + stack_id)
         shutil.rmtree(out_pf_name)
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
-    pf = ProductFolder(out_pf_name, 'w')
+    pf = ProductFolder(out_pf_name, "w")
     off_nadir_angle_rad = {}
     for channel_idx, channel_curr in enumerate(ch_list):
 
@@ -435,7 +427,7 @@ def compute_and_oversample_geometry_auxiliaries(
         else:
             # slaves
             ri_temp = channel_curr.get_raster_info(0)
-            if ri_temp.samples_step_unit == 'm':
+            if ri_temp.samples_step_unit == "m":
                 ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp)
             else:
                 ri_slave = ri_temp
@@ -448,9 +440,7 @@ def compute_and_oversample_geometry_auxiliaries(
 
             gso_slave = create_general_sar_orbit(sv_slave)
 
-            azimuth_points_master_slave, _ = geometric_lib.perform_inverse_geocoding(
-                gso_slave, targets_coords
-            )
+            azimuth_points_master_slave, _ = geometric_lib.perform_inverse_geocoding(gso_slave, targets_coords)
 
             sensor_positions_slave = gso_slave.get_position(azimuth_points_master_slave)
             sensor_positions_slave.shape = (3, *sar_geometry_master.x_sar_coords.shape)
@@ -466,7 +456,7 @@ def compute_and_oversample_geometry_auxiliaries(
             )[0]
 
         # append a channel with the correct dimensions
-        pf.append_channel(num_lines, num_samples, 'FLOAT32', header_offset=0)
+        pf.append_channel(num_lines, num_samples, "FLOAT32", header_offset=0)
 
         # write the ECEF coordinate to the channel
         pf.write_data(channel_idx, off_nadir_angle_rad[swath_id_list[channel_idx]])
@@ -477,12 +467,12 @@ def compute_and_oversample_geometry_auxiliaries(
         metadatachannel_obj = metadata_obj.get_metadata_channels(0)
 
         # Raster Info
-        ri = metadatachannel_obj.get_element('RasterInfo')
+        ri = metadatachannel_obj.get_element("RasterInfo")
         ri.set_lines_axis(lines_start, lines_start_unit, lines_step, lines_step_unit)
         ri.set_samples_axis(samples_start, samples_start_unit, samples_step, samples_step_unit)
 
         # DataSetInfo: to insert the X, Y or Z description
-        dsi_list[channel_idx].description = 'Auxiliary data: Incidence Angle [rad]'
+        dsi_list[channel_idx].description = "Auxiliary data: Incidence Angle [rad]"
         metadatachannel_obj.insert_element(dsi_list[channel_idx])
 
         metadatachannel_obj.insert_element(swath_info_list[channel_idx])
@@ -490,21 +480,21 @@ def compute_and_oversample_geometry_auxiliaries(
         pf.write_metadata(channel_idx)
 
     pf = None
-    print('...done.\n)')
+    print("...done.\n)")
 
-    logging.info('Geometry library: computing auxiliary data: KZ (wavenumbers)...')
+    logging.info("Geometry library: computing auxiliary data: KZ (wavenumbers)...")
 
     pf_name = os.path.basename(aux_file_names.kz_file_names[stack_id])
     folder_name = os.path.dirname(aux_file_names.kz_file_names[stack_id])
     out_pf_name = os.path.join(folder_name, stack_id)
 
     if os.path.exists(out_pf_name):
-        logging.warning('Overwriting of Auxiliary KZ (wavenumbers) for stack ' + stack_id)
+        logging.warning("Overwriting of Auxiliary KZ (wavenumbers) for stack " + stack_id)
         shutil.rmtree(out_pf_name)
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
-    pf = ProductFolder(out_pf_name, 'w')
+    pf = ProductFolder(out_pf_name, "w")
     kz = {}
     for channel_idx, channel_curr in enumerate(ch_list):
 
@@ -515,9 +505,7 @@ def compute_and_oversample_geometry_auxiliaries(
             kz[swath_id_list[channel_idx]] = np.zeros((ri_master.lines, ri_master.samples))
         else:
             kz[swath_id_list[channel_idx]] = geometric_lib.compute_vertical_wavenumber_angles(
-                wavelength,
-                off_nadir_angle_rad[swath_id_list[0]],
-                off_nadir_angle_rad[swath_id_list[channel_idx]],
+                wavelength, off_nadir_angle_rad[swath_id_list[0]], off_nadir_angle_rad[swath_id_list[channel_idx]],
             )
 
         if enable_resampling:
@@ -526,7 +514,7 @@ def compute_and_oversample_geometry_auxiliaries(
             )[0]
 
         # append a channel with the correct dimensions
-        pf.append_channel(num_lines, num_samples, 'FLOAT32', header_offset=0)
+        pf.append_channel(num_lines, num_samples, "FLOAT32", header_offset=0)
 
         # write the KZ  to the channel
         pf.write_data(channel_idx, kz[swath_id_list[channel_idx]])
@@ -537,12 +525,12 @@ def compute_and_oversample_geometry_auxiliaries(
         metadatachannel_obj = metadata_obj.get_metadata_channels(0)
 
         # Raster Info
-        ri = metadatachannel_obj.get_element('RasterInfo')
+        ri = metadatachannel_obj.get_element("RasterInfo")
         ri.set_lines_axis(lines_start, lines_start_unit, lines_step, lines_step_unit)
         ri.set_samples_axis(samples_start, samples_start_unit, samples_step, samples_step_unit)
 
         # DataSetInfo: to insert the X, Y or Z description
-        dsi_list[channel_idx].description = 'Auxiliary data: KZ (Interferometric wavenumber matrix)'
+        dsi_list[channel_idx].description = "Auxiliary data: KZ (Interferometric wavenumber matrix)"
         metadatachannel_obj.insert_element(dsi_list[channel_idx])
 
         metadatachannel_obj.insert_element(swath_info_list[channel_idx])
@@ -550,7 +538,7 @@ def compute_and_oversample_geometry_auxiliaries(
         pf.write_metadata(channel_idx)
 
     pf = None
-    logging.info('...done\n')
+    logging.info("...done\n")
 
     # Transpose all the outputs as done in the case of auxiliaries directly read (and not computed), see "read_and_oversample_aux_data"
     if not ecef_grid is None:
