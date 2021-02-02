@@ -12,30 +12,26 @@ from biopal.utility.constants import (
 def geocoding_init(ecef_grid, rg_vec_subs, az_vec_subs, min_spacing_m):
 
     ### Convert ECEFGRID pixel to pixel from X+Y+Z to L+L+H (with for example epsg_in_to_epsg_out): the result will NOT be a uniform grid of lat lon
-    logging.info('convert ECEFGRID pixel to pixel from X Y Z to Lat Lon Alt...')
+    logging.info("convert ECEFGRID pixel to pixel from X Y Z to Lat Lon Alt...")
     lon_in, lat_in, alt_in = epsg_in_to_epsg_out(
-        ecef_grid['X'][rg_vec_subs, :][:, az_vec_subs],
-        ecef_grid['Y'][rg_vec_subs, :][:, az_vec_subs],
-        ecef_grid['Z'][rg_vec_subs, :][:, az_vec_subs],
+        ecef_grid["X"][rg_vec_subs, :][:, az_vec_subs],
+        ecef_grid["Y"][rg_vec_subs, :][:, az_vec_subs],
+        ecef_grid["Z"][rg_vec_subs, :][:, az_vec_subs],
         EPSG_CODE_ECEF,
         EPSG_CODE_LLA,
     )
 
     lat_lon_step = np.rad2deg(min_spacing_m / MAX_EARTH_RADIUS_METERS)
 
-    logging.info('    geocoding latitude and longitude step used: {} [deg]'.format(lat_lon_step))
+    logging.info("    geocoding latitude and longitude step used: {} [deg]".format(lat_lon_step))
     lat_lon_gap = 0  # 1*lat_lon_step
 
     # latitude should be decrescent
     used_lat_step = -np.abs(lat_lon_step)
-    lat_regular_vector = np.arange(
-        np.nanmax(lat_in) - lat_lon_gap, np.nanmin(lat_in) + lat_lon_gap, used_lat_step
-    )
+    lat_regular_vector = np.arange(np.nanmax(lat_in) - lat_lon_gap, np.nanmin(lat_in) + lat_lon_gap, used_lat_step)
     # longitude should be crescent
     used_lon_step = np.abs(lat_lon_step)
-    lon_regular_vector = np.arange(
-        np.nanmin(lon_in) - lat_lon_gap, np.nanmax(lon_in) + lat_lon_gap, used_lon_step
-    )
+    lon_regular_vector = np.arange(np.nanmin(lon_in) - lat_lon_gap, np.nanmax(lon_in) + lat_lon_gap, used_lon_step)
 
     lonMeshed_out, latMeshed_out = np.meshgrid(lon_regular_vector, lat_regular_vector)
 
@@ -56,13 +52,7 @@ def geocoding_init(ecef_grid, rg_vec_subs, az_vec_subs, min_spacing_m):
 
 
 def geocoding(
-    data_to_geocode,
-    lon_in,
-    lat_in,
-    lonMeshed_out,
-    latMeshed_out,
-    valid_values_mask,
-    interp_method='linear',
+    data_to_geocode, lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask, interp_method="linear",
 ):
     f = griddata(
         np.array([lat_in[valid_values_mask].flatten(), lon_in[valid_values_mask].flatten()]).T,
