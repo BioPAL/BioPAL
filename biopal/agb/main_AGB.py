@@ -1,6 +1,7 @@
 # this path is temporary:
-from pathlib import Path
-     
+test_additional_polygons = False
+from shapely.geometry import Polygon
+
 # import libraries
 import os
 import numpy as np
@@ -149,12 +150,15 @@ class StackBasedProcessingAGB(Task):
         if gdal_path is None:
             gdal_path = '' 
         super().__init__(configuration_file_xml)
+        self.stand_alone_call = False
         if isinstance(geographic_boundaries, str):
             self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)
+            self.stand_alone_call = True
         else:
             self.geographic_boundaries = geographic_boundaries
         if isinstance(geographic_boundaries_per_stack, str):
             self.geographic_boundaries_per_stack = parse_boundaries_files(geographic_boundaries_per_stack)
+            self.stand_alone_call = True
         else:
             self.geographic_boundaries_per_stack = geographic_boundaries_per_stack 
         self.gdal_path = gdal_path
@@ -166,6 +170,11 @@ class StackBasedProcessingAGB(Task):
 
 
     def _run(self, input_file_xml):
+        
+        if self.stand_alone_call:
+            proc_flags_struct = proc_flags( True,False,False,False,False)
+            proc_inputs = parse_chains_input_file(input_file_xml)
+            log_file_name = start_logging_agb(proc_inputs.output_folder, proc_flags_struct, 'DEBUG', 'StackBasedProcessingAGB')
         
         self.check_auxiliaries()
         
@@ -1000,16 +1009,19 @@ class CoreProcessingAGB(Task):
             self.geographic_boundaries = geographic_boundaries
         if isinstance(lut_cal, str):
             self.lut_cal_paths, self.lut_cal, _ = parse_lut_files(lut_cal)
+            self.stand_alone_call = True
         else:
             self.lut_cal_paths = lut_cal.paths
             self.lut_cal = lut_cal.boundaries
         if isinstance(lut_fnf, str):
             self.lut_fnf_paths, self.lut_fnf, _ = parse_lut_files(lut_fnf)
+            self.stand_alone_call = True
         else:
             self.lut_fnf_paths = lut_fnf.paths
             self.lut_fnf = lut_fnf.boundaries
         if isinstance(lut_stacks, str):
             self.lut_stacks_paths, self.lut_stacks_boundaries, self.lut_progressive_stacks = parse_lut_files(lut_stacks)
+            self.stand_alone_call = True
         else:
             self.lut_stacks_paths = lut_stacks.paths
             self.lut_stacks_boundaries = lut_stacks.boundaries
@@ -1038,7 +1050,7 @@ class CoreProcessingAGB(Task):
         if self.stand_alone_call:
             proc_flags_struct = proc_flags( True,False,False,False,False)
             proc_inputs = parse_chains_input_file(input_file_xml)
-            # log_file_name = start_logging(proc_inputs.output_folder, proc_flags_struct, 'DEBUG', app_name='AGB Core Processing')
+            log_file_name = start_logging_agb(proc_inputs.output_folder, proc_flags_struct, 'DEBUG', 'CoreProcessingAGB')
         
         logging.info('AGB core-processing APP starting\n')
         
@@ -1188,7 +1200,10 @@ class CoreProcessingAGB(Task):
 
         ### read additional polygons (e.q., cals not on a grid)
         # (read from xml file or external shapefiles?)
-        additional_sampling_polygons = [] # gdal.rasterize()
+        additional_sampling_polygons = [] 
+        if test_additional_polygons:
+            additional_sampling_polygons.append(Polygon([(4515000, 5036000), (4516000, 5036000), (4516000, 5037000)]))
+        # cal_additional_data = gdal.rasterize( additional_sampling_polygons )
 
         ### DERIVED QUANTITIES
         
@@ -1840,3 +1855,42 @@ class CoreProcessingAGB(Task):
         except Exception as e:
             logging.error('AGB: core-processing APP error during creation of wall-to-wall maps.' + str(e), exc_info=True)
             raise
+            
+def start_logging_agb(output_folder, proc_flags, log_level, app_name):
+    # CRITICAL 50
+    # ERROR 40
+    # WARNING 30
+    # INFO 20
+    # DEBUG 10
+    # NOTSET 0
+
+    if log_level == 'DEBUG':
+        level_to_set = logging.DEBUG
+    elif log_level == 'INFO':
+        level_to_set = logging.INFO
+    elif log_level == 'WARNING':
+        level_to_set = logging.WARNING
+    elif log_level == 'ERROR':
+        level_to_set = logging.ERROR
+
+    log_file_name = os.path.join(output_folder, app_name+'_APP.log')
+
+    logging.basicConfig(
+        handlers=[
+            logging.FileHandler(log_file_name, mode='w', encoding='utf-8'),
+            logging.StreamHandler(),
+        ],
+        level=level_to_set,
+        format='%(asctime)s - %(levelname)s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    
+
+    logging.info(' --BIOMASS L2 Processor-- ')
+    logging.info('Executing {} APP'.format(app_name))
+
+    logging.info(' \n')
+
+    return log_file_name
