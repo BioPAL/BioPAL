@@ -91,11 +91,6 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         configuration_file_TOMO_FH = os.path.join(
             default_configuration_folder, 'ConfigurationFile_TOMO_FH.xml')
     
-    gdal_path, gdal_environment_path = parse_biopal_configuration_file(
-        biopal_configuration_file_xml
-    )
-    gdal_path, gdal_environment_path = set_gdal_paths( gdal_path, gdal_environment_path )
-     
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
 
@@ -112,6 +107,11 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     # start the main logging
     log_file_name = start_logging(output_folder, main_input_struct.proc_flags, 'DEBUG')
 
+    gdal_path, gdal_environment_path = parse_biopal_configuration_file(
+        biopal_configuration_file_xml
+    )
+    gdal_path, gdal_environment_path = set_gdal_paths( gdal_path, gdal_environment_path )
+     
     logging.debug('Configuration   folder is {}'.format(conf_folder))
     logging.info(' Auxiliary data folder is {}'.format(main_input_struct.L1c_aux_data_repository))
     logging.info('Results will be saved into output folder {}'.format(output_folder))
@@ -229,7 +229,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     return True
 
 
-def start_logging(output_folder, proc_flags, log_level, app_name=''):
+def start_logging(output_folder, proc_flags, log_level):
     # CRITICAL 50
     # ERROR 40
     # WARNING 30
@@ -246,10 +246,7 @@ def start_logging(output_folder, proc_flags, log_level, app_name=''):
     elif log_level == 'ERROR':
         level_to_set = logging.ERROR
 
-    if not app_name:
-        log_file_name = os.path.join(output_folder, 'biomassL2.log')
-    else:
-        log_file_name = os.path.join(output_folder, app_name+'.log')
+    log_file_name = os.path.join(output_folder, 'biomassL2.log')
 
     logging.basicConfig(
         handlers=[
@@ -263,21 +260,19 @@ def start_logging(output_folder, proc_flags, log_level, app_name=''):
 
     logging.getLogger('matplotlib.font_manager').disabled = True
     
-    if not app_name:
-        logging.info(' --BIOMASS L2 Processor-- ')
-        logging.info('Following chains will be executed: ')
-        if proc_flags.AGB:
-            logging.info('AGB')
-        if proc_flags.FD:
-            logging.info('FD')
-        if proc_flags.FH:
-            logging.info('FH (Interferometric phase)')
-        if proc_flags.TOMO_FH:
-            logging.info('FH (Tomographic phase)')
-        if proc_flags.TOMO:
-            logging.info('TOMO (Tomographic cube generation)')
-    else:
-        logging.info(' --BIOMASS L2 Processor: '+app_name+' APP-- ')
+
+    logging.info(' --BIOMASS L2 Processor-- ')
+    logging.info('Following chains will be executed: ')
+    if proc_flags.AGB:
+        logging.info('AGB')
+    if proc_flags.FD:
+        logging.info('FD')
+    if proc_flags.FH:
+        logging.info('FH (Interferometric phase)')
+    if proc_flags.TOMO_FH:
+        logging.info('FH (Tomographic phase)')
+    if proc_flags.TOMO:
+        logging.info('TOMO (Tomographic cube generation)')
 
     logging.info(' \n')
 

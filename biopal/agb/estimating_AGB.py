@@ -10,6 +10,10 @@ import numpy as np
 import scipy as sp
 import logging
 import os
+import osr
+import ogr
+import gdal
+from shapely.geometry import Polygon
 
 from biopal.agb.processing_AGB import (
     mean_on_rois,
@@ -1347,10 +1351,71 @@ def transform_function(in_data,interval,kind,do_forward=True):
     return out_data
 # %% function for calculating a given statistic for polygons of arbitrary shape  
 def stats_on_polygons(data,pixel_axis_east,pixel_axis_north,reference_polygons,method):
-    # here, create a function that calculates statistic in method on CAL data polygons
-    #
-    print('not implemented')
-    return []
+    # calculates statistic in method on CAL data polygons
+    
+    # initialize inputs:
+    Nx, Ny = data.shape
+        
+    data_east_min = min(pixel_axis_east.flatten())
+    data_east_delta = (max(pixel_axis_east.flatten())-min(pixel_axis_east.flatten())) / Nx
+    data_north_in = pixel_axis_north.flatten()[0]
+    data_north_delta = (pixel_axis_north.flatten()[-1]-pixel_axis_north.flatten()[0]) / Ny
+    # input data geotransform:
+    data_geotransform = [data_east_min, data_east_delta, 0, data_north_in, 0, data_north_delta]
+    # Setup working spatial reference
+    sr_wkt = 'LOCAL_CS["arbitrary"]'
+    sr = osr.SpatialReference(sr_wkt)
+    
+    # initiale output stats vector
+    polygon_means_vec = np.zeros( len(reference_polygons) )
+    
+    for index, polygon in enumerate(reference_polygons):
+    
+        # Create a memory raster (gdal raster) to rasterize into.
+        raster_support_driver = gdal.GetDriverByName('MEM').Create('', Ny, Nx, 1, gdal.GDT_Byte)
+        raster_support_driver.SetGeoTransform(data_geotransform)
+        raster_support_driver.SetProjection(sr_wkt)
+        
+        # Create a memory ploygon layer (ogr vector) to rasterize from.
+        poly_layer_support_driver = ogr.GetDriverByName('Memory').CreateDataSource('wrk')
+        poly_layer = poly_layer_support_driver.CreateLayer('poly', srs=sr)
+        
+        # Add a polygon to the layer.
+        if isinstance(polygon, str):
+            wkt_geom = polygon
+        elif isinstance(polygon, Polygon):
+            wkt_geom = polygon.wkt
+        feat = ogr.Feature(poly_layer.GetLayerDefn())
+        feat.SetGeometryDirectly(ogr.Geometry(wkt=wkt_geom))
+        poly_layer.CreateFeature(feat)
+        
+        # Run the rasterization of polygon over raster data driver
+        gdal.RasterizeLayer(raster_support_driver, [1], poly_layer, burn_values=[1])
+        # read the mask from the rasterized polygon over data driver
+        bandmask = raster_support_driver.GetRasterBand(1)
+        datamask = bandmask.ReadAsArray().astype(np.bool)
+        
+         # Calculate statistics of zonal raster
+        if method == 'mean':
+            polygon_means_vec[index] = np.mean(data[datamask])
+            
+        elif method == 'nan_mean':
+            polygon_means_vec[index] = np.nanmean(data[datamask])
+    
+        elif method == 'median':
+            polygon_means_vec[index] = np.median(data[datamask])
+            
+        elif method == 'nan_median':
+            polygon_means_vec[index] = np.nanmedian(data[datamask])
+        elif method == 'mode':
+            polygon_means_vec[index] = sp.stats.mode(data[datamask])[0]
+          
+        raster_support_driver = None
+        poly_layer_support_driver = None
+    
+    return polygon_means_vec
+
+
 # %% function for calculating a given statistic on all samples on a grid and all polygons
 def stats_on_all_samples(data,pixel_axis_east,pixel_axis_north,sample_axis_east,sample_size_east,sample_axis_north,sample_size_north,polygons,method):
     stats = mean_on_rois(data,pixel_axis_east,pixel_axis_north,sample_axis_east,sample_size_east,sample_axis_north,sample_size_north,method)
