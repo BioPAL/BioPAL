@@ -457,8 +457,8 @@ def get_raster_cal_names(reference_agb_folder):
 
     cal_names = []
     for tiff_name in tiff_names:
-
-        cal_names.append(os.path.join(reference_agb_folder, tiff_name))
+        if '.tif' in tiff_name or '.tiff' in tiff_name:
+            cal_names.append(os.path.join(reference_agb_folder, tiff_name))
 
     return cal_names
 
@@ -469,7 +469,7 @@ def get_foss_cal_names(reference_agb_folder):
 
     cal_names = []
     for tiff_name in tiff_names:
-
-        cal_names.append(os.path.join(reference_agb_folder, tiff_name))
+        if '.tif' in tiff_name or '.tiff' in tiff_name:
+            cal_names.append(os.path.join(reference_agb_folder, tiff_name))
 
     return cal_names
