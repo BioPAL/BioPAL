@@ -1,0 +1,45 @@
+<InputsL2AGB version="1.0">
+  <L1cRepository>C:\demo_lope_two\dataSet</L1cRepository>
+  <L1cProductList>
+    <L1cProduct unique_stack_id="GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00">
+      <Acquisition>GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_BSL_00</Acquisition>
+      <Acquisition>GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_BSL_01</Acquisition>
+      <Acquisition>GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00_BSL_02</Acquisition>
+    </L1cProduct>
+    <L1cProduct unique_stack_id="GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00">
+      <Acquisition>GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_BSL_00</Acquisition>
+      <Acquisition>GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_BSL_01</Acquisition>
+      <Acquisition>GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00_BSL_02</Acquisition>
+    </L1cProduct>
+  </L1cProductList>
+  <AuxiliaryProductList>
+    <L1cStack unique_stack_id="GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00">
+      <Geometry>
+        <ECEFGrid>C:\demo_lope_two\auxiliary_data_pf\Geometry\ECEFGRID\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</ECEFGrid>
+        <kz>C:\demo_lope_two\auxiliary_data_pf\Geometry\KZ\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</kz>
+        <RadarDistances>C:\demo_lope_two\auxiliary_data_pf\Geometry\SlantRangeDistances\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</RadarDistances>
+        <OffNadirAngles>C:\demo_lope_two\auxiliary_data_pf\Geometry\OffNadirAngles\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</OffNadirAngles>
+        <Slope>C:\demo_lope_two\auxiliary_data_pf\Geometry\Slope\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</Slope>
+        <ReferenceHeight>C:\demo_lope_two\auxiliary_data_pf\Geometry\ReferenceHeight\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</ReferenceHeight>
+      </Geometry>
+      <CalibrationScreens>C:\demo_lope_two\auxiliary_data_pf\CalibrationScreens\GC_02_H_230.00_RGSW_00_RGSBSW_00_AZSW_00</CalibrationScreens>
+    </L1cStack>
+    <L1cStack unique_stack_id="GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00">
+      <Geometry>
+        <ECEFGrid>C:\demo_lope_two\auxiliary_data_pf\Geometry\ECEFGRID\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</ECEFGrid>
+        <kz>C:\demo_lope_two\auxiliary_data_pf\Geometry\KZ\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</kz>
+        <RadarDistances>C:\demo_lope_two\auxiliary_data_pf\Geometry\SlantRangeDistances\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</RadarDistances>
+        <OffNadirAngles>C:\demo_lope_two\auxiliary_data_pf\Geometry\OffNadirAngles\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</OffNadirAngles>
+        <Slope>C:\demo_lope_two\auxiliary_data_pf\Geometry\Slope\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</Slope>
+        <ReferenceHeight>C:\demo_lope_two\auxiliary_data_pf\Geometry\ReferenceHeight\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</ReferenceHeight>
+      </Geometry>
+      <CalibrationScreens>C:\demo_lope_two\auxiliary_data_pf\CalibrationScreens\GC_02_H_275.00_RGSW_00_RGSBSW_00_AZSW_00</CalibrationScreens>
+    </L1cStack>
+    <DEM>C:\demo_lope_two\auxiliary_data_pf\DEM</DEM>
+    <ReferenceAGB>C:\demo_lope_two\auxiliary_data_pf\ReferenceAGB</ReferenceAGB>
+    <ForestHeight>C:\demo_lope_two\auxiliary_data_pf\ForestHeight</ForestHeight>
+    <ForestMask>C:\demo_lope_two\auxiliary_data_pf\ForestMask</ForestMask>
+  </AuxiliaryProductList>
+  <OutputFolder>C:\out\Test_StandAloneAPPS_AGB\AGB</OutputFolder>
+  <GeographicGridSampling unit="m">80.0</GeographicGridSampling>
+</InputsL2AGB>
