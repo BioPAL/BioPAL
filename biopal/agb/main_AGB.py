@@ -904,7 +904,7 @@ class StackBasedProcessingAGB(Task):
                     for index_stack, theta_list in enumerate(theta_equi7_fnames.values()):
                         file_list = []
                         for index_file, theta_file_name in enumerate(theta_list):
-                            layer_list = [sigma0_file_name, 0]
+                            layer_list = [theta_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
@@ -1207,7 +1207,7 @@ class CoreProcessingAGB(Task):
 
         #### permissible intervals for source data (before transformation)
         observable_ranges = proc_conf.AGB.residual_function.formula_observables.ranges
-        for idx, unit in enumerate(proc_conf.AGB.residual_function.formula_parameters.units):
+        for idx, unit in enumerate(proc_conf.AGB.residual_function.formula_observables.units):
             if unit == "Deg":
                 observable_ranges[idx][0] = np.deg2rad(observable_ranges[idx][0])
                 observable_ranges[idx][1] = np.deg2rad(observable_ranges[idx][1])
