@@ -34,7 +34,7 @@ def UpperThresholdForestHeight(power_cube, opt_str):
     power_peak = np.max(power_cube, axis=2)
     greater_power_mask = power_cube > power_peak.reshape((Nr, Na, 1)) * opt_str.thr
 
-    last_drop_linear_indices = FindStep3(greater_power_mask, 'last')
+    last_drop_linear_indices = FindStep3(greater_power_mask, "last")
 
     class out_str:
         pass
@@ -59,7 +59,7 @@ def FindStep3(I, varargin):
     Nr, Na, Nz = I.shape
     I = I > 0
 
-    if varargin == 'first':
+    if varargin == "first":
 
         rise_mask = 1 - (np.roll(I, (0, 0, 1), (0, 1, 2))) & I
         rise_mask[:, :, 0] = False
@@ -68,11 +68,10 @@ def FindStep3(I, varargin):
         rise_mask_cumsum = np.cumsum(rise_mask, axis=2)
 
         linear_indices = np.sum(
-            ((rise_mask_cumsum == 1) & rise_mask) * np.arange(I.shape[2]).reshape(1, 1, I.shape[2]),
-            axis=2,
+            ((rise_mask_cumsum == 1) & rise_mask) * np.arange(I.shape[2]).reshape(1, 1, I.shape[2]), axis=2,
         )
 
-    elif varargin == 'last':
+    elif varargin == "last":
 
         drop_mask = 1 - (np.roll(I, (0, 0, -1), (0, 1, 2))) & I
         drop_mask[:, :, 0] = False
@@ -88,7 +87,7 @@ def FindStep3(I, varargin):
 
     else:
 
-        print('Unrecognized input, aborting.\n')
+        print("Unrecognized input, aborting.\n")
         linear_indices = []
 
     return linear_indices
@@ -120,11 +119,7 @@ def BiomassForestHeightSKPD(
 
     # Covariance estimation
     MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_correlation_estimation_SR(
-        data_stack,
-        cov_est_window_size,
-        pixel_spacing_slant_rg,
-        pixel_spacing_az,
-        incidence_angle_rad,
+        data_stack, cov_est_window_size, pixel_spacing_slant_rg, pixel_spacing_az, incidence_angle_rad,
     )
 
     Nrg_subs = rg_vec_subs.size
@@ -147,7 +142,7 @@ def BiomassForestHeightSKPD(
     Nrg_subs_string = str(Nrg_subs)
     for rg_sub_idx in np.arange(Nrg_subs):
 
-        logging.info('   Heigth step ' + str(rg_sub_idx + 1) + ' of ' + Nrg_subs_string)
+        logging.info("   Heigth step " + str(rg_sub_idx + 1) + " of " + Nrg_subs_string)
         for az_sub_idx in np.arange(Naz_subs):
 
             # Spectra estimation initialization
@@ -165,31 +160,23 @@ def BiomassForestHeightSKPD(
                 # best polarimetric channel
                 Rcoh_thin = Covariance2D2Correlation2D(
                     np.reshape(
-                        current_MPMB_correlation[
-                            wpol[0, :][:, np.newaxis] * wpol[0, :][np.newaxis, :]
-                        ],
+                        current_MPMB_correlation[wpol[0, :][:, np.newaxis] * wpol[0, :][np.newaxis, :]],
                         (num_acq, num_acq),
                     )
                 )
                 Rcoh_fat = Covariance2D2Correlation2D(
                     np.reshape(
-                        current_MPMB_correlation[
-                            wpol[1, :][:, np.newaxis] * wpol[1, :][np.newaxis, :]
-                        ],
+                        current_MPMB_correlation[wpol[1, :][:, np.newaxis] * wpol[1, :][np.newaxis, :]],
                         (num_acq, num_acq),
                     )
                 )
                 Rincoh_thin = Covariance2D2Correlation2D(
                     np.reshape(
-                        current_MPMB_correlation[
-                            wpol[2, :][:, np.newaxis] * wpol[2, :][np.newaxis, :]
-                        ],
+                        current_MPMB_correlation[wpol[2, :][:, np.newaxis] * wpol[2, :][np.newaxis, :]],
                         (num_acq, num_acq),
                     )
                 )
-                Rincoh_fat = np.random.randn(num_acq, num_acq) + 1j * np.random.randn(
-                    num_acq, num_acq
-                )
+                Rincoh_fat = np.random.randn(num_acq, num_acq) + 1j * np.random.randn(num_acq, num_acq)
 
             else:
                 # Scattering mechanisms
@@ -207,18 +194,11 @@ def BiomassForestHeightSKPD(
 
             # Spectra estimation
             for m in np.arange(4):
-                currR = (
-                    (m == 0) * Rcoh_thin
-                    + (m == 1) * Rcoh_fat
-                    + (m == 2) * Rincoh_thin
-                    + (m == 3) * Rincoh_fat
-                )
+                currR = (m == 0) * Rcoh_thin + (m == 1) * Rcoh_fat + (m == 2) * Rincoh_thin + (m == 3) * Rincoh_fat
                 if proc_conf.enable_super_resolution:
                     # Capon
                     currR = currR + proc_conf.regularization_noise_factor * np.eye(currR.shape[0])
-                    spectra.temp[:, m] = 1 / np.diag(
-                        np.abs(A.conj().transpose() @ np.linalg.inv(currR) @ A)
-                    )
+                    spectra.temp[:, m] = 1 / np.diag(np.abs(A.conj().transpose() @ np.linalg.inv(currR) @ A))
                 else:
                     spectra.temp[:, m] = np.diag(np.abs(A.conj().transpose() @ currR @ A))
 
@@ -236,7 +216,7 @@ def BiomassForestHeightSKPD(
     out_str = UpperThresholdForestHeight(tomo_cube, opt_str)
     canopy_height = out_str.z
     power_peak = out_str.peak
-    canopy_height = medfilt2d(canopy_height.astype('float64'), kernel_size=5)
+    canopy_height = medfilt2d(canopy_height.astype("float64"), kernel_size=5)
 
     return canopy_height, power_peak, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
 
@@ -248,11 +228,11 @@ def tomo_cube_generator(z, I, model_sign, kz_stack):
     # Initialization
     tomo_cube = np.zeros((Nr, Na, Nz), dtype=np.complex128)
 
-    print('        Beamforming...')
+    print("        Beamforming...")
     for z_ind in np.arange(Nz):
         steering_array = np.exp(-1j * model_sign * kz_stack * z[z_ind]) / np.sqrt(N)
         tomo_cube[:, :, z_ind] = np.sum(I * steering_array, axis=2)
-    print('        done.')
+    print("        done.")
     return tomo_cube
 
 
@@ -260,15 +240,15 @@ def tomo_power_computation_OLD(savPath, win_x, win_y, pol_string, save_flag=Fals
     loadPath = os.path.abspath(savPath)
     loadlist = os.listdir(loadPath)
     for ind in loadlist:
-        if 'x_ax' in ind:
+        if "x_ax" in ind:
             x_ax = np.load(os.path.join(loadPath, ind))
             Na = np.size(x_ax)
             da = x_ax[1] - x_ax[0]
-        if 'y_ax' in ind:
+        if "y_ax" in ind:
             y_ax = np.load(os.path.join(loadPath, ind))
             Nr = np.size(y_ax)
             dr = y_ax[1] - y_ax[0]
-        if 'z_ax' in ind:
+        if "z_ax" in ind:
             z_ax = np.load(os.path.join(loadPath, ind))
             Nz = np.size(z_ax)
 
@@ -276,18 +256,18 @@ def tomo_power_computation_OLD(savPath, win_x, win_y, pol_string, save_flag=Fals
     class filtering_matrix_opt_str:
         pass
 
-    NW = np.round(win_y / dr).astype('int64')
+    NW = np.round(win_y / dr).astype("int64")
     filtering_matrix_opt_str.Nin = Nr
-    filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype('int64')
+    filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype("int64")
     filtering_matrix_opt_str.subs_F = filtering_matrix_opt_str.NWmono
     Fr, rg_subs_ind, Rnorm = build_filtering_matrix(filtering_matrix_opt_str)
     Nrg_subs = rg_subs_ind.size
     Fr_normalized = Rnorm @ Fr
 
     # Azimuth filter matrix
-    NW = np.round(win_x / da).astype('int64')
+    NW = np.round(win_x / da).astype("int64")
     filtering_matrix_opt_str.Nin = Na
-    filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype('int64')
+    filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype("int64")
     filtering_matrix_opt_str.subs_F = filtering_matrix_opt_str.NWmono
     Fa, az_subs_ind, Anorm = build_filtering_matrix(filtering_matrix_opt_str)
     Naz_subs = az_subs_ind.size
@@ -297,41 +277,37 @@ def tomo_power_computation_OLD(savPath, win_x, win_y, pol_string, save_flag=Fals
     power_cube = np.zeros((Nrg_subs, Naz_subs, Nz))
     n = 0
     ## Backscattered power estimation
-    print('Power estimation...')
+    print("Power estimation...")
     counter = 0
     for fileName in loadlist:
-        if '_tomo_' in fileName:
-            fileName_split = fileName.split('_')
+        if "_tomo_" in fileName:
+            fileName_split = fileName.split("_")
             current_pol_string = fileName_split[-3]
-            slice_idx = int(fileName_split[-1].split('.')[0])
+            slice_idx = int(fileName_split[-1].split(".")[0])
 
             if pol_string == current_pol_string:
 
                 slice_loaded = np.load(os.path.join(loadPath, fileName))
 
                 counter = counter + 1
-                print('    adding slice ' + str(counter) + ' of ' + str(Nz))
-                power_cube[:, :, slice_idx] = (
-                    Fr_normalized @ np.abs(slice_loaded) ** 2 @ Fa_normalized
-                )
+                print("    adding slice " + str(counter) + " of " + str(Nz))
+                power_cube[:, :, slice_idx] = Fr_normalized @ np.abs(slice_loaded) ** 2 @ Fa_normalized
                 n += 1
-                print('    {:d}'.format(int(n / Nz * 100)) + '%')
+                print("    {:d}".format(int(n / Nz * 100)) + "%")
 
     x_ax = x_ax[az_subs_ind]
     y_ax = y_ax[rg_subs_ind]
 
     if save_flag:
-        np.save(os.path.join(savPath, 'power_cube'), power_cube)
-        np.save(os.path.join(savPath, 'x_ax_power_cube'), x_ax)
-        np.save(os.path.join(savPath, 'x_ax_power_cube'), y_ax)
-        np.save(os.path.join(savPath, 'x_ax_power_cube'), z_ax)
+        np.save(os.path.join(savPath, "power_cube"), power_cube)
+        np.save(os.path.join(savPath, "x_ax_power_cube"), x_ax)
+        np.save(os.path.join(savPath, "x_ax_power_cube"), y_ax)
+        np.save(os.path.join(savPath, "x_ax_power_cube"), z_ax)
 
     return x_ax, y_ax, z_ax, power_cube
 
 
-def tomo_power_computation(
-    cube_sllices_folder, equi7_zone_name, equi7_tile_name, win_x, win_y, save_path=''
-):
+def tomo_power_computation(cube_sllices_folder, equi7_zone_name, equi7_tile_name, win_x, win_y, save_path=""):
 
     start_a = 4460
     start_r = 3880
@@ -342,7 +318,7 @@ def tomo_power_computation(
     Nz = len(slices_folders)
 
     ## Backscattered power estimation
-    print('Power estimation...')
+    print("Power estimation...")
     for slice_idx, slice_folder in enumerate(slices_folders):
 
         cube_slice_fname = os.path.join(
@@ -350,19 +326,15 @@ def tomo_power_computation(
             slice_folder,
             equi7_zone_name,
             equi7_tile_name,
-            'tomo_cube_slice_' + equi7_zone_name[6:] + '_' + equi7_tile_name + '.tif',
+            "tomo_cube_slice_" + equi7_zone_name[6:] + "_" + equi7_tile_name + ".tif",
         )
 
         data_driver = gdal.Open(cube_slice_fname, GA_ReadOnly)
         for cov_idx in np.arange(6):
             if cov_idx == 0:
-                cov_vec_curr = (
-                    data_driver.GetRasterBand(int(cov_idx + 1))
-                    .ReadAsArray(start_r, start_a, Nr, Na)
-                    .T
-                )
+                cov_vec_curr = data_driver.GetRasterBand(int(cov_idx + 1)).ReadAsArray(start_r, start_a, Nr, Na).T
                 plt.figure()
-                plt.imshow(cov_vec_curr, cmap='jet')
+                plt.imshow(cov_vec_curr, cmap="jet")
                 plt.pause(1)
 
                 Nr = cov_vec_curr.shape[0]
@@ -371,14 +343,12 @@ def tomo_power_computation(
                 cov_vec[cov_idx, :, :] = cov_vec_curr
             else:
                 cov_vec[cov_idx, :, :] = (
-                    data_driver.GetRasterBand(int(cov_idx + 1))
-                    .ReadAsArray(start_r, start_a, Nr, Na)
-                    .T
+                    data_driver.GetRasterBand(int(cov_idx + 1)).ReadAsArray(start_r, start_a, Nr, Na).T
                 )
 
-        print('reshape input cov...')
+        print("reshape input cov...")
         cov_mat = covariance_matrix_vec2mat(cov_vec)
-        print('done')
+        print("done")
 
         if slice_idx == 0:
             # Initialization
@@ -391,18 +361,18 @@ def tomo_power_computation(
             class filtering_matrix_opt_str:
                 pass
 
-            NW = np.round(win_y / dr).astype('int64')
+            NW = np.round(win_y / dr).astype("int64")
             filtering_matrix_opt_str.Nin = Nr
-            filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype('int64')
+            filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype("int64")
             filtering_matrix_opt_str.subs_F = filtering_matrix_opt_str.NWmono
             Fr, rg_subs_ind, Rnorm = build_filtering_matrix(filtering_matrix_opt_str)
             Nrg_subs = rg_subs_ind.size
             Fr_normalized = Rnorm @ Fr
 
             # Azimuth filter matrix
-            NW = np.round(win_x / da).astype('int64')
+            NW = np.round(win_x / da).astype("int64")
             filtering_matrix_opt_str.Nin = Na
-            filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype('int64')
+            filtering_matrix_opt_str.NWmono = np.floor((NW - 1) / 2).astype("int64")
             filtering_matrix_opt_str.subs_F = filtering_matrix_opt_str.NWmono
             Fa, az_subs_ind, Anorm = build_filtering_matrix(filtering_matrix_opt_str)
             Naz_subs = az_subs_ind.size
@@ -410,11 +380,11 @@ def tomo_power_computation(
 
             power_cube = np.zeros((Nrg_subs, Naz_subs, Nz))
 
-        print('    adding ' + slice_folder)
+        print("    adding " + slice_folder)
         power_cube[:, :, slice_idx] = Fr_normalized @ np.abs(cov_mat) ** 2 @ Fa_normalized
 
     if save_path:
-        np.save(os.path.join(save_path, 'power_cube'), power_cube)
+        np.save(os.path.join(save_path, "power_cube"), power_cube)
 
     return power_cube
 
@@ -428,34 +398,33 @@ def tomo_plot(
     equi7_zone_name,
     equi7_tile_name,
     plot_flag,
-    pixel_extent='',
-    save_power_cube_path='',
+    pixel_extent="",
+    save_power_cube_path="",
 ):
 
-    if pol_name == 'hh':
+    if pol_name == "hh":
         pol_idx = 0
-    elif pol_name == 'hv':
+    elif pol_name == "hv":
         pol_idx = 3
-    elif pol_name == 'vv':
+    elif pol_name == "vv":
         pol_idx = 5
 
-    z_file = os.path.join(cube_slices_folder, 'vertical_vector.txt')
+    z_file = os.path.join(cube_slices_folder, "vertical_vector.txt")
     if not os.path.exists(z_file):
         raise ValueError(
-            'A file named "vertical_vector.txt" should be present in the slices folder '
-            + cube_slices_folder
+            'A file named "vertical_vector.txt" should be present in the slices folder ' + cube_slices_folder
         )
-    z_file_id = open(z_file, 'r')
+    z_file_id = open(z_file, "r")
     slices_folders = os.listdir(cube_slices_folder)
     num_z = len(slices_folders)
     z_ax = np.zeros(num_z)
     for slice_idx, cube_slice_curr in enumerate(slices_folders):
-        if not 'tomo_cube_slice_' in cube_slice_curr:
+        if not "tomo_cube_slice_" in cube_slice_curr:
             continue
 
-        print('Reading slice {} of {}'.format(slice_idx + 1, num_z))
+        print("Reading slice {} of {}".format(slice_idx + 1, num_z))
         line_curr = z_file_id.readline()
-        idx_altitude = line_curr.find('altitude:')
+        idx_altitude = line_curr.find("altitude:")
 
         z_ax[slice_idx] = line_curr[idx_altitude + 10 : -5]
 
@@ -464,9 +433,9 @@ def tomo_plot(
             cube_slice_curr,
             equi7_zone_name,
             equi7_tile_name,
-            'tomo_cube_slice_' + equi7_zone_name[6:] + '_' + equi7_tile_name + '.tif',
+            "tomo_cube_slice_" + equi7_zone_name[6:] + "_" + equi7_tile_name + ".tif",
         )
-        print('cube_slice_fname: ', cube_slice_fname)
+        print("cube_slice_fname: ", cube_slice_fname)
         data_driver = gdal.Open(cube_slice_fname, GA_ReadOnly)
         if slice_idx == 0:
             TEMP = data_driver.GetRasterBand(int(pol_idx + 1)).ReadAsArray()
@@ -485,12 +454,10 @@ def tomo_plot(
             north_ax = np.linspace(0, north_len, num=north_len) * geotransform_equi7[5] + north_0
             east_ax = np.linspace(0, east_len, num=east_len) * geotransform_equi7[1] + east_0
 
-        tomo_cube[slice_idx, :, :] = np.abs(
-            data_driver.GetRasterBand(int(pol_idx + 1)).ReadAsArray()
-        )
+        tomo_cube[slice_idx, :, :] = np.abs(data_driver.GetRasterBand(int(pol_idx + 1)).ReadAsArray())
 
     if 1:
-        if plot_flag == 'db':
+        if plot_flag == "db":
 
             def fun_plot(temp_plot):
                 return np.log10(temp_plot)
@@ -509,66 +476,64 @@ def tomo_plot(
         plt.figure()
         tomo_plt = np.squeeze(tomo_cube[z_slice_index, :, :])
         if pixel_extent:
-            tomo_plt = tomo_plt[
-                pixel_extent[0] : pixel_extent[1], pixel_extent[2] : pixel_extent[3]
-            ]
+            tomo_plt = tomo_plt[pixel_extent[0] : pixel_extent[1], pixel_extent[2] : pixel_extent[3]]
         ax = plt.subplot(3, 1, 1)
 
         plt.imshow(
             fun_plot(tomo_plt.T),
-            interpolation='none',
-            origin='upper',
+            interpolation="none",
+            origin="upper",
             extent=[east_0, east_end, north_end, north_0],
-            cmap='jet',
+            cmap="jet",
         )
-        plt.title('z = {:3.0f} [m]'.format(z_ax[z_slice_index]))
-        plt.xlabel('east [Km]')
-        plt.ylabel('north [Km]')
-        ax.set_aspect('auto')
+        plt.title("z = {:3.0f} [m]".format(z_ax[z_slice_index]))
+        plt.xlabel("east [Km]")
+        plt.ylabel("north [Km]")
+        ax.set_aspect("auto")
         tomo_plt = np.squeeze(tomo_cube[:, :, north_slice_index])
         if pixel_extent:
             tomo_plt = tomo_plt[:, pixel_extent[0] : pixel_extent[1]]
         ax = plt.subplot(3, 1, 2)
         plt.imshow(
             fun_plot(tomo_plt),
-            interpolation='none',
-            origin='lower',
+            interpolation="none",
+            origin="lower",
             extent=[east_0, east_end, z_ax[0], z_ax[-1]],
-            cmap='jet',
+            cmap="jet",
         )
-        plt.title('north = {:3.0f} [Km]'.format(north_ax[north_slice_index] / 1000))
-        plt.xlabel('east [Km]')
-        plt.ylabel('z [m]')
-        ax.set_aspect('auto')
+        plt.title("north = {:3.0f} [Km]".format(north_ax[north_slice_index] / 1000))
+        plt.xlabel("east [Km]")
+        plt.ylabel("z [m]")
+        ax.set_aspect("auto")
         tomo_plt = np.squeeze(tomo_cube[:, east_slice_index, :])
         if pixel_extent:
             tomo_plt = tomo_plt[:, pixel_extent[2] : pixel_extent[3]]
         ax = plt.subplot(3, 1, 3)
         plt.imshow(
             fun_plot(tomo_plt),
-            interpolation='none',
-            origin='lower',
+            interpolation="none",
+            origin="lower",
             extent=[north_0, north_end, z_ax[0], z_ax[-1]],
-            cmap='jet',
+            cmap="jet",
         )
-        plt.title('east = {:3.0f} [Km]'.format(east_ax[east_slice_index] / 1000))
-        plt.xlabel('north [Km]')
-        plt.ylabel('z [m]')
-        ax.set_aspect('auto')
+        plt.title("east = {:3.0f} [Km]".format(east_ax[east_slice_index] / 1000))
+        plt.xlabel("north [Km]")
+        plt.ylabel("z [m]")
+        ax.set_aspect("auto")
         plt.subplots_adjust(hspace=0.4, wspace=0.2)
 
         plt.figure()
         tomo_plt = np.squeeze(tomo_cube[:, east_slice_index, north_slice_index])
         plt.plot(fun_plot(tomo_plt))
         plt.title(
-            'north = {} [Km], east = {} [Km]'.format(
+            "north = {} [Km], east = {} [Km]".format(
                 north_ax[north_slice_index] / 1000, east_ax[east_slice_index] / 1000
             )
         )
-        plt.xlabel('z [m]')
-        if plot_flag == 'db':
+        plt.xlabel("z [m]")
+        if plot_flag == "db":
             plt.ylabel(plot_flag)
-        ax.set_aspect('auto')
+        ax.set_aspect("auto")
 
         if save_power_cube_path:
-            np.save(os.path.join(save_power_cube_path, 'tomo_cube.npy'), tomo_cube)
+            np.save(os.path.join(save_power_cube_path, "tomo_cube.npy"), tomo_cube)
