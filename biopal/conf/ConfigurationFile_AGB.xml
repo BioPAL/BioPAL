@@ -19,65 +19,9 @@
 		<min_number_of_cals_per_test>2</min_number_of_cals_per_test>
 		<min_number_of_rois_per_test>1</min_number_of_rois_per_test>
 		<EstimationValidValuesLimits>
-			<min unit='t/ha'>1</min>
-			<max unit='t/ha'>1000</max>
+			<min unit="t/ha">1</min>
+			<max unit="t/ha">1000</max>
 		</EstimationValidValuesLimits>
-		<ModelParameters>
-			<parameter_ranges>
-				<agb_model_scaling unit="dB"><!--l-->
-					<min>-60</min>
-					<max>0</max>
-				</agb_model_scaling>
-				<agb_model_exponent>
-					<min>0.1</min>
-					<max>1.9</max>
-				</agb_model_exponent><!--a-->
-				<agb_cosine_exponent><!--n-->
-					<min>0</min>
-					<max>3</max>
-				</agb_cosine_exponent>
-				<agb_estimation><!--w-->
-					<min unit='t/ha'>1</min>
-					<max unit='t/ha'>600</max>
-				</agb_estimation>
-			</parameter_ranges>
-			<FixedToInitValue>False</FixedToInitValue>
-			<ChangesAcrossPolarisation>
-				<agb_model_scaling>True</agb_model_scaling>
-				<agb_model_exponent>True</agb_model_exponent>
-				<agb_cosine_exponent>True</agb_cosine_exponent>
-			</ChangesAcrossPolarisation>
-			<ChangesAcrossStack>
-				<agb_model_scaling>False</agb_model_scaling>
-				<agb_model_exponent>False</agb_model_exponent>
-				<agb_cosine_exponent>False</agb_cosine_exponent>
-			</ChangesAcrossStack>
-			<ChangesAcrossGlobalCycle>
-				<agb_model_scaling>False</agb_model_scaling>
-				<agb_model_exponent>False</agb_model_exponent>
-				<agb_cosine_exponent>False</agb_cosine_exponent>
-			</ChangesAcrossGlobalCycle>
-			<ChangesAcrossHeading>
-				<agb_model_scaling>False</agb_model_scaling>
-				<agb_model_exponent>False</agb_model_exponent>
-				<agb_cosine_exponent>False</agb_cosine_exponent>
-			</ChangesAcrossHeading>
-			<ChangesAcrossSwath>
-				<agb_model_scaling>False</agb_model_scaling>
-				<agb_model_exponent>False</agb_model_exponent>
-				<agb_cosine_exponent>False</agb_cosine_exponent>
-			</ChangesAcrossSwath>
-			<ChangesAcrossSubswath>
-				<agb_model_scaling>False</agb_model_scaling>
-				<agb_model_exponent>False</agb_model_exponent>
-				<agb_cosine_exponent>False</agb_cosine_exponent>
-			</ChangesAcrossSubswath>
-			<ChangesAcrossAzimuth>
-				<agb_model_scaling>False</agb_model_scaling>
-				<agb_model_exponent>False</agb_model_exponent>
-				<agb_cosine_exponent>False</agb_cosine_exponent>
-			</ChangesAcrossAzimuth>
-		</ModelParameters>
 	</EstimateAGB>
 	<EnableResampling>False</EnableResampling>
 	<ComputeGeometry>False</ComputeGeometry>

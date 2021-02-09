@@ -1,0 +1,328 @@
+<ConfigurationL2CoreProcessingAGB version="1.0">
+	<EstimateAGB>
+		<residual_function>
+			<formula>
+				<row>l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db</row>
+				<row>l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db</row>
+				<row>l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db</row>
+			</formula>
+			<formula_parameters>
+				<par>
+					<name>l_hh</name><!-- "l" = agb model scaling-->
+					<save_as_map>False</save_as_map>
+					<limits  unit="dB">
+						<min>-60</min>
+						<max>0</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>l_hv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>-60</min>
+						<max>0</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>l_vv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>-60</min>
+						<max>0</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>a_hh</name><!-- "a" = agb model exponent-->
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0.1</min>
+						<max>1.9</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>a_hv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0.1</min>
+						<max>1.9</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>a_vv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0.1</min>
+						<max>1.9</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>n_hh</name><!-- "n" = agb cosine exponent-->
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>3</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>n_hv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>3</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>n_vv</name>
+					<save_as_map>False</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>3</max>
+					</limits>
+					<ChangesAcrossSamples>False</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>agb_1_db</name><!-- AGB estimation -->
+					<save_as_map>True</save_as_map>
+					<limits unit='t/ha'>
+						<min>1</min>
+						<max>600</max>
+					</limits>
+					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>agb_2_db</name><!-- AGB estimation error -->
+					<save_as_map>True</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>10</max>
+					</limits>
+					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>agb_3_db</name>
+					<save_as_map>True</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>10</max>
+					</limits>
+					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+				<par>
+					<name>agb_4_db</name>
+					<save_as_map>True</save_as_map>
+					<limits unit="dB">
+						<min>0</min>
+						<max>10</max>
+					</limits>
+					<ChangesAcrossSamples>True</ChangesAcrossSamples>
+					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
+					<ChangesAcrossStack>False</ChangesAcrossStack>
+					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
+					<ChangesAcrossHeading>False</ChangesAcrossHeading>
+					<ChangesAcrossSwath>False</ChangesAcrossSwath>
+					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
+					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+				</par>
+			</formula_parameters>
+			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
+				<obs>
+					<name>neg_sigma0_hh_db</name>
+					<is_required>True</is_required><!-- is it needed?-->
+					<source_paths />
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-db</transform><!-- add inverse transform in parameters too?-->
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>neg_sigma0_hv_db</name>
+					<is_required>True</is_required>
+					<source_paths />
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-2db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>neg_sigma0_vv_db</name>
+					<is_required>True</is_required>
+					<source_paths />
+					<ranges>
+						<min>1e-8</min>
+						<max>20</max>
+					</ranges>
+					<transform>-db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>cos_local_db</name>
+					<is_required>True</is_required>
+					<source_paths />
+					<ranges unit='Deg'>
+						<min>20</min>
+						<max>60</max>
+					</ranges>
+					<transform>cosdb</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>agb_1_db</name>
+					<is_required>False</is_required>
+					<source_paths />
+					<ranges unit='t/ha'>
+						<min>1</min>
+						<max>700</max>
+					</ranges>
+					<transform>db</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>agb_2_db</name>
+					<is_required>False</is_required>
+					<source_paths />
+					<ranges>
+						<min>0</min>
+						<max>10</max>
+					</ranges>
+					<transform>none</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>agb_3_db</name>
+					<is_required>False</is_required>
+					<source_paths />
+					<ranges>
+						<min>0</min>
+						<max>10</max>
+					</ranges>
+					<transform>none</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+				<obs>
+					<name>agb_4_db</name>
+					<is_required>False</is_required>
+					<source_paths />
+					<ranges>
+						<min>0</min>
+						<max>10</max>
+					</ranges>
+					<transform>none</transform>
+					<averaging_method>mean</averaging_method>
+				</obs>
+			</formula_observables>
+		</residual_function>
+		<number_of_tests>5</number_of_tests>
+		<fraction_of_roi_per_test>100</fraction_of_roi_per_test>
+		<fraction_of_cal_per_test>100</fraction_of_cal_per_test>
+		<add_variability_on_cal_data >False</add_variability_on_cal_data >
+		<intermediate_ground_averaging>100</intermediate_ground_averaging> <!-- intermediate_ground_averaging<=product_resolution/2 >-->
+		<product_resolution unit="m">200</product_resolution><!--(roi) sampling area size-->
+		<distance_sampling_area unit="m">300</distance_sampling_area><!--distance roi-->
+		<parameter_block_size unit="m">7500</parameter_block_size>
+		<distance_parameter_block unit="m">5250</distance_parameter_block>
+		<min_number_of_rois>2</min_number_of_rois>
+		<min_number_of_rois_per_stack>0</min_number_of_rois_per_stack>
+		<min_number_of_cals_per_test>2</min_number_of_cals_per_test>
+		<min_number_of_rois_per_test>1</min_number_of_rois_per_test>
+		<EstimationValidValuesLimits>
+			<min unit="t/ha">1</min>
+			<max unit="t/ha">1000</max>
+		</EstimationValidValuesLimits>
+	</EstimateAGB>
+</ConfigurationL2CoreProcessingAGB>

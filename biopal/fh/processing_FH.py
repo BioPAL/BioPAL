@@ -111,12 +111,8 @@ def estimate_height_core(PI, kz, model_parameters):
         # Depending on baseline, the maximum mu differs.
         # The search should be performed only to the smallest value of the maximal mu's.
 
-        Nmu = (
-            model_parameters.number_of_ground_volume_ratio_value
-        )  # 100 #number of mu's to be tested.
-        Ngt = (
-            model_parameters.number_of_temporal_decorrelation_value
-        )  # 21  #number of gamma_T's to be tested. >1
+        Nmu = model_parameters.number_of_ground_volume_ratio_value  # 100 #number of mu's to be tested.
+        Ngt = model_parameters.number_of_temporal_decorrelation_value  # 21  #number of gamma_T's to be tested. >1
 
         mini = np.zeros(Nmu)
         minima = np.zeros((Ngt, Ngt, Ngt))
@@ -213,13 +209,7 @@ def estimate_height(
             raise RuntimeError(
                 'FH: when spectral shift filtering is enabled, "R", "look_angles" and "ground_slope" inputs should be specified.'
             )
-        (
-            MPMB_correlation,
-            rg_vec_subs,
-            az_vec_subs,
-            subs_F_r,
-            subs_F_a,
-        ) = main_correlation_estimation_SSF_SR(
+        (MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_correlation_estimation_SSF_SR(
             data_stack,
             cov_est_window_size,
             pixel_spacing_slant_rg,
@@ -235,18 +225,8 @@ def estimate_height(
             logging.warning(
                 'FH: when spectral shift filtering is disabled, "R", "look_angles" and "ground_slope" inputs are not used.'
             )
-        (
-            MPMB_correlation,
-            rg_vec_subs,
-            az_vec_subs,
-            subs_F_r,
-            subs_F_a,
-        ) = main_correlation_estimation_SR(
-            data_stack,
-            cov_est_window_size,
-            pixel_spacing_slant_rg,
-            pixel_spacing_az,
-            incidence_angle_rad,
+        (MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_correlation_estimation_SR(
+            data_stack, cov_est_window_size, pixel_spacing_slant_rg, pixel_spacing_az, incidence_angle_rad,
         )
 
     MBMP_correlation = MPMBshuffle(MPMB_correlation, rg_vec_subs, az_vec_subs, num_pols, num_acq)
@@ -266,7 +246,7 @@ def estimate_height(
     Nrg_subs_string = str(Nrg_subs)
     for rg_sub_idx in np.arange(Nrg_subs):
 
-        logging.info('   Heigth step ' + str(rg_sub_idx + 1) + ' of ' + Nrg_subs_string)
+        logging.info("   Heigth step " + str(rg_sub_idx + 1) + " of " + Nrg_subs_string)
         for az_sub_idx in np.arange(Naz_subs):
 
             # for az_sub_idx in np.arange(Naz_subs):
@@ -286,8 +266,7 @@ def estimate_height(
                 for j in np.arange(i + 1, num_acq):
 
                     PI[:, :, n] = current_correlation[
-                        i * num_pols : num_pols + i * num_pols,
-                        j * num_pols : num_pols + j * num_pols,
+                        i * num_pols : num_pols + i * num_pols, j * num_pols : num_pols + j * num_pols,
                     ]
                     kz[rg_sub_idx, az_sub_idx, n] = current_kz[i, j]
                     n += 1
@@ -301,9 +280,7 @@ def estimate_height(
                 gammaT3map[rg_sub_idx, az_sub_idx] = np.NaN
                 continue
 
-            output = estimate_height_core(
-                PI, kz[rg_sub_idx, az_sub_idx, :], fh_proc_conf.model_parameters
-            )
+            output = estimate_height_core(PI, kz[rg_sub_idx, az_sub_idx, :], fh_proc_conf.model_parameters)
 
             heightmap[rg_sub_idx, az_sub_idx] = output[0]
             extinctionmap[rg_sub_idx, az_sub_idx] = output[1]
@@ -312,14 +289,14 @@ def estimate_height(
             gammaT2map[rg_sub_idx, az_sub_idx] = output[4]
             gammaT3map[rg_sub_idx, az_sub_idx] = output[5]
 
-    logging.info('   performing median filtering of height products...')
+    logging.info("   performing median filtering of height products...")
     heightmap = medfilt2d(heightmap, kernel_size=fh_proc_conf.median_factor)
     extinctionmap = medfilt2d(extinctionmap, kernel_size=fh_proc_conf.median_factor)
     ratiomap = medfilt2d(ratiomap, kernel_size=fh_proc_conf.median_factor)
     gammaT1map = medfilt2d(gammaT1map, kernel_size=fh_proc_conf.median_factor)
     gammaT2map = medfilt2d(gammaT2map, kernel_size=fh_proc_conf.median_factor)
     gammaT3map = medfilt2d(gammaT3map, kernel_size=fh_proc_conf.median_factor)
-    logging.info('    ...done.')
+    logging.info("    ...done.")
 
     return (
         heightmap,
@@ -359,8 +336,8 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
     quality_layer_index = 2
 
     temp_path = next(iter(data_equi7_fnames.values()))[0]
-    idx = temp_path.find('ground_equi7_geometry')
-    merging_folder = os.path.join(temp_path[: idx + len('ground_equi7_geometry')], 'merged')
+    idx = temp_path.find("ground_equi7_geometry")
+    merging_folder = os.path.join(temp_path[: idx + len("ground_equi7_geometry")], "merged")
 
     merged_data_fnames = []
     for (current_merging_id, unique_stack_ids_to_merge_list) in stacks_to_merge_dict.items():
@@ -377,9 +354,7 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
         first_stack_data_fname = data_equi7_fnames[unique_stack_ids_to_merge_list[0]][0]
         data_tiff_name_in = os.path.basename(first_stack_data_fname)
 
-        data_tiff_name_out = data_tiff_name_in.replace(
-            unique_stack_ids_to_merge_list[0], current_merging_id
-        )
+        data_tiff_name_out = data_tiff_name_in.replace(unique_stack_ids_to_merge_list[0], current_merging_id)
 
         p1 = os.path.dirname(os.path.dirname(first_stack_data_fname))
         equi7_subgridname = os.path.basename(p1)
@@ -387,11 +362,7 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
         for equi7_tile_name in equi7_tile_names:
 
             out_data_fname = os.path.join(
-                merging_folder,
-                current_merging_id,
-                equi7_subgridname,
-                equi7_tile_name,
-                data_tiff_name_out,
+                merging_folder, current_merging_id, equi7_subgridname, equi7_tile_name, data_tiff_name_out,
             )
 
             os.makedirs(os.path.dirname(out_data_fname))
@@ -399,12 +370,8 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
             for idx, unique_stack_id in enumerate(unique_stack_ids_to_merge_list):
                 # input and output paths
 
-                curr_data_fname = [
-                    name for name in data_equi7_fnames[unique_stack_id] if equi7_tile_name in name
-                ][0]
-                curr_mask_fname = [
-                    name for name in mask_equi7_fnames[unique_stack_id] if equi7_tile_name in name
-                ][0]
+                curr_data_fname = [name for name in data_equi7_fnames[unique_stack_id] if equi7_tile_name in name][0]
+                curr_mask_fname = [name for name in mask_equi7_fnames[unique_stack_id] if equi7_tile_name in name][0]
 
                 # Load DATA
                 data_driver = gdal.Open(curr_data_fname, GA_ReadOnly)
@@ -417,7 +384,7 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
 
                 # Load MASK
                 mask_driver = gdal.Open(curr_mask_fname, GA_ReadOnly)
-                mask_curr = (mask_driver.GetRasterBand(1).ReadAsArray()).astype('bool')
+                mask_curr = (mask_driver.GetRasterBand(1).ReadAsArray()).astype("bool")
                 mask_driver = None
 
                 if idx == 0:
@@ -445,25 +412,17 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
 
                     data_out_curr[curr_only_valid_idxes] = data_curr[curr_only_valid_idxes]
                     data_out_curr[prev_only_valid_idxes] = data_prev[prev_only_valid_idxes]
-                    quality_data_out_curr[curr_only_valid_idxes] = quality_data_curr[
-                        curr_only_valid_idxes
-                    ]
-                    quality_data_out_curr[prev_only_valid_idxes] = quality_data_prev[
-                        prev_only_valid_idxes
-                    ]
+                    quality_data_out_curr[curr_only_valid_idxes] = quality_data_curr[curr_only_valid_idxes]
+                    quality_data_out_curr[prev_only_valid_idxes] = quality_data_prev[prev_only_valid_idxes]
 
                     # 3) where none are valid, write NAN
-                    invalid_idxes = np.logical_and(
-                        np.logical_not(mask_prev), np.logical_not(mask_curr)
-                    )
+                    invalid_idxes = np.logical_and(np.logical_not(mask_prev), np.logical_not(mask_curr))
 
                     data_out_curr[invalid_idxes] = np.nan
                     quality_data_out_curr[invalid_idxes] = np.nan
 
                     # 4) keep only common parts:
-                    not_common_parts_indexes = np.logical_or(
-                        np.isnan(data_curr), np.isnan(data_prev)
-                    )
+                    not_common_parts_indexes = np.logical_or(np.isnan(data_curr), np.isnan(data_prev))
 
                     data_out_curr[not_common_parts_indexes] = np.nan
                     quality_data_out_curr[not_common_parts_indexes] = np.nan
@@ -488,7 +447,7 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
             outdata = None
 
         merged_data_fnames.append(out_data_fname)
-        logging.info('    ...done.')
+        logging.info("    ...done.")
 
     return merged_data_fnames, merging_folder
 

@@ -12,12 +12,10 @@ from collections import namedtuple
 
 # AGB look up tables containing paths boundaries and progressive stack indexing
 # LookupTableAGB is the standard look up
-LookupTableAGB = namedtuple('LookupTableAGB', ['paths', 'boundaries', 'progressive'])
+LookupTableAGB = namedtuple("LookupTableAGB", ["paths", "boundaries", "progressive"])
 
 
-def initialize_inversion_parameters(
-    eq7_sampling, geographic_grid_sampling, geographic_boundaries, proc_confAGB
-):
+def initialize_inversion_parameters(eq7_sampling, geographic_grid_sampling, geographic_boundaries, proc_confAGB):
 
     e7g_intermediate = Equi7Grid(eq7_sampling)
 
@@ -50,9 +48,7 @@ def initialize_inversion_parameters(
     else:
         geographic_grid_sampling = geographic_grid_sampling
 
-    geographic_grid_sampling = choose_equi7_sampling(
-        proc_confAGB.product_resolution, geographic_grid_sampling
-    )
+    geographic_grid_sampling = choose_equi7_sampling(proc_confAGB.product_resolution, geographic_grid_sampling)
 
     dE = np.abs(eq7_sampling)
     dN = -np.abs(eq7_sampling)
@@ -62,12 +58,8 @@ def initialize_inversion_parameters(
     dN_roi = -np.abs(proc_confAGB.distance_sampling_area)
 
     # define ROI size
-    wE_roi = np.abs(
-        proc_confAGB.product_resolution
-    )  # dx_in # (cannot be finer than input pixel size)
-    wN_roi = -np.abs(
-        proc_confAGB.product_resolution
-    )  # -dx_in # (cannot be finer than input pixel size)
+    wE_roi = np.abs(proc_confAGB.product_resolution)  # dx_in # (cannot be finer than input pixel size)
+    wN_roi = -np.abs(proc_confAGB.product_resolution)  # -dx_in # (cannot be finer than input pixel size)
 
     # parameter block spacing (m)
     dE_par = np.abs(proc_confAGB.distance_parameter_block)
@@ -81,60 +73,6 @@ def initialize_inversion_parameters(
         proc_confAGB.parameter_block_size
     )  # dN_par*2 # 3/2 times spacing means that each tile shares 33.3% with its neighbour
 
-    # parameter variability across acquisitions
-    # columns are polarisation id, acquisition id, global cycle id, phi angle, swath id, subswath id, azimuth id
-    # determine how to vary each parameter, 1 means that parameter is varied in this direction, 0 means its constant for all
-    var_pol = proc_confAGB.model_parameters.changes_across_pol
-    var_stack = proc_confAGB.model_parameters.changes_across_stacks
-    var_gc = proc_confAGB.model_parameters.changes_across_global_cycle
-    var_h = proc_confAGB.model_parameters.changes_across_heading
-    var_sw = proc_confAGB.model_parameters.changes_across_swath
-    var_subsw = proc_confAGB.model_parameters.changes_across_subswath
-    var_az = proc_confAGB.model_parameters.changes_across_azimuth
-
-    all_vars = [
-        np.array(
-            [
-                var_pol.agb_model_scaling,
-                var_stack.agb_model_scaling,
-                var_gc.agb_model_scaling,
-                var_h.agb_model_scaling,
-                var_sw.agb_model_scaling,
-                var_subsw.agb_model_scaling,
-                var_az.agb_model_scaling,
-            ]
-        ),
-        np.array(
-            [
-                var_pol.agb_model_exponent,
-                var_stack.agb_model_exponent,
-                var_gc.agb_model_exponent,
-                var_h.agb_model_exponent,
-                var_sw.agb_model_exponent,
-                var_subsw.agb_model_exponent,
-                var_az.agb_model_exponent,
-            ]
-        ),
-        np.array(
-            [
-                var_pol.agb_cosine_exponent,
-                var_stack.agb_cosine_exponent,
-                var_gc.agb_cosine_exponent,
-                var_h.agb_cosine_exponent,
-                var_sw.agb_cosine_exponent,
-                var_subsw.agb_cosine_exponent,
-                var_az.agb_cosine_exponent,
-            ]
-        ),
-    ]
-
-    # parameter ranges
-    l_lims = proc_confAGB.model_parameters.agb_model_scaling_limits
-    a_lims = proc_confAGB.model_parameters.agb_model_exponent_limits
-    n_lims = proc_confAGB.model_parameters.agb_cosine_exponent_limits
-    W_lims = proc_confAGB.model_parameters.agb_estimation_limits
-    w_lims = 10 * np.log10(W_lims)
-
     # number of tests to run (i.e., subsets of cals)
     N_tests = int(proc_confAGB.number_of_tests)
 
@@ -143,7 +81,7 @@ def initialize_inversion_parameters(
     dE_roi = round(dE_roi / dE) * dE
     dN_roi = -dE_roi
     logging.info(
-        'ROI ground pixel spacing (east and north) adjusted from {} to {} [m] in order to be an intere multiple of output map ground pixel spacing '.format(
+        "ROI ground pixel spacing (east and north) adjusted from {} to {} [m] in order to be an intere multiple of output map ground pixel spacing ".format(
             dE_roi_old, dE_roi
         )
     )
@@ -153,10 +91,29 @@ def initialize_inversion_parameters(
     dE_par = round(dE_par / dE_roi) * dE_roi
     dN_par = -dE_par
     logging.info(
-        'PAR ground pixel spacing (east and north) adjusted from {} to {} [m] in order to be an intere multiple of ROI pixel spacing '.format(
+        "PAR ground pixel spacing (east and north) adjusted from {} to {} [m] in order to be an intere multiple of ROI pixel spacing ".format(
             dE_par_old, dE_par
         )
     )
+
+    _,
+    # first_pixel_north,
+    # first_pixel_east,
+    # last_pixel_north,
+    # last_pixel_east,
+    # pixel_size_east,
+    # pixel_size_north,
+    # sample_spacing_east,
+    # sample_spacing_north,
+    # sample_size_east,
+    # sample_size_north,
+    # block_spacing_east,
+    # block_spacing_north,
+    # block_size_east,
+    # block_size_north,
+    # number_of_subsets,
+    # geographic_grid_sampling,
+    # sub_grid_string,
 
     return (
         dx_in,
@@ -174,11 +131,6 @@ def initialize_inversion_parameters(
         dN_par,
         wE_par,
         wN_par,
-        all_vars,
-        l_lims,
-        a_lims,
-        n_lims,
-        w_lims,
         N_tests,
         geographic_grid_sampling,
         sub_grid_string,
@@ -242,9 +194,7 @@ def regularizeIndices(a, b, off):
     uni = np.unique(np.concatenate((a, b)))
     lut = np.column_stack((uni, off + np.arange(len(uni))))
     f = sp.interpolate.interp1d(
-        np.concatenate((-np.ones(1), lut[:, 0])),
-        np.concatenate((-np.ones(1), lut[:, 1])),
-        kind='nearest',
+        np.concatenate((-np.ones(1), lut[:, 0])), np.concatenate((-np.ones(1), lut[:, 1])), kind="nearest",
     )
     return np.int32(f(a)), np.int32(f(b)), np.int32(lut)
 
@@ -257,14 +207,7 @@ def tableLookupFloat(x, y, xx):
 
 
 def check_intersection(
-    A_east_min,
-    A_east_max,
-    A_north_min,
-    A_north_max,
-    B_east_min,
-    B_east_max,
-    B_north_min,
-    B_north_max,
+    A_east_min, A_east_max, A_north_min, A_north_max, B_east_min, B_east_max, B_north_min, B_north_max,
 ):
 
     if (
@@ -288,21 +231,11 @@ def check_intersection(
 
 
 def compute_intersection_area(
-    A_east_min_vec,
-    A_east_max_vec,
-    A_north_min_vec,
-    A_north_max_vec,
-    B_east_min,
-    B_east_max,
-    B_north_min,
-    B_north_max,
+    A_east_min_vec, A_east_max_vec, A_north_min_vec, A_north_max_vec, B_east_min, B_east_max, B_north_min, B_north_max,
 ):
 
     B_coords = tuple(
-        zip(
-            [B_north_min, B_north_min, B_north_max, B_north_max],
-            [B_east_min, B_east_max, B_east_min, B_east_max],
-        )
+        zip([B_north_min, B_north_min, B_north_max, B_north_max], [B_east_min, B_east_max, B_east_min, B_east_max],)
     )
     B_polygon_obj = MultiPoint(B_coords).convex_hull
 
@@ -346,12 +279,8 @@ def interp2d_wrapper(data_path, band_index_to_read, east_out_axis, north_out_axi
     nan_mask = np.isnan(data_in)
     data_in[nan_mask] = -9999
 
-    interp2d_fun = interp2d(
-        east_axis_in, north_axis_in[::-1], data_in[::-1, :], fill_value=fill_value
-    )
-    interp2d_fun_mask = interp2d(
-        east_axis_in, north_axis_in[::-1], nan_mask[::-1, :], fill_value=float(0)
-    )
+    interp2d_fun = interp2d(east_axis_in, north_axis_in[::-1], data_in[::-1, :], fill_value=fill_value)
+    interp2d_fun_mask = interp2d(east_axis_in, north_axis_in[::-1], nan_mask[::-1, :], fill_value=float(0))
 
     # interpolate
     data_out = interp2d_fun(east_out_axis, north_out_axis[::-1])[::-1, :]
@@ -366,12 +295,12 @@ def interp2d_wrapper(data_path, band_index_to_read, east_out_axis, north_out_axi
     return data_out
 
 
-def merge_agb_intermediate(a_data, b_data, method='nan_mean'):
+def merge_agb_intermediate(a_data, b_data, method="nan_mean"):
 
-    if method == 'nan_mean':
+    if method == "nan_mean":
         a_data = np.nanmean(np.dstack((a_data, b_data)), axis=2)
 
-    elif method == 'overlap_mean':
+    elif method == "overlap_mean":
         # mean all the stacks
         a_data_is_present = np.logical_not(np.isnan(a_data))
         b_data_is_present = np.logical_not(np.isnan(b_data))
@@ -392,14 +321,7 @@ def merge_agb_intermediate(a_data, b_data, method='nan_mean'):
 
 
 def mean_on_rois(
-    stack_data_interp,
-    EE_pixel_mesh,
-    NN_pixel_mesh,
-    EE_roi_axis,
-    dE_roi,
-    NN_roi_axis,
-    dN_roi,
-    method,
+    stack_data_interp, EE_pixel_mesh, NN_pixel_mesh, EE_roi_axis, dE_roi, NN_roi_axis, dN_roi, method,
 ):
 
     # Mean on ROIs
@@ -415,34 +337,20 @@ def mean_on_rois(
             north_roi_min = north_roi_max + dN_roi
 
             # here use < and > instead of <= and >= because the pixel meshes has been defined in the centre of the pixels
-            EE_axis_valid = np.logical_and(
-                EE_pixel_mesh > east_roi_min, EE_pixel_mesh < east_roi_max
-            )
-            NN_axis_valid = np.logical_and(
-                NN_pixel_mesh > north_roi_min, NN_pixel_mesh < north_roi_max
-            )
+            EE_axis_valid = np.logical_and(EE_pixel_mesh > east_roi_min, EE_pixel_mesh < east_roi_max)
+            NN_axis_valid = np.logical_and(NN_pixel_mesh > north_roi_min, NN_pixel_mesh < north_roi_max)
             curr_roi_indexes_pixels = np.logical_and(EE_axis_valid, NN_axis_valid)
 
-            if method == 'mean':
-                data_roi_means_vec[roi_counter - 1] = np.mean(
-                    stack_data_interp[curr_roi_indexes_pixels]
-                )
-            elif method == 'nan_mean':
-                data_roi_means_vec[roi_counter - 1] = np.nanmean(
-                    stack_data_interp[curr_roi_indexes_pixels]
-                )
-            elif method == 'median':
-                data_roi_means_vec[roi_counter - 1] = np.median(
-                    stack_data_interp[curr_roi_indexes_pixels]
-                )
-            elif method == 'nan_median':
-                data_roi_means_vec[roi_counter - 1] = np.nanmedian(
-                    stack_data_interp[curr_roi_indexes_pixels]
-                )
-            elif method == 'mode':
-                data_roi_means_vec[roi_counter - 1] = sp.stats.mode(
-                    stack_data_interp[curr_roi_indexes_pixels]
-                )[0]
+            if method == "mean":
+                data_roi_means_vec[roi_counter - 1] = np.mean(stack_data_interp[curr_roi_indexes_pixels])
+            elif method == "nan_mean":
+                data_roi_means_vec[roi_counter - 1] = np.nanmean(stack_data_interp[curr_roi_indexes_pixels])
+            elif method == "median":
+                data_roi_means_vec[roi_counter - 1] = np.median(stack_data_interp[curr_roi_indexes_pixels])
+            elif method == "nan_median":
+                data_roi_means_vec[roi_counter - 1] = np.nanmedian(stack_data_interp[curr_roi_indexes_pixels])
+            elif method == "mode":
+                data_roi_means_vec[roi_counter - 1] = sp.stats.mode(stack_data_interp[curr_roi_indexes_pixels])[0]
 
     return data_roi_means_vec
 
