@@ -1,5 +1,4 @@
-# this path is temporary:
-test_additional_polygons = False
+
 from shapely.geometry import Polygon
 
 # import libraries
@@ -1202,6 +1201,8 @@ class CoreProcessingAGB(Task):
         ### read additional polygons (e.q., cals not on a grid)
         # (read from xml file or external shapefiles?)
         additional_sampling_polygons = []
+        # this path is temporary:
+        test_additional_polygons = True
         if test_additional_polygons:
             additional_sampling_polygons.append(Polygon([(4515000, 5036000), (4516000, 5036000), (4516000, 5037000)]))
         # cal_additional_data = gdal.rasterize( additional_sampling_polygons )
@@ -1348,6 +1349,7 @@ class CoreProcessingAGB(Task):
                 ]
                 equi7_product = Equi7Grid(geographic_grid_sampling)
 
+
                 # tabulation
                 (
                     observable_table,
@@ -1358,6 +1360,8 @@ class CoreProcessingAGB(Task):
                     parameter_position_table_columns,
                     parameter_tables,
                     parameter_table_columns,
+                    sample_info_table,
+                    sample_info_table_columns,
                 ) = sample_and_tabulate_data(
                     current_block_extents,  # extent of the current area for which the table is created
                     pixel_axis_east,  # east north axes onto which data are interpolated
@@ -1371,7 +1375,7 @@ class CoreProcessingAGB(Task):
                     stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
                     stack_info_table_columns,  # column names for the abovementioned table
                     self.lut_fnf,
-                    [[x, 0] for x in self.lut_fnf_paths],
+                    [[x, 0, 50] for x in self.lut_fnf_paths],
                     formula_observables.name,  # observable names in formula
                     formula_observables.is_required,
                     formula_observables.source,  # paths and band ids
@@ -1447,13 +1451,14 @@ class CoreProcessingAGB(Task):
                     data_type_lut = [
                         [
                             line_number_string,
+                            sample_info_table_columns,
                             identifier_names,
                             parameter_position_table_columns,
                             parameter_property_names,
                             observable_names,
                             formula_parameters.name,
                         ],
-                        ["d", "d", "d", "f", "f", "f"],
+                        ["d", "d", "d", "d", "f", "f", "f"],
                     ]
 
                     # save observable table (includes indices to parameter tables, replicated if necessary)
@@ -1463,13 +1468,18 @@ class CoreProcessingAGB(Task):
                     curr_table = np.column_stack(
                         (
                             np.arange(observable_table.shape[0]),
+                            sample_info_table,
                             identifier_table,
                             observable_table,
                             parameter_position_table,
                         )
                     )
                     curr_column_names = (
-                        line_number_string + identifier_names + observable_names + parameter_position_table_columns
+                        line_number_string 
+                        + sample_info_table_columns
+                        + identifier_names
+                        + observable_names 
+                        + parameter_position_table_columns
                     )
                     save_human_readable_table(
                         curr_path,
@@ -1486,6 +1496,7 @@ class CoreProcessingAGB(Task):
                     curr_table = np.column_stack(
                         (
                             np.arange(observable_table.shape[0]),
+                            sample_info_table,
                             identifier_table,
                             observable_table,
                             space_invariant_parameter_table,
@@ -1494,6 +1505,7 @@ class CoreProcessingAGB(Task):
                     )
                     curr_column_names = (
                         line_number_string
+                        + sample_info_table_columns
                         + identifier_names
                         + observable_names
                         + space_invariant_parameter_names

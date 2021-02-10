@@ -116,10 +116,12 @@ def sample_and_tabulate_data(
         # raise ImportError(err_str)
 
     # sampling forest class map
+    
     temp_forest_class_vector = np.int32(
         np.round(
             stats_on_all_samples(
                 forest_class_map_interp,
+                file_source[2],
                 pixel_mesh_east,
                 pixel_mesh_north,
                 sample_axis_east,
@@ -131,6 +133,66 @@ def sample_and_tabulate_data(
             )
         )
     )
+    
+    
+    
+    
+    # calculating sample area and coordinates
+    temp_east_vector = np.int32(
+        np.round(
+            stats_on_all_samples(
+                pixel_mesh_east,
+                file_source[2],
+                pixel_mesh_east,
+                pixel_mesh_north,
+                sample_axis_east,
+                sample_size_east,
+                sample_axis_north,
+                sample_size_north,
+                additional_sampling_polygons,
+                "mean",
+            )
+        )
+    )
+    temp_north_vector = np.int32(
+        np.round(
+            stats_on_all_samples(
+                pixel_mesh_north,
+                file_source[2],
+                pixel_mesh_east,
+                pixel_mesh_north,
+                sample_axis_east,
+                sample_size_east,
+                sample_axis_north,
+                sample_size_north,
+                additional_sampling_polygons,
+                "mean",
+            )
+        )
+    )
+    temp_area_vector = np.int32(
+        np.round(
+            stats_on_all_samples(
+                pixel_mesh_east*0 + np.abs(np.diff(pixel_axis_east)[0]*np.diff(pixel_axis_north)[0]),
+                file_source[2],
+                pixel_mesh_east,
+                pixel_mesh_north,
+                sample_axis_east,
+                sample_size_east,
+                sample_axis_north,
+                sample_size_north,
+                additional_sampling_polygons,
+                "sum",
+            )
+        )
+    )
+    sample_info_table = np.nan*np.zeros((len(temp_east_vector)*number_of_stacks,3))
+    sample_info_table[:,0] = np.kron(temp_east_vector,np.ones(number_of_stacks))
+    sample_info_table[:,1] = np.kron(temp_north_vector,np.ones(number_of_stacks))
+    sample_info_table[:,2] = np.kron(temp_area_vector,np.ones(number_of_stacks))
+    sample_info_table_columns = ['easting','northing','area']
+    
+    
     # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
     identifier_table[:, 1] = np.kron(temp_forest_class_vector, np.ones(number_of_stacks))
 
@@ -181,6 +243,7 @@ def sample_and_tabulate_data(
                     temp_transformed_sampled_data = transform_function(
                         stats_on_all_samples(
                             source_data_interp,
+                            file_source[2],
                             pixel_mesh_east,
                             pixel_mesh_north,
                             sample_axis_east,
@@ -223,6 +286,7 @@ def sample_and_tabulate_data(
             temp_transformed_sampled_data = transform_function(
                 stats_on_all_samples(
                     source_data_interp,
+                    file_source[2],
                     pixel_mesh_east,
                     pixel_mesh_north,
                     sample_axis_east,
@@ -255,6 +319,7 @@ def sample_and_tabulate_data(
     # exclude invalid rows
     observable_table = observable_table[~invalid_rows, :]
     identifier_table = identifier_table[~invalid_rows, :]
+    sample_info_table = sample_info_table[~invalid_rows, :]
     # number of rows in data table
     number_of_rows_in_observable_table = observable_table.shape[0]
 
@@ -305,6 +370,8 @@ def sample_and_tabulate_data(
         parameter_position_names,
         parameter_tables,
         parameter_table_columns,
+        sample_info_table,
+        sample_info_table_columns,
     )
 
 
@@ -1445,6 +1512,8 @@ def stats_on_polygons(data, pixel_axis_east, pixel_axis_north, reference_polygon
             polygon_means_vec[index] = np.nanmedian(data[datamask])
         elif method == "mode":
             polygon_means_vec[index] = sp.stats.mode(data[datamask])[0]
+        elif method == "sum":
+            polygon_means_vec[index] = np.sum(data[datamask])
 
         raster_support_driver = None
         poly_layer_support_driver = None
@@ -1455,6 +1524,7 @@ def stats_on_polygons(data, pixel_axis_east, pixel_axis_north, reference_polygon
 # %% function for calculating a given statistic on all samples on a grid and all polygons
 def stats_on_all_samples(
     data,
+    data_resolution,
     pixel_axis_east,
     pixel_axis_north,
     sample_axis_east,
@@ -1474,8 +1544,18 @@ def stats_on_all_samples(
         sample_size_north,
         method,
     )
+    
+    # kill all estimates if there is a resolution mismatch
+    if data_resolution**2>np.abs(sample_size_north*sample_size_east):
+        stats = np.nan * stats
+        
     if polygons:
         stats_polygons = stats_on_polygons(data, pixel_axis_east, pixel_axis_north, polygons, method)
+        
+        def get_polygon_areas(polygons):
+            return np.array([polygon.area for polygon in polygons])
+        stats_polygons[get_polygon_areas(polygons)<data_resolution**2] = np.nan        
+        
         stats = np.concatenate((stats, stats_polygons))
     return stats
 
