@@ -351,6 +351,8 @@ def mean_on_rois(
                 data_roi_means_vec[roi_counter - 1] = np.nanmedian(stack_data_interp[curr_roi_indexes_pixels])
             elif method == "mode":
                 data_roi_means_vec[roi_counter - 1] = sp.stats.mode(stack_data_interp[curr_roi_indexes_pixels])[0]
+            elif method == "sum":
+                data_roi_means_vec[roi_counter - 1] = np.sum(stack_data_interp[curr_roi_indexes_pixels])
 
     return data_roi_means_vec
 
