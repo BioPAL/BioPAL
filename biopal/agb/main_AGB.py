@@ -13,6 +13,7 @@ import scipy.interpolate
 import scipy.ndimage
 import scipy.misc
 import scipy.signal
+from collections import namedtuple
 from gdalconst import GA_ReadOnly
 from osgeo import gdal
 from equi7grid.equi7grid import Equi7Grid
@@ -843,7 +844,8 @@ class StackBasedProcessingAGB(Task):
             "equi7_sampling_intermediate": equi7_sampling_intermediate,
             "e7g_intermediate": e7g_intermediate,
         }
-
+        # temporary solution:
+        lut_cal_resolutions = [50 for x in lut_cal_paths]
         # create the CoreProcessingAGB configuration file, starting from the default one
         # Read the default conf file:
         default_coreprocessing_conf_file = os.path.join(
@@ -867,7 +869,7 @@ class StackBasedProcessingAGB(Task):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
-                            layer_list = [sigma0_file_name, 0]
+                            layer_list = [sigma0_file_name, 0,sigma_ground_res_m, 'none']
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
@@ -880,7 +882,7 @@ class StackBasedProcessingAGB(Task):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
-                            layer_list = [sigma0_file_name, 0]
+                            layer_list = [sigma0_file_name, 0,sigma_ground_res_m, 'none']
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
@@ -893,7 +895,7 @@ class StackBasedProcessingAGB(Task):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
-                            layer_list = [sigma0_file_name, 0]
+                            layer_list = [sigma0_file_name, 0,sigma_ground_res_m, 'none']
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
@@ -904,39 +906,39 @@ class StackBasedProcessingAGB(Task):
                     for index_stack, theta_list in enumerate(theta_equi7_fnames.values()):
                         file_list = []
                         for index_file, theta_file_name in enumerate(theta_list):
-                            layer_list = [theta_file_name, 0]
+                            layer_list = [theta_file_name, 0,sigma_ground_res_m, 'rad']
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
 
-                elif name == "agb_1_db":
+                elif name == "agb_1_cal_db":
                     index_layer_agb = 0
-                    print("agb_1_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    print("agb_1_cal_db")
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 't/ha']
                     file_list = [layer_list_agb]
                     stack_list = [file_list]
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
 
-                elif name == "agb_2_db":
+                elif name == "agb_2_cal_db":
                     index_layer_agb = 1
-                    print("agb_2_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    print("agb_2_cal_db")
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 'dB']
                     file_list = [layer_list_agb]
                     stack_list = [file_list]
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
 
-                elif name == "agb_3_db":
+                elif name == "agb_3_cal_db":
                     index_layer_agb = 2
-                    print("agb_3_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    print("agb_3_cal_db")
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 'dB']
                     file_list = [layer_list_agb]
                     stack_list = [file_list]
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
 
-                elif name == "agb_4_db":
+                elif name == "agb_4_cal_db":
                     index_layer_agb = 3
-                    print("agb_4_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb]
+                    print("agb_4_cal_db")
+                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 'dB']
                     file_list = [layer_list_agb]
                     stack_list = [file_list]
                     conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
@@ -1145,81 +1147,57 @@ class CoreProcessingAGB(Task):
             proc_conf.AGB,
         )
 
-        #### Residual function defined as a list of function strings
-        formula = proc_conf.AGB.residual_function.formula
+        #### read formula, parameter and observable defitions
+        formula_terms = proc_conf.AGB.residual_function.formula_terms
+        formula_parameters = proc_conf.AGB.residual_function.formula_parameters
+        formula_observables = proc_conf.AGB.residual_function.formula_observables
+        
+        parameter_map_pathlists = [[] for formula_parameter_name in formula_parameters.name]
+        
+        ### checking and converting some of the parameter/observables; this check is not exhaustive
+        
+        
+        # convert parameter limits from output units to input units
+        # (output limits are easier for the user to define as they are more natural; 
+        # the code will use transformed limits though)
+        for idx, transform in enumerate(formula_parameters.transform):
+            formula_parameters.limits[idx][0] = transform_function(formula_parameters.limits[idx][0], [-np.inf,np.inf], transform,do_forward=True)
+            formula_parameters.limits[idx][1] = transform_function(formula_parameters.limits[idx][1], [-np.inf,np.inf], transform,do_forward=True)
+        # convert limits from deg to radians
+        # (again, limits are typically easier to define in degs)
+        for idx, unit in enumerate(formula_observables.units):
+            # extract all units for the current observable
+            all_source_units = np.array([curr_file[3].lower() for curr_stack in formula_observables.source[idx] if len(curr_stack)>0 for curr_file in curr_stack if len(curr_file)>0 ])
+            # check that they are all the same
+            if (len(np.unique(all_source_units))>1):
+                error_message = 'Sources of observable {} have different units. Aborting. '.format(formula_observables.name[idx])
+                logging.error(error_message)
+                raise RuntimeError(error_message)
+            elif (len(np.unique(all_source_units))==0):
+                warning_message = 'Unit information for observable {} missing. '.format(formula_observables.name[idx])
+                logging.warning(warning_message)
+                raise RuntimeWarning (warning_message)
+            else:
+                # if there is just one unit, check if the source unit is rad and limits unit is deg; if so, convet the limits unit
+                if (unit.lower() == "deg") & (np.unique(all_source_units)=='rad'):
+                    formula_observables.limits[idx][0] = np.deg2rad(formula_observables.limits[idx][0])
+                    formula_observables.limits[idx][1] = np.deg2rad(formula_observables.limits[idx][1])
 
-        #### parameter names matching the unknown elements in the formula
-        parameter_names = proc_conf.AGB.residual_function.formula_parameters.name
 
-        #### parameter limits
-        parameter_limits = proc_conf.AGB.residual_function.formula_parameters.limits
-        for idx, unit in enumerate(proc_conf.AGB.residual_function.formula_parameters.units):
-            if unit == "t/ha":
-                parameter_limits[idx][0] = forward(parameter_limits[idx][0])
-                parameter_limits[idx][1] = forward(parameter_limits[idx][1])
-            elif not unit == "dB":
-                errorstring = 'CoreProcessingAGB configuration file unit "{}" not valid for the parameters'
-                logging.error(errorstring)
-                raise ValueError(errorstring)
+        # checking that none of observable and parameter names can be contained within each other
+        # (parsing of the formula will fail if this is the case)
+        defined_quantity_names = formula_parameters.name + formula_observables.name
+        for defined_quantity_name_1 in defined_quantity_names:
+            for defined_quantity_name_2 in defined_quantity_names:
+                if (defined_quantity_name_1 != defined_quantity_name_2) & (
+                    (defined_quantity_name_1.find(defined_quantity_name_2) >= 0) | (defined_quantity_name_2.find(defined_quantity_name_1) >= 0)
+                ):
+                    logging.error(
+                        "AGB: parameter and observable names must be unique and cannot contain each other ({} and {} do not fulfill this requirement).".format(
+                            defined_quantity_name_1, defined_quantity_name_2
+                        )
+                    )
 
-        #### flag indicating whether the parameters should be saved as a map
-        parameter_save_as_map = proc_conf.AGB.residual_function.formula_parameters.save_as_map
-
-        #### parameter variabilities
-        #  Defined over eight different dimensions (in this particular order):
-        #   spatial - between samples
-        #   forest class - between forest classes
-        #   stack - between stacks, independent from where they come (equivalent to flagging all remaining flags)
-        #   global cycle - between stacks if they come from different global cycle (equivalent to temporal of multiple months)
-        #   heading - between stacks if they come from different headings
-        #   swath - between stacks if they come from different 150-km swaths (equivalent to temporal of several weeks)
-        #   subswath - between stacks if they come from different 50-km subswaths (equivalent to temporal of several days)
-        #   azimuth - betwen stacks if they come from different 150-km images overlapping in azimuth (equivalent to temporal of a few seconds)
-        number_of_parameters = len(proc_conf.AGB.residual_function.formula_parameters.name)
-
-        parameter_variabilities = []
-        for parameter_index in np.arange(number_of_parameters):
-            parameter_variabilities.append(
-                np.array(
-                    [
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossSamples[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossForestClass[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossStack[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossGlobalCycle[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossHeading[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossSwath[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossSubswath[parameter_index],
-                        proc_conf.AGB.residual_function.formula_parameters.ChangesAcrossAzimuth[parameter_index],
-                    ]
-                )
-            )
-
-        #### Names for all elements of the formula that will be read from disk
-        observable_names = proc_conf.AGB.residual_function.formula_observables.name
-
-        #### flag indicating whether these observables are compulsory
-        # if so, samples without this observable are rejected
-        # (order of elements must match that in observable_names)
-        observable_is_required = proc_conf.AGB.residual_function.formula_observables.is_required
-
-        #### list with sources for observable data
-        observable_sources = proc_conf.AGB.residual_function.formula_observables.source
-
-        #### permissible intervals for source data (before transformation)
-        observable_ranges = proc_conf.AGB.residual_function.formula_observables.ranges
-        for idx, unit in enumerate(proc_conf.AGB.residual_function.formula_observables.units):
-            if unit == "Deg":
-                observable_ranges[idx][0] = np.deg2rad(observable_ranges[idx][0])
-                observable_ranges[idx][1] = np.deg2rad(observable_ranges[idx][1])
-
-        #### data transforms (here: tags indicating one of predefined functions)
-        observable_transforms = proc_conf.AGB.residual_function.formula_observables.transform
-
-        ### averaging method within current sampling area and stack
-        #   although oftentimes 'mean' is used, this may not always be the case
-        #   e.g., for slope aspect angle v, arctan(mean(sin(v))/mean(cos(v)))
-        #   is a better averaging method as it is not as susceptible to 2pi ambiguities
-        observable_averaging_methods = proc_conf.AGB.residual_function.formula_observables.averaging_method
 
         ### read additional polygons (e.q., cals not on a grid)
         # (read from xml file or external shapefiles?)
@@ -1228,55 +1206,7 @@ class CoreProcessingAGB(Task):
             additional_sampling_polygons.append(Polygon([(4515000, 5036000), (4516000, 5036000), (4516000, 5037000)]))
         # cal_additional_data = gdal.rasterize( additional_sampling_polygons )
 
-        ### DERIVED QUANTITIES
-
-        # some vectors flagging different types of observables
-        observables_in_formula = np.any(match_string_lists(formula, observable_names) >= 0, axis=0)
-        observables_in_parameters = np.any(match_string_lists(parameter_names, observable_names) >= 0, axis=0)
-        observables_in_formula_or_parameters = observables_in_formula | observables_in_parameters
-
-        # link parameters to observables in case the same name is observed in both
-        positions_in_observable_list, positions_in_parameter_list = np.where(
-            match_string_lists(observable_names, parameter_names) >= 0
-        )
-        parameter_position_in_observable_vector = -1 * np.ones(len(parameter_names), dtype="int32")
-        parameter_position_in_observable_vector[positions_in_parameter_list] = positions_in_observable_list
-
-        # lists with paths to files that will be merged
-        parameter_map_pathlists = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-        # ### SOME MANIPULATIONS TO SPEED  UP THE INVERSION
-        # # (remove in final version)
-
-        # # take out the observables and parameters that are within formula or within the defined observables
-        # # (no need for now to read unnecessary data)
-        # observable_names = subset_iterable(observable_names,observables_in_formula_or_parameters,False)
-        # observable_averaging_methods = subset_iterable(observable_averaging_methods,observables_in_formula_or_parameters,False)
-        # observable_transforms = subset_iterable(observable_transforms,observables_in_formula_or_parameters,False)
-        # observable_ranges = subset_iterable(observable_ranges,observables_in_formula_or_parameters,False)
-        # observable_sources = subset_iterable(observable_sources,observables_in_formula_or_parameters,False)
-        # observable_is_required = subset_iterable(observable_is_required,observables_in_formula_or_parameters,False)
-
-        # # change the number of subsets
-        # # (with the current setting, the subset size is 100% anyway, so no point running 5 subsets)
-        # number_of_subsets = 1
-
-        # remove in final versio
-        fraction_of_samples = 0.8
-
-        # checking that none of observable and parameter names can be contained within each other
-        # (parsing of the formula will fail if this is the case)
-        all_names = parameter_names + observable_names
-        for current_name in all_names:
-            for current_name2 in all_names:
-                if (current_name != current_name2) & (
-                    (current_name.find(current_name2) >= 0) | (current_name2.find(current_name) >= 0)
-                ):
-                    logging.error(
-                        "AGB: parameter and observable names must be unique and cannot contain each other ({} and {} do not fulfill this requirement).".format(
-                            current_name, current_name2
-                        )
-                    )
+        
 
         ### PREPARING STACK INFO
         # read acquisition info table
@@ -1333,6 +1263,7 @@ class CoreProcessingAGB(Task):
                     counter_blocks_run + 1, number_of_blocks, current_block_index
                 )
             )
+            
 
             # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             try:
@@ -1403,7 +1334,7 @@ class CoreProcessingAGB(Task):
                 # output equi7 projection info
                 #   here, we assume that the output tile and subtile will be that of the first observable source
                 #   that is covered by the current block
-                equi7_info_source_path = observable_sources[0][np.where(block_has_data)[0][0]][0][0]
+                equi7_info_source_path = formula_observables.source[0][np.where(block_has_data)[0][0]][0][0]
                 equi7_subtile_name, equi7_tile_name = [x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]]
                 equi7_subgrid_code = equi7_subtile_name[:2]
                 equi7_projection_string = get_projection_from_path(equi7_info_source_path)
@@ -1441,15 +1372,15 @@ class CoreProcessingAGB(Task):
                     stack_info_table_columns,  # column names for the abovementioned table
                     self.lut_fnf,
                     [[x, 0] for x in self.lut_fnf_paths],
-                    observable_names,  # observable names in formula
-                    observable_is_required,
-                    observable_sources,  # paths and band ids
-                    observable_transforms,  # transform function to apply to observable
-                    observable_averaging_methods,  # averaging method (most commonly 'mean', but could be other if required (e.g., for slope aspect angle))
-                    observable_ranges,  # permitted ranges, outside those the observable is set to nan
-                    parameter_names,  # parameter names in formula
-                    parameter_limits,  # permissible parameter intervals
-                    parameter_variabilities,  # parameter variabilities across all dimensions
+                    formula_observables.name,  # observable names in formula
+                    formula_observables.is_required,
+                    formula_observables.source,  # paths and band ids
+                    formula_observables.transform,  # transform function to apply to observable
+                    formula_observables.averaging_method,  # averaging method (most commonly 'mean', but could be other if required (e.g., for slope aspect angle))
+                    formula_observables.limits,  # permitted ranges, outside those the observable is set to nan
+                    formula_parameters.name,  # parameter names in formula
+                    formula_parameters.limits,  # permissible parameter intervals
+                    formula_parameters.variabilities,  # parameter variabilities across all dimensions
                     number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
                 )
 
@@ -1480,19 +1411,20 @@ class CoreProcessingAGB(Task):
                     space_variant_parameter_table,
                     space_variant_parameter_names,
                 ) = fit_formula_to_random_subsets(
-                    formula,
+                    formula_terms.string,
+                    formula_terms.weight,
                     number_of_subsets,
                     observable_table,
                     observable_names,
                     identifier_table,
                     identifier_names,
                     parameter_position_table,
-                    parameter_names,
+                    formula_parameters.name,
                     parameter_tables,
                     parameter_table_columns,
-                    parameter_variabilities,
-                    proc_conf.AGB.fraction_of_cal_per_test / 100 * fraction_of_samples,
-                    proc_conf.AGB.fraction_of_roi_per_test / 100 * fraction_of_samples,
+                    formula_parameters.variabilities,
+                    proc_conf.AGB.fraction_of_cal_per_test / 100 * 0.5,
+                    proc_conf.AGB.fraction_of_roi_per_test / 100 * 0.5,
                     proc_conf.AGB.min_number_of_cals_per_test,
                     proc_conf.AGB.min_number_of_rois_per_test,
                 )
@@ -1519,7 +1451,7 @@ class CoreProcessingAGB(Task):
                             parameter_position_table_columns,
                             parameter_property_names,
                             observable_names,
-                            parameter_names,
+                            formula_parameters.name,
                         ],
                         ["d", "d", "d", "f", "f", "f"],
                     ]
@@ -1578,7 +1510,7 @@ class CoreProcessingAGB(Task):
                     )
 
                     # save parameter tables (minimalistic tables with only the most necessary info)
-                    for parameter_idx, parameter_name in enumerate(parameter_names):
+                    for parameter_idx, parameter_name in enumerate(formula_parameters.name):
                         curr_path = os.path.join(
                             temp_agb_folder,
                             "parameter_{}_table_block_{}.txt".format(parameter_name, current_block_index),
@@ -1610,10 +1542,10 @@ class CoreProcessingAGB(Task):
             # %% ### READING IMAGE DATA
             try:
 
-                logging.info("AGB: reading data images (only necessary files).")
+                logging.info("AGB: reading data images.")
 
                 # take out the observables that are in formula and not among space variant parameters
-                observables_for_mapping = np.any(match_string_lists(formula, observable_names) >= 0, axis=0) & ~np.any(
+                observables_for_mapping = np.any(match_string_lists(formula_terms.string, observable_names) >= 0, axis=0) & ~np.any(
                     match_string_lists(space_variant_parameter_names, observable_names) >= 0, axis=0
                 )
 
@@ -1632,12 +1564,12 @@ class CoreProcessingAGB(Task):
                     pixel_axis_east,
                     stack_info_table,
                     stack_info_table_columns,
-                    subset_iterable(observable_names, observables_for_mapping, False),
-                    subset_iterable(observable_sources, observables_for_mapping, False),
-                    subset_iterable(observable_transforms, observables_for_mapping, False),
-                    subset_iterable(observable_averaging_methods, observables_for_mapping, False),
-                    subset_iterable(observable_ranges, observables_for_mapping, False),
-                    subset_iterable(observable_is_required, observables_for_mapping, False),
+                    observable_names,
+                    formula_observables.source,
+                    formula_observables.transform,
+                    formula_observables.averaging_method,
+                    formula_observables.limits,
+                    formula_observables.is_required,
                     [[x, 0] for x in self.lut_fnf_paths],
                     self.lut_fnf,
                     identifier_table[:, 2],
@@ -1675,12 +1607,12 @@ class CoreProcessingAGB(Task):
                 logging.info("AGB: creating space variant parameter images.")
 
                 # take out the observables that are in formula and not among space variant parameters
-                parameters_for_mapping = np.any(match_string_lists(formula, parameter_names) >= 0, axis=0) & ~np.any(
-                    match_string_lists(space_invariant_parameter_names, parameter_names) >= 0, axis=0
+                parameters_for_mapping = np.any(match_string_lists(formula_terms.string, formula_parameters.name) >= 0, axis=0) & ~np.any(
+                    match_string_lists(space_invariant_parameter_names, formula_parameters.name) >= 0, axis=0
                 )
 
                 (space_variant_parameters_3d, space_variant_parameters_3d_names,) = map_space_variant_parameters(
-                    formula,
+                    formula_terms.string,
                     forest_class_3d,
                     observables_3d,
                     observables_3d_names,
@@ -1688,9 +1620,9 @@ class CoreProcessingAGB(Task):
                     space_invariant_parameters_3d_names,
                     identifiers_3d,
                     identifiers_3d_names,
-                    subset_iterable(parameter_names, parameters_for_mapping, False),
-                    subset_iterable(parameter_variabilities, parameters_for_mapping, False),
-                    subset_iterable(parameter_limits, parameters_for_mapping, False),
+                    subset_iterable(formula_parameters.name, parameters_for_mapping, False),
+                    subset_iterable(formula_parameters.variabilities, parameters_for_mapping, False),
+                    subset_iterable(formula_parameters.limits, parameters_for_mapping, False),
                 )
 
                 # skipping to next if all parameters and/or forest class data are missing
@@ -1729,7 +1661,7 @@ class CoreProcessingAGB(Task):
                 additional_parameters_3d = [
                     space_variant_parameter_3d * 0 for space_variant_parameter_3d in space_variant_parameters_3d * 3
                 ]
-                additional_parameters_3d_names = ["agb_2_db", "agb_3_db", "agb_4_db"]
+                additional_parameters_3d_names = ["agb_2_est_db", "agb_3_est_db", "agb_4_est_db"]
 
             except Exception as e:
                 logging.error("AGB: error during estimation of other parameters." + str(e), exc_info=True)
@@ -1754,8 +1686,8 @@ class CoreProcessingAGB(Task):
                     space_invariant_parameters_3d + space_variant_parameters_3d + additional_parameters_3d
                 )
 
-                for parameter_idx, parameter_name in enumerate(parameter_names):
-                    if parameter_save_as_map[parameter_idx]:
+                for parameter_idx, parameter_name in enumerate(formula_parameters.name):
+                    if formula_parameters.save_as_map[parameter_idx]:
 
                         current_image_to_write = all_parameters_3d[
                             np.where(np.array(all_parameters_3d_names) == parameter_name)[0][0]
@@ -1763,16 +1695,21 @@ class CoreProcessingAGB(Task):
 
                         current_file_path = os.path.join(temp_agb_folder, parameter_name)
 
-                        # if the parameter is also an observable, we need to apply inverse transform
-                        current_position_in_observable_vector = parameter_position_in_observable_vector[parameter_idx]
-                        if current_position_in_observable_vector != -1:
+                            
+                            
+                            
+                        if formula_parameters.transform[parameter_idx]!='none':
                             current_image_to_write = transform_function(
                                 current_image_to_write,
-                                observable_ranges[current_position_in_observable_vector],
-                                observable_transforms[current_position_in_observable_vector],
+                                formula_parameters.limits[parameter_idx],
+                                formula_parameters.transform[parameter_idx],
                                 do_forward=False,
                             )
                             current_file_path += "_backtransf"
+                            
+                            
+                        
+                        
 
                         current_file_path += (
                             "_block_%d" % (current_block_index) + ".tif"
@@ -1817,8 +1754,22 @@ class CoreProcessingAGB(Task):
                             tile_nodata=np.nan,
                         )
 
-                        if current_position_in_observable_vector != -1:
-                            observable_sources[current_position_in_observable_vector][0].append([current_file_path, 0])
+                        # # if the parameter is associated with an observable
+                        # current_position_in_observable_vector = 
+                        # 
+                        # current_image_to_write = transform_function(
+                        #     current_image_to_write,
+                        #     observable_limits[current_position_in_observable_vector],
+                        #     observable_transforms[current_position_in_observable_vector],
+                        #     do_forward=False,
+                        # )
+                        # current_file_path += "_backtransf"
+                        
+                        if (formula_parameters.associated_observable_name[parameter_idx]!='none' ):
+                            current_position_in_observable_vector = np.where(match_string_lists(observable_names,[formula_parameters.associated_observable_name[parameter_idx]]).flatten()>=0)[0][0]
+                            current_resolution = 50 # placeholder
+                            current_unit = formula_parameters.units[parameter_idx]
+                            formula_observables.source[current_position_in_observable_vector][0].append([current_file_path, 0, current_resolution, current_unit])
                         parameter_map_pathlists[parameter_idx].append([output_equi7_file_path[0], 0])
 
                         # self.lut_cal_paths.append(output_file_path)
@@ -1836,8 +1787,8 @@ class CoreProcessingAGB(Task):
         # %% FINAL MERGING OF THE IMAGES
         try:
             logging.info("AGB: creating wall-to-wall maps...")
-            for parameter_idx, parameter_name in enumerate(parameter_names):
-                if parameter_save_as_map[parameter_idx]:
+            for parameter_idx, parameter_name in enumerate(formula_parameters.name):
+                if formula_parameters.save_as_map[parameter_idx]:
 
                     tiles_to_save = {}
                     for current_source in parameter_map_pathlists[parameter_idx]:
@@ -1878,9 +1829,11 @@ class CoreProcessingAGB(Task):
                         current_merged_file_path = os.path.join(
                             global_agb_folder, equi7_subtile_name, tile_name, parameter_name,
                         )
-
-                        current_position_in_observable_vector = parameter_position_in_observable_vector[parameter_idx]
-                        if current_position_in_observable_vector != -1:
+                        
+                            
+                        if formula_parameters.transform[parameter_idx]!='none':
+                            # current_position_in_observable_vector = parameter_position_in_observable_vector[parameter_idx]
+                            # if current_position_in_observable_vector != -1:
                             current_merged_file_path += "_backtransf_"
                         current_merged_file_path += tile_name + "_" + equi7_subtile_name + ".tif"
 
