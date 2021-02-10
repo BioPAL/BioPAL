@@ -313,6 +313,7 @@ def sample_and_tabulate_data(
 
 def fit_formula_to_random_subsets(
     formula,
+    formula_weights,
     number_of_subsets,
     observable_table,
     observable_names,
@@ -457,6 +458,7 @@ def fit_formula_to_random_subsets(
             # estimate both parameters and AGB for the subset
             (current_lut_all_parameters, _, _,) = fit_formula_to_table_data(
                 formula,
+                formula_weights,
                 current_observable_table,
                 current_observable_names,
                 current_parameter_position_table,
@@ -534,6 +536,7 @@ def fit_formula_to_random_subsets(
             # estimate space variant parameters for all samples
             (current_lut_space_variant_parameters, space_variant_parameter_table, _,) = fit_formula_to_table_data(
                 formula,
+                formula_weights,
                 new_observable_table,
                 new_observable_names,
                 new_parameter_position_table,
@@ -601,6 +604,7 @@ def fit_formula_to_random_subsets(
         # estimate space variant parameters for all samples
         (_, space_invariant_parameter_table, _,) = fit_formula_to_table_data(
             formula,
+            formula_weights,
             new_observable_table,
             new_observable_names,
             new_parameter_position_table,
@@ -623,7 +627,7 @@ def swap_names_and_merge_formula(
 ):
     original_variable_names = observable_names + parameter_names
     unique_variable_names, name_counts = np.unique(np.array(original_variable_names), return_counts=True)
-    new_formula = "0"
+    new_formula = []
     for current_formula in original_formulas:
         for unique_variable_name, name_count in zip(unique_variable_names, name_counts):
             if name_count == 1:
@@ -637,8 +641,8 @@ def swap_names_and_merge_formula(
             current_formula = current_formula.replace(
                 unique_variable_name, new_table_name + ("[:,%d]" % (position_in_variable_names_vector))
             )
-        new_formula = new_formula + " + (%s)**2" % (current_formula)
-    return new_formula.replace("0 + ", "")
+        new_formula.append(current_formula)
+    return new_formula
 
 
 # function for converting columnwise indices (which are repeated within the same column if they represent identical values,
@@ -680,39 +684,43 @@ def regularise_indices(columnwise_index_table):
 
 
 def cost_function(
-    x_vector, converted_formulas, observable_tables, index_tables, name_of_table_in_converted_formula, transfer_function
+    x_vector, converted_formulas, formula_weights, observable_table, index_table, name_of_table_in_converted_formula, transfer_function, return_one_value=True
 ):
-    # number of independent formulas
-    number_of_formulas = len(converted_formulas)
-    # convert unconstrained x vector to constrained p vector
-    p_vector = transfer_function(x_vector)
-    # allocate total cost
-    total_cost = 0
-    # loop through different formulas and associated tables
-    for observable_table, index_table, converted_formula in zip(observable_tables, index_tables, converted_formulas):
+    
+    
+    if return_one_value:
+        
+        p_vector = transfer_function(x_vector)
         table_in_converted_formula = np.column_stack((observable_table, p_vector[index_table]))
-        # evaluate the cost function formula, average across different measurements and add to the total cost
-        total_cost += np.nanmean(
-            eval(converted_formula, {name_of_table_in_converted_formula: table_in_converted_formula, "np": np})
-        )
-        # print(eval(converted_formula,{name_of_table_in_converted_formula:table_in_converted_formula}))
-    # return weighed with the number of formulas
-    return np.sqrt(total_cost / number_of_formulas)
+        final_expression = '0'
+        for converted_formula,formula_weight in zip(converted_formulas,formula_weights):
+            final_expression += '+%.18f*np.nanmean((%s)**2)' % (formula_weight/np.sum(formula_weights),converted_formula)
+        final_expression = 'np.sqrt((%s))' % (final_expression)
+        total_cost = eval(final_expression, {name_of_table_in_converted_formula: table_in_converted_formula, "np": np})
+        return total_cost
+    
+    else:
+        
+        p_vector = transfer_function(x_vector)
+        table_in_converted_formula = np.column_stack((observable_table, p_vector[index_table]))
+        final_expression = '0'
+        for converted_formula,formula_weight in zip(converted_formulas,formula_weights):
+            final_expression += ',%.18f*np.nanmean((%s)**2)' % (formula_weight/np.sum(formula_weights)*len(formula_weights),converted_formula)
+        final_expression = 'np.sqrt(np.array([%s]))' % (final_expression)
+        total_cost = eval(final_expression, {name_of_table_in_converted_formula: table_in_converted_formula, "np": np})[1:]
+        return total_cost
 
 
 def fit_formula_to_table_data(
     original_formula,
+    formula_weights,
     observable_table,
     observable_table_column_names,
     parameter_position_table,
     parameter_position_table_column_names,
     individual_parameter_min_max_tables,
 ):
-    # it is required that observable_table contains no nans in columns that double with parameter_position_table
-    # (in terms of columns names)
-    # in columns that double, those rows that have observable values are treated as calibration data
-    # no other unnecessary columns are allowed in observable_table and parameter_position_table (i.e., with names
-    # that do not occur in original_formula)
+   
 
     # convert the columnwise indices in "parameter_position_table" to unique indices
     unique_index_table, columnwise_to_unique_index_lut = regularise_indices(parameter_position_table)
@@ -740,9 +748,9 @@ def fit_formula_to_table_data(
     table_name_in_converted_formula = "current_data_table"
 
     # find rows for which all observable data exist
-    rows_with_all_observables = np.all(~np.isnan(observable_table), axis=1)
+    # rows_with_all_observables = np.all(~np.isnan(observable_table), axis=1)
     # in this case, the formula should use the first occurence of the same quantity, if it is observed in both "observables" and "parameters"
-    converted_calibration_formula = swap_names_and_merge_formula(
+    converted_formula = swap_names_and_merge_formula(
         original_formula,
         observable_table_column_names,
         parameter_position_table_column_names,
@@ -750,31 +758,33 @@ def fit_formula_to_table_data(
         use_observable_if_repeated_and_available=True,
     )
 
-    if np.all(rows_with_all_observables):
-        # if all rows have all data, the total cost function uses only the calibration formula
-        cost_function_arguments = (
-            [converted_calibration_formula],
-            [observable_table],
-            [unique_index_table],
-            table_name_in_converted_formula,
-            lambda x: parameter_transfer_function(x, p_lower, p_upper, False),
-        )
-    else:
-        # add an estimation ssd
-        converted_estimation_formula = swap_names_and_merge_formula(
-            original_formula,
-            observable_table_column_names,
-            parameter_position_table_column_names,
-            table_name_in_converted_formula,
-            use_observable_if_repeated_and_available=False,
-        )
-        cost_function_arguments = (
-            [converted_calibration_formula, converted_estimation_formula],
-            [observable_table[rows_with_all_observables, :], observable_table],
-            [unique_index_table[rows_with_all_observables, :], unique_index_table],
-            table_name_in_converted_formula,
-            lambda x: parameter_transfer_function(x, p_lower, p_upper, False),
-        )
+    # if np.all(rows_with_all_observables):
+    # if all rows have all data, the total cost function uses only the calibration formula
+    cost_function_arguments = (
+        converted_formula,
+        formula_weights,
+        observable_table,
+        unique_index_table,
+        table_name_in_converted_formula,
+        lambda x: parameter_transfer_function(x, p_lower, p_upper, False),
+        True,
+    )
+    # else:
+    #     # add an estimation ssd
+    #     converted_estimation_formula = swap_names_and_merge_formula(
+    #         original_formula,
+    #         observable_table_column_names,
+    #         parameter_position_table_column_names,
+    #         table_name_in_converted_formula,
+    #         use_observable_if_repeated_and_available=False,
+    #     )
+    #     cost_function_arguments = (
+    #         [converted_calibration_formula, converted_estimation_formula],
+    #         [observable_table[rows_with_all_observables, :], observable_table],
+    #         [unique_index_table[rows_with_all_observables, :], unique_index_table],
+    #         table_name_in_converted_formula,
+    #         lambda x: parameter_transfer_function(x, p_lower, p_upper, False),
+    #     )
 
     # iterate a few times with different initial values in case some initial value set fails
     max_count = 10
@@ -784,19 +794,19 @@ def fit_formula_to_table_data(
         p_initial = p_lower + np.random.rand(length_of_p_vector) * (p_upper - p_lower)
         # converting to x
         x_initial = parameter_transfer_function(p_initial, p_lower, p_upper, True)
-
+        
         # fit the model
         fitted_model = sp.optimize.minimize(cost_function, x_initial, cost_function_arguments, method="BFGS")
         if fitted_model.success:
             p_estimated = parameter_transfer_function(fitted_model.x, p_lower, p_upper, False)
-            cost_function_value = cost_function(
-                parameter_transfer_function(p_estimated, p_lower, p_upper, True), *cost_function_arguments
+            cost_function_values = cost_function(
+                parameter_transfer_function(p_estimated, p_lower, p_upper, True), *cost_function_arguments[:-1],False
             )
-            logging.info(" ... finished with success (cost function value: %.2f)." % (cost_function_value))
+            logging.info(" ... finished with success (cost function values: [%s])." % (', '.join(['%.2f' % (curr_value) for curr_value in cost_function_values])))
             break
         else:
             p_estimated = np.nan * np.zeros(length_of_p_vector)
-            cost_function_value = np.nan
+            cost_function_values = np.nan * np.ones(len(converted_formula))
             if counter < (max_count - 1):
                 logging.info(
                     " ... finished with failure (message: {}). Rerunning with different initial values...".format(
@@ -812,7 +822,7 @@ def fit_formula_to_table_data(
     return (
         np.column_stack((columnwise_to_unique_index_lut, p_initial, p_estimated)),
         p_estimated[unique_index_table],
-        cost_function_value,
+        cost_function_values,
     )
 
 
