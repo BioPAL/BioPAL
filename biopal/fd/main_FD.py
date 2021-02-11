@@ -49,7 +49,6 @@ from biopal.io.xml_io import (
     parse_chains_input_file,
     parse_chains_configuration_file,
     parse_boundaries_files,
-    proc_flags,
 )
 
 from biopal.io.data_io import tiff_formatter
@@ -60,10 +59,17 @@ from biopal.ground_cancellation.ground_cancellation import ground_cancellation
 class ForestDisturbance(Task):
     """
     FD main APP "ForestDisturbance" (see README.md to launch) is composed by 
-    two sub APPS automatically called in sequence  when standard launch is performed:
-    ForestDisturbance -> StackBasedProcessingFD -> CoreProcessingFD
+    two sub APPS: 
+        
+    the first APP (initializeAlgorithmFD)  organizes the input dataSet by 
+    grouping all the different temporal global cycles of each stack with same 
+    nominal geometry
+    
+    the second APP (CoreProcessingFD) is called with a for-loop for each 
+    nominal geometry (each stack) and performs the FD detection algorithm 
+    through all the different temporal global cycless of the i-stack
    
-"""
+    """
 
     def __init__(
         self, configuration_file_xml, geographic_boundaries, gdal_path,
@@ -74,41 +80,46 @@ class ForestDisturbance(Task):
 
     def _run(self, input_file_xml):
 
-        #1
+        #1) Prepare initialization APP
+        # organize the input dataSet by grouping all the temporal global cycles of each stack 
+        initialize_fd_obj = initializeAlgorithmFD(self.configuration_file_xml)
+            
+        #1) Run the initialization APP
         (
-            cycles_composition,
+            cycles_composition, # dictionary
             proc_inputs,
-            proc_conf,
-            
-        ) = initialize_fd_obj = initializeAlgorithmFD(
-            self.configuration_file_xml,
-        )
-            
-        #1) Run
-        initialize_fd_obj.run(input_file_xml)
+            proc_conf,  
+        ) = initialize_fd_obj.run(input_file_xml)
+        
 
-        # cycle over each nominal geometry stack (all its global cycles)    
-        final_forest_mask_data = {} # one mask for each equi7 tile
+        #2) Main APP: CoreProcessingFD
+        # cycle over each nominal geometry stack (containing all its global cycles) 
+        
+        final_forest_mask_data = {} # one mask for each equi7 tile, it is updated at each stack-cycle
         for stack_idx, (nominal_geometry_stack_id, global_cycle_dict) in enumerate( cycles_composition.items() ):     
          
-            #2) Main APP #1: Stack Based Processing
-            stack_based_processing_obj = StackBasedProcessingFD(
+            #2) Prepare Main APP: CoreProcessingFD
+            core_processing_obj = CoreProcessingFD(
                 self.configuration_file_xml,
-                self.geographic_boundaries,  # can be a named tuple or a path to xml file
+                self.geographic_boundaries,
                 cycles_composition,
                 stack_idx,
                 nominal_geometry_stack_id,
                 global_cycle_dict,
-                final_forest_mask_data,
+                final_forest_mask_data, # this comes from previous iteration
                 proc_inputs,  # optional
                 proc_conf,  # optional
                 self.gdal_path,  # optional
             )
     
-            #2) Run Main APP #1: Stack Based Processing
-            final_forest_mask_data, temp_output_folder = stack_based_processing_obj.run(input_file_xml)
+            #2) Run Main APP: CoreProcessingFD
+            (
+                final_forest_mask_data, # this goes in input to next iteration
+                temp_output_folder,
+            ) = core_processing_obj.run(input_file_xml)
 
-
+        
+        # Ending the ForestDisturbance APP
         if proc_conf.delete_temporary_files:
             try:
                 shutil.rmtree( temp_output_folder )
@@ -118,19 +129,19 @@ class ForestDisturbance(Task):
 
 
 
+
+
 class initializeAlgorithmFD(Task):
     """
-    "initializeAlgorithmFD".
+    organizes the input dataSet by grouping all the different temporal global 
+    cycles of each stack with same nominal geometry
     """
+    
+    def __init__( self, configuration_file_xml ):
 
-    def __init__(
-        self, configuration_file_xml,
-    ):
         super().__init__(configuration_file_xml)
 
     def _run(self, input_file_xml):
-
-        self.check_auxiliaries()
 
         ########################## INITIAL STEPS ##############################
          
@@ -151,8 +162,8 @@ class initializeAlgorithmFD(Task):
      
         os.makedirs(temp_output_folder)
 
-        ### grouping stacks
-        cycles_composition = {} # dict which groupes togheter stacks with same nominal geometry in differente global cycles
+        ### grouping temoral global cycles for each stack
+        cycles_composition = {} # dict which groupes togheter all the differente global cycles for stacks with same nominal geometry
                                 # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
         logging.info('FD: grouping togheter the stacks which have same "nominal geometry" in different global cycles:' )
         for idx, (unique_stack_id, unique_acq_pf_names) in enumerate( proc_inputs.stack_composition.items() ): 
@@ -170,12 +181,13 @@ class initializeAlgorithmFD(Task):
         return cycles_composition, proc_inputs, proc_conf
 
        
-class StackBasedProcessingFD(Task):
+class CoreProcessingFD(Task):
     """
-    "StackBasedProcessingFD" APP performs stack-based operations to prepare 
-    inputs for the "CoreProcessingfd" APP. It is automatically called from 
-    "ForestDisturbance" APP in the default cal (see README.md).
-
+    "CoreProcessingFD" APP performs stack-based disturbance algorithm cycling over
+    all the different temporal global cycles in the input stack.
+    It is called externally from the ForestDisturbance Main APP, once for each
+    nominal geometry (stack)
+    
     """
 
     def __init__(
@@ -199,12 +211,15 @@ class StackBasedProcessingFD(Task):
             self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)
         else:
             self.geographic_boundaries = geographic_boundaries
-            
-        self.stack_idx = stack_idx,
-        self.nominal_geometry_stack_id = nominal_geometry_stack_id,
-        self.global_cycle_dict = global_cycle_dict,
-        self.final_forest_mask_data = final_forest_mask_data,
+        self.cycles_composition = cycles_composition
+        self.stack_idx = stack_idx
+        self.nominal_geometry_stack_id = nominal_geometry_stack_id
+        self.global_cycle_dict = global_cycle_dict
+        self.final_forest_mask_data = final_forest_mask_data
+        self.proc_inputs = proc_inputs
+        self.proc_conf = proc_conf
         self.gdal_path = gdal_path
+
 
     def check_auxiliaries(self, input_file_xml):
         if self.final_forest_mask_data is None:
@@ -216,14 +231,15 @@ class StackBasedProcessingFD(Task):
         if not self.gdal_path:
             # initialize the gdal_path
             self.gdal_path, _ = set_gdal_paths(self.gdal_path)
-      
+    
+        
     def _run(self, input_file_xml):
 
-        self.check_auxiliaries()
+        self.check_auxiliaries(input_file_xml)
 
         logging.info("FD stack-based processing APP starting\n")      
      
-        ########################## INITIALISATIONS #############################
+        ########################## INITIALIZATIONS ############################
         number_of_pols = 3    
 
         products_folder = os.path.join( self.proc_inputs.output_folder, 'Products' )
@@ -243,16 +259,18 @@ class StackBasedProcessingFD(Task):
         ### get temporal date time of the input data (get the minimum date from all the stacks)
         time_tag_mjd_initial = get_min_time_stamp_repository( self.proc_inputs.L1c_repository, self.proc_inputs.stack_composition )
 
-        ########################## STACK BASED STEPS ##############################
+
         _, heading_deg, rg_swath_idx, rg_sub_swath_idx, az_swath_idx, _ = decode_unique_acquisition_id_string( next(iter(self.global_cycle_dict.values()))[0] )
         logging.info('FD: computing disturbance for following nominal geometry '+self.nominal_geometry_stack_id+':' )
         logging.info('Heading = {}, RG swath = {} RG sub-swath = {}, AZ swath = {}'.format( heading_deg, rg_swath_idx, rg_sub_swath_idx, az_swath_idx ) )
         
         number_of_global_cycles = len(self.global_cycle_dict.keys() )
         logging.info('FD: #{} global cycles found for the current nominal geometry'.format(number_of_global_cycles))
+        ######################### INITIALIZATIONS END #########################
         
         
-        # cycle over all global cycles of current nominal geometry
+        
+        # cycle over all global cycles of current nominal geometry (current stack)
         for time_step_idx, (global_cycle_idx, uniqie_acq_ids_all_cycles_list) in enumerate( self.global_cycle_dict.items() ):
              
             time_tag_mjd_curr = get_data_time_stamp( self.proc_inputs.L1c_repository, uniqie_acq_ids_all_cycles_list[0] )
@@ -737,11 +755,9 @@ class StackBasedProcessingFD(Task):
 
             logging.info('FD: disturbance computation for global cycle "GC_'+global_cycle_idx_str+'" of geometry '+self.nominal_geometry_stack_id+' done.\n' )
         
-    ########################## STACK BASED STEPS END ##############################
+        ################## CYCLES LOOP END ##############################
 
 
-#def CoreProcessingFD():
-    ########################## NOT STACK BASED STEPS ##############################
         # save the final mask (one for each equi7 tile) and compute the dsturbance (one for each equi7 tile too)
         time_tag_mjd_final = time_tag_mjd_curr
         equi7_zone_disturbance_outdir  = os.path.join( products_folder, 'global_FD', 'Disturbance', self.nominal_geometry_stack_id, equi7_zone_name )
@@ -780,6 +796,6 @@ class StackBasedProcessingFD(Task):
            
             logging.info('FD: final step,saving the final fnf mask for equi7 tile #{} of #{}'.format(equi7_tile_idx, number_of_equi7_tiles))
             tiff_formatter( self.final_forest_mask_data[equi7_tile_name], equi7_fnf_mask_outfname, geotransform_out, gdal_data_format=gdal.GDT_Float32, projection=projection_equi7 , time_tag= str( time_tag_mjd_final ) )
-            
-        ########################## NOT STACK BASED STEPS END ##############################
+        
+        # return the final_forest_mask_data to be updated in the next stack-cycle
         return self.final_forest_mask_data, temp_output_folder
