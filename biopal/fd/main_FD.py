@@ -87,11 +87,12 @@ class ForestDisturbance(Task):
         #1) Run the initialization APP
         (
             cycles_composition, # dictionary
+            time_tag_mjd_initial,
+            equi7_sampling,
             proc_inputs,
             proc_conf,  
         ) = initialize_fd_obj.run(input_file_xml)
         
-
         #2) Main APP: CoreProcessingFD
         # cycle over each nominal geometry stack (containing all its global cycles) 
         
@@ -106,7 +107,9 @@ class ForestDisturbance(Task):
                 stack_idx,
                 nominal_geometry_stack_id,
                 global_cycle_dict,
-                final_forest_mask_data, # this comes from previous iteration
+                time_tag_mjd_initial, 
+                final_forest_mask_data, # optional: this comes from previous iteration
+                equi7_sampling, # optional
                 proc_inputs,  # optional
                 proc_conf,  # optional
                 self.gdal_path,  # optional
@@ -176,9 +179,18 @@ class initializeAlgorithmFD(Task):
             cycles_composition[nominal_geometry_stack_id][global_cycle_idx] = unique_acq_pf_names
         logging.info('    for the #{} stacks in input, #{} different nominal geometries have been found \n'.format( len(proc_inputs.stack_composition), len(cycles_composition) ) )    
         
+        
+        ### initialize the equi7 sampling grid
+        equi7_sampling = choose_equi7_sampling(proc_conf.FD.product_resolution, proc_inputs.geographic_grid_sampling)
+        logging.info('EQUI7 Grid sampling used: {}'.format(equi7_sampling))
+        
+        ### get temporal date time of the input data (get the minimum date from all the stacks)
+        time_tag_mjd_initial = get_min_time_stamp_repository( proc_inputs.L1c_repository, proc_inputs.stack_composition )
+
+        
         ########################## INITIAL STEPS END #############################
         
-        return cycles_composition, proc_inputs, proc_conf
+        return cycles_composition, time_tag_mjd_initial, equi7_sampling, proc_inputs, proc_conf
 
        
 class CoreProcessingFD(Task):
@@ -198,7 +210,9 @@ class CoreProcessingFD(Task):
         stack_idx,
         nominal_geometry_stack_id,
         global_cycle_dict,
+        time_tag_mjd_initial, 
         final_forest_mask_data=None,
+        equi7_sampling=None,
         proc_inputs=None,
         proc_conf=None,
         gdal_path=None,
@@ -215,7 +229,9 @@ class CoreProcessingFD(Task):
         self.stack_idx = stack_idx
         self.nominal_geometry_stack_id = nominal_geometry_stack_id
         self.global_cycle_dict = global_cycle_dict
+        self.time_tag_mjd_initial = time_tag_mjd_initial
         self.final_forest_mask_data = final_forest_mask_data
+        self.equi7_sampling = equi7_sampling
         self.proc_inputs = proc_inputs
         self.proc_conf = proc_conf
         self.gdal_path = gdal_path
@@ -228,6 +244,8 @@ class CoreProcessingFD(Task):
             self.proc_inputs = parse_chains_input_file( input_file_xml )
         if self.proc_conf is None:
             self.proc_conf = parse_chains_configuration_file( self.configuration_file_xml )
+        if self.equi7_sampling is None:
+            self.equi7_sampling = choose_equi7_sampling(self.proc_conf.FD.product_resolution, self.proc_inputs.geographic_grid_sampling)  
         if not self.gdal_path:
             # initialize the gdal_path
             self.gdal_path, _ = set_gdal_paths(self.gdal_path)
@@ -252,13 +270,7 @@ class CoreProcessingFD(Task):
                 os.makedirs(breakpoints_output_folder)
             
         ### initialize the equi7 sampling grid
-        equi7_sampling = choose_equi7_sampling(self.proc_conf.FD.product_resolution, self.proc_inputs.geographic_grid_sampling)
-        e7g             = Equi7Grid( equi7_sampling )
-        logging.info('EQUI7 Grid sampling used: {}'.format(equi7_sampling))
-        
-        ### get temporal date time of the input data (get the minimum date from all the stacks)
-        time_tag_mjd_initial = get_min_time_stamp_repository( self.proc_inputs.L1c_repository, self.proc_inputs.stack_composition )
-
+        e7g = Equi7Grid(self.equi7_sampling )
 
         _, heading_deg, rg_swath_idx, rg_sub_swath_idx, az_swath_idx, _ = decode_unique_acquisition_id_string( next(iter(self.global_cycle_dict.values()))[0] )
         logging.info('FD: computing disturbance for following nominal geometry '+self.nominal_geometry_stack_id+':' )
@@ -462,7 +474,7 @@ class CoreProcessingFD(Task):
 
                 # initialize the geocoding
                 min_spacing_m = min(subs_F_a*raster_info.pixel_spacing_az, subs_F_r*raster_info.pixel_spacing_slant_rg)
-                min_spacing_m = min( min_spacing_m, equi7_sampling)
+                min_spacing_m = min( min_spacing_m, self.equi7_sampling)
                 
                 logging.info( 'Geocoding spacing set to {} [m]'.format(min_spacing_m)  )
             
@@ -563,7 +575,7 @@ class CoreProcessingFD(Task):
                     logging.info( 'Initial Forest mask is in TANDEM-X format, converting to equi7...'  )
                     
                     # conversion step 1: get the tiff names of current zone
-                    equi7_initial_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format ( self.proc_inputs.forest_mask_catalogue_folder, e7g, self.proc_conf.FD.product_resolution, temp_output_folder, self.gdal_path, self.geographic_boundaries, time_tag_mjd_initial )
+                    equi7_initial_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format ( self.proc_inputs.forest_mask_catalogue_folder, e7g, self.proc_conf.FD.product_resolution, temp_output_folder, self.gdal_path, self.geographic_boundaries, self.time_tag_mjd_initial )
              
                 elif fnf_format == 'EQUI7':
                     logging.info( 'Initial Forest mask reading and formatting...'  )
@@ -606,8 +618,8 @@ class CoreProcessingFD(Task):
                     if time_tag_mjd_equi7_dict:
                         time_tag_mjd_equi7 = PreciseDateTime().set_from_utc_string( time_tag_mjd_equi7_dict['time_tag'] )
                         
-                        if time_tag_mjd_equi7 > time_tag_mjd_initial:
-                            error_msg = 'Input FNF Mask (EQUI7) date of "{}" is bigger than input stack data minimum date of "{}"'.format( str(time_tag_mjd_equi7), str(time_tag_mjd_initial))
+                        if time_tag_mjd_equi7 > self.time_tag_mjd_initial:
+                            error_msg = 'Input FNF Mask (EQUI7) date of "{}" is bigger than input stack data minimum date of "{}"'.format( str(time_tag_mjd_equi7), str(self.time_tag_mjd_initial))
                             logging.error( error_msg )
                             raise ValueError(error_msg) 
                 
