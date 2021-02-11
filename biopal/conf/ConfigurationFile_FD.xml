@@ -14,5 +14,5 @@
 	<DEMflattening>False</DEMflattening>
 	<MultilookHeadingCorrection>True</MultilookHeadingCorrection>
 	<SaveBreakpoints>True</SaveBreakpoints>
-	<DeleteTemporaryFiles>True</DeleteTemporaryFiles>
+	<DeleteTemporaryFiles>False</DeleteTemporaryFiles>
 </ConfigurationL2FD>
