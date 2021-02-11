@@ -53,7 +53,7 @@ try:
 except:
     pass
 try:
-    from biopal.fd.main_FD import main_FD
+    from biopal.fd.main_FD import ForestDisturbance
 except:
     pass
 try:
@@ -73,6 +73,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         configuration_file_AGB = pkg_resources.resource_filename("biopal", "conf/ConfigurationFile_AGB.xml")
         configuration_file_FH = pkg_resources.resource_filename("biopal", "conf/ConfigurationFile_FH.xml")
         configuration_file_TOMO_FH = pkg_resources.resource_filename("biopal", "conf/ConfigurationFile_TOMO_FH.xml")
+        configuration_file_FD = pkg_resources.resource_filename("biopal", "conf/ConfigurationFile_FD.xml")
     else:
         default_configuration_folder = conf_folder
         check_if_path_exists(default_configuration_folder, "FOLDER")
@@ -81,7 +82,8 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         configuration_file_AGB = os.path.join(default_configuration_folder, "ConfigurationFile_AGB.xml")
         configuration_file_FH = os.path.join(default_configuration_folder, "ConfigurationFile_FH.xml")
         configuration_file_TOMO_FH = os.path.join(default_configuration_folder, "ConfigurationFile_TOMO_FH.xml")
-
+        configuration_file_FD = os.path.join(default_configuration_folder, "ConfigurationFile_FD.xml")
+    
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
 
@@ -172,6 +174,13 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
 
         tomo_fh_obj.run(TOMO_FH_input_file_xml)
 
+    # FD
+    if main_input_struct.proc_flags.FD:
+
+        fd_obj = ForestDisturbance(configuration_file_FD, geographic_boundaries, gdal_path,)
+
+        fd_obj.run(FD_input_file_xml)
+        
     logging.info("All outputs have been saved into: " + output_folder + "\n")
     logging.info("BIOMASS L2 Processor ended: see the above log messages for more info.")
 
