@@ -1168,7 +1168,7 @@ def map_space_variant_parameters(
             space_variant_parameters_3d_limits[0],
             data_list_name,
         )
-        small_step = 0.001
+        small_step = 0.01
         maximal_change_magnitude = 0.03
         number_of_iterations = 100
         scaling_factor = 0.8
