@@ -1479,36 +1479,6 @@ class CoreProcessingAGB(Task):
                         ["d", "d", "d", "d", "f", "f", "f"],
                     ]
 
-                    # save observable table (includes indices to parameter tables, replicated if necessary)
-                    curr_path = os.path.join(
-                        temp_agb_folder, "observable_table_block_{}.txt".format(current_block_index)
-                    )
-                    curr_table = np.column_stack(
-                        (
-                            np.arange(observable_table.shape[0]),
-                            sample_info_table,
-                            identifier_table,
-                            observable_table,
-                            parameter_position_table,
-                        )
-                    )
-                    curr_column_names = (
-                        line_number_string 
-                        + sample_info_table_columns
-                        + identifier_names
-                        + observable_names 
-                        + parameter_position_table_columns
-                    )
-                    save_human_readable_table(
-                        curr_path,
-                        curr_table,
-                        curr_column_names,
-                        data_type_lut,
-                        table_delimiter,
-                        table_precision,
-                        table_column_width,
-                    )
-
                     # save results table (with parameter estimates replicated across samples etc, if necessary; no indices connecting these to parameter tables)
                     curr_path = os.path.join(temp_agb_folder, "results_table_block_{}.txt".format(current_block_index))
                     curr_table = np.column_stack(
@@ -1519,6 +1489,7 @@ class CoreProcessingAGB(Task):
                             observable_table,
                             space_invariant_parameter_table,
                             space_variant_parameter_table,
+                            parameter_position_table,
                         )
                     )
                     curr_column_names = (
@@ -1528,6 +1499,7 @@ class CoreProcessingAGB(Task):
                         + observable_names
                         + space_invariant_parameter_names
                         + space_variant_parameter_names
+                        + parameter_position_table_columns                        
                     )
                     save_human_readable_table(
                         curr_path,
@@ -1538,11 +1510,15 @@ class CoreProcessingAGB(Task):
                         table_precision,
                         table_column_width,
                     )
-
+                    curr_dir = os.path.join(
+                            temp_agb_folder,
+                            'parameter_estimates_subsets')
+                    if not os.path.exists(curr_dir):
+                        os.makedirs(curr_dir)
                     # save parameter tables (minimalistic tables with only the most necessary info)
                     for parameter_idx, parameter_name in enumerate(formula_parameters.name):
                         curr_path = os.path.join(
-                            temp_agb_folder,
+                            curr_dir,
                             "parameter_{}_table_block_{}.txt".format(parameter_name, current_block_index),
                         )
                         curr_table = np.column_stack(
@@ -1575,9 +1551,9 @@ class CoreProcessingAGB(Task):
                 logging.info("AGB: reading data images.")
 
                 # take out the observables that are in formula and not among space variant parameters
-                observables_for_mapping = np.any(match_string_lists(formula_terms.string, observable_names) >= 0, axis=0) & ~np.any(
-                    match_string_lists(space_variant_parameter_names, observable_names) >= 0, axis=0
-                )
+                # observables_for_mapping = np.any(match_string_lists(formula_terms.string, observable_names) >= 0, axis=0) & ~np.any(
+                #     match_string_lists(space_variant_parameter_names, observable_names) >= 0, axis=0
+                # )
 
                 (
                     forest_class_3d,
@@ -1595,7 +1571,7 @@ class CoreProcessingAGB(Task):
                     stack_info_table,
                     stack_info_table_columns,
                     observable_names,
-                    formula_observables.source,
+                    formula_observables.source_paths,
                     formula_observables.transform,
                     formula_observables.averaging_method,
                     formula_observables.limits,
@@ -1636,22 +1612,42 @@ class CoreProcessingAGB(Task):
 
                 logging.info("AGB: creating space variant parameter images.")
 
+                observables_with_partial_data = [observable_name for is_nan,observable_name in zip(np.any(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+                
                 # take out the observables that are in formula and not among space variant parameters
                 parameters_for_mapping = np.any(match_string_lists(formula_terms.string, formula_parameters.name) >= 0, axis=0) & ~np.any(
                     match_string_lists(space_invariant_parameter_names, formula_parameters.name) >= 0, axis=0
                 )
+                
+                
+                
+                # clean up the formula to only include terms that will not produce nans
+                # observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+                terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_with_partial_data)>=0,axis=1)
+                if np.any(terms_with_nan_observables):
+                    logging.warning("AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),', '.join(observables_with_partial_data)))
+                    
+                formula_strings = subset_iterable(formula_terms.string,~terms_with_nan_observables)
+                formula_weights = subset_iterable(formula_terms.weight,~terms_with_nan_observables)
+            
+                observables_for_mapping = np.all(match_string_lists(observable_names,observables_with_partial_data)==-1,axis=1)
+                
+                
+                if np.sum(parameters_for_mapping) > 1:
+                    logging.error("AGB: the current implementation requires only one space-variant parameter.")
+                    
 
                 (space_variant_parameters_3d, space_variant_parameters_3d_names,) = map_space_variant_parameters(
-                    formula_terms.string,
+                    formula_strings,
                     forest_class_3d,
-                    observables_3d,
-                    observables_3d_names,
+                    subset_iterable(observables_3d,observables_for_mapping),
+                    subset_iterable(observables_3d_names,observables_for_mapping),
                     space_invariant_parameters_3d,
                     space_invariant_parameters_3d_names,
                     identifiers_3d,
                     identifiers_3d_names,
                     subset_iterable(formula_parameters.name, parameters_for_mapping, False),
-                    subset_iterable(formula_parameters.variabilities, parameters_for_mapping, False),
+                    subset_iterable(formula_parameters.parameter_variabilities, parameters_for_mapping, False),
                     subset_iterable(formula_parameters.limits, parameters_for_mapping, False),
                 )
 
@@ -1688,10 +1684,8 @@ class CoreProcessingAGB(Task):
                 logging.info("AGB: estimating other parameters to be implemented... (includes estimation of error)")
 
                 # for now, the three error elements are hard coded
-                additional_parameters_3d = [
-                    space_variant_parameter_3d * 0 for space_variant_parameter_3d in space_variant_parameters_3d * 3
-                ]
-                additional_parameters_3d_names = ["agb_2_est_db", "agb_3_est_db", "agb_4_est_db"]
+                additional_parameters_3d = []
+                additional_parameters_3d_names = []
 
             except Exception as e:
                 logging.error("AGB: error during estimation of other parameters." + str(e), exc_info=True)
@@ -1797,9 +1791,12 @@ class CoreProcessingAGB(Task):
                         
                         if (formula_parameters.associated_observable_name[parameter_idx]!='none' ):
                             current_position_in_observable_vector = np.where(match_string_lists(observable_names,[formula_parameters.associated_observable_name[parameter_idx]]).flatten()>=0)[0][0]
-                            current_resolution = 50 # placeholder
-                            current_unit = formula_parameters.units[parameter_idx]
-                            formula_observables.source[current_position_in_observable_vector][0].append([current_file_path, 0, current_resolution, current_unit])
+                            # current_resolution = 50 # placeholder
+                            # current_unit = formula_parameters.units[parameter_idx]
+                            if len(formula_observables.source_paths[current_position_in_observable_vector]) == 0:
+                                formula_observables.source_paths[current_position_in_observable_vector].append([[output_equi7_file_path[0],0]])
+                            elif len(formula_observables.source_paths[current_position_in_observable_vector]) == 1:
+                                formula_observables.source_paths[current_position_in_observable_vector][0].append([output_equi7_file_path[0],0])
                         parameter_map_pathlists[parameter_idx].append([output_equi7_file_path[0], 0])
 
                         # self.lut_cal_paths.append(output_file_path)
