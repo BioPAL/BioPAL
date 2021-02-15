@@ -53,14 +53,16 @@
 						<max>0</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>l_hv</name>
@@ -71,14 +73,16 @@
 						<max>0</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>l_vv</name>
@@ -89,14 +93,16 @@
 						<max>0</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>a_hh</name><!-- "a" = agb model exponent-->
@@ -107,14 +113,16 @@
 						<max>1.9</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>a_hv</name>
@@ -125,14 +133,16 @@
 						<max>1.9</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>a_vv</name>
@@ -143,14 +153,16 @@
 						<max>1.9</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>n_hh</name><!-- "n" = agb cosine exponent-->
@@ -161,14 +173,16 @@
 						<max>3</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>n_hv</name>
@@ -179,14 +193,16 @@
 						<max>3</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>n_vv</name>
@@ -197,14 +213,16 @@
 						<max>3</max>
 					</limits>
 					<associated_observable_name>none</associated_observable_name>
-					<changes_across_samples>False</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>agb_1_est_db</name><!-- AGB estimation -->
@@ -212,24 +230,27 @@
 					<transform>db</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
 					<limits unit="t/ha"><!-- these are the limits after transformation -->
 						<min>1</min>
-						<max>700</max>
+						<max>600</max>
 					</limits>
 					<associated_observable_name>agb_1_cal_db</associated_observable_name>
-					<changes_across_samples>True</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
+					<variability>
+						<samples>True</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
+
 				</par>
 			</formula_parameters>
 			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula_terms setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
 				<obs>
 					<name>forest_class</name>
 					<is_required>True</is_required>
-					<source_paths />
+					<sources />
 					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>0</min>
 						<max>1000</max>
@@ -240,7 +261,7 @@
 				<obs>
 					<name>neg_sigma0_hh_db</name>
 					<is_required>True</is_required>
-					<source_paths />
+					<sources />
 					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>1e-8</min>
 						<max>20</max>
@@ -251,7 +272,7 @@
 				<obs>
 					<name>neg_sigma0_hv_db</name>
 					<is_required>True</is_required>
-					<source_paths />
+					<sources />
 					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>1e-8</min>
 						<max>20</max>
@@ -262,7 +283,7 @@
 				<obs>
 					<name>neg_sigma0_vv_db</name>
 					<is_required>True</is_required>
-					<source_paths />
+					<sources />
 					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>1e-8</min>
 						<max>20</max>
@@ -273,7 +294,7 @@
 				<obs>
 					<name>cos_local_db</name>
 					<is_required>True</is_required>
-					<source_paths />
+					<sources />
 					<limits unit='Deg'><!-- these are the limits before transformation -->
 						<min>20</min>
 						<max>60</max>
@@ -284,7 +305,7 @@
 				<obs>
 					<name>agb_1_cal_db</name>
 					<is_required>False</is_required>
-					<source_paths />
+					<sources />
 					<limits unit='t/ha'><!-- these are the limits before transformation -->
 						<min>1</min>
 						<max>600</max>
@@ -295,7 +316,7 @@
 				<obs>
 					<name>agb_1_cal_1km_db</name>
 					<is_required>False</is_required>
-					<source_paths />
+					<sources />
 					<limits unit='t/ha'><!-- these are the limits before transformation -->
 						<min>1</min>
 						<max>600</max>
