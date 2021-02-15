@@ -2,19 +2,20 @@
 	<EstimateAGB>
 		<residual_function>
 			<formula_terms>
-				<term>
-					<string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
+				<term><!--  these terms are for absolute calibration with low-res GEDI data -->
+					<string>l_hh + a_hh * agb_1_cal_1km_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
 					<weight>1</weight>
 				</term>
 				<term>
-					<string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db</string>
+					<string>l_hv + a_hv * agb_1_cal_1km_db + n_hv * cos_local_db + neg_sigma0_hv_db</string>
 					<weight>1</weight>
 				</term>
 				<term>
-					<string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>
+					<string>l_vv + a_vv * agb_1_cal_1km_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>
 					<weight>1</weight>
 				</term>
-				<term>
+
+				<term><!--  these terms are for absolute calibration with other, available higher-res data, e.g. in overlaps -->
 					<string>l_hh + a_hh * agb_1_cal_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
 					<weight>1</weight>
 				</term>
@@ -26,6 +27,21 @@
 					<string>l_vv + a_vv * agb_1_cal_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>
 					<weight>1</weight>
 				</term>
+
+				<term><!--  finally, these terms are for fitting to estimation data-->
+					<string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
+					<weight>1</weight>
+				</term>
+				<term>
+					<string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db</string>
+					<weight>1</weight>
+				</term>
+				<term>
+					<string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>
+					<weight>1</weight>
+				</term>
+
+
 			</formula_terms>
 			<formula_parameters>
 				<par>
@@ -208,62 +224,19 @@
 					<changes_across_subswaths>False</changes_across_subswaths>
 					<changes_across_azimuth_images>False</changes_across_azimuth_images>
 				</par>
-				<par>
-					<name>agb_2_est_db</name><!-- AGB estimation error -->
-					<save_as_map>True</save_as_map>
-					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
-					<limits unit="dB"><!-- these are the limits after transformation -->
-						<min>1</min>
-						<max>10</max>
-					</limits>
-					<associated_observable_name>agb_2_cal_db</associated_observable_name>
-					<changes_across_samples>True</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
-				</par>
-				<par>
-					<name>agb_3_est_db</name>
-					<save_as_map>True</save_as_map>
-					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
-					<limits unit="dB"><!-- these are the limits after transformation -->
-						<min>1</min>
-						<max>10</max>
-					</limits>
-					<associated_observable_name>agb_3_cal_db</associated_observable_name>
-					<changes_across_samples>True</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
-				</par>
-				<par>
-					<name>agb_4_est_db</name>
-					<save_as_map>True</save_as_map>
-					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
-					<limits unit="dB"><!-- these are the limits after transformation -->
-						<min>1</min>
-						<max>10</max>
-					</limits>
-					<associated_observable_name>agb_4_cal_db</associated_observable_name>
-					<changes_across_samples>True</changes_across_samples>
-					<changes_across_forest_classes>False</changes_across_forest_classes>
-					<changes_across_stacks>False</changes_across_stacks>
-					<changes_across_global_cycles>False</changes_across_global_cycles>
-					<changes_across_headings>False</changes_across_headings>
-					<changes_across_swaths>False</changes_across_swaths>
-					<changes_across_subswaths>False</changes_across_subswaths>
-					<changes_across_azimuth_images>False</changes_across_azimuth_images>
-				</par>
 			</formula_parameters>
 			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula_terms setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
+				<obs>
+					<name>forest_class</name>
+					<is_required>True</is_required>
+					<source_paths />
+					<limits unit="none"><!-- these are the limits before transformation -->
+						<min>0</min>
+						<max>1000</max>
+					</limits>
+					<transform>none</transform>
+					<averaging_method>mode</averaging_method>
+				</obs>
 				<obs>
 					<name>neg_sigma0_hh_db</name>
 					<is_required>True</is_required>
@@ -314,44 +287,23 @@
 					<source_paths />
 					<limits unit='t/ha'><!-- these are the limits before transformation -->
 						<min>1</min>
-						<max>700</max>
+						<max>600</max>
 					</limits>
 					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
-					<name>agb_2_cal_db</name>
+					<name>agb_1_cal_1km_db</name>
 					<is_required>False</is_required>
 					<source_paths />
-					<limits unit='db'><!-- these are the limits before transformation -->
-						<min>0</min>
-						<max>10</max>
+					<limits unit='t/ha'><!-- these are the limits before transformation -->
+						<min>1</min>
+						<max>600</max>
 					</limits>
-					<transform>none</transform>
+					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
-				<obs>
-					<name>agb_3_cal_db</name>
-					<is_required>False</is_required>
-					<source_paths />
-					<limits unit='db'><!-- these are the limits before transformation -->
-						<min>0</min>
-						<max>10</max>
-					</limits>
-					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>agb_4_cal_db</name>
-					<is_required>False</is_required>
-					<source_paths />
-					<limits unit='db'><!-- these are the limits before transformation -->
-						<min>0</min>
-						<max>10</max>
-					</limits>
-					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
+
 			</formula_observables>
 		</residual_function>
 		<number_of_tests>5</number_of_tests>

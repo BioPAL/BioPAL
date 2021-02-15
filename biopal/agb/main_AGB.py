@@ -843,8 +843,6 @@ class StackBasedProcessingAGB(Task):
             "equi7_sampling_intermediate": equi7_sampling_intermediate,
             "e7g_intermediate": e7g_intermediate,
         }
-        # temporary solution:
-        lut_cal_resolutions = [50 for x in lut_cal_paths]
         # create the CoreProcessingAGB configuration file, starting from the default one
         # Read the default conf file:
         default_coreprocessing_conf_file = os.path.join(
@@ -855,10 +853,9 @@ class StackBasedProcessingAGB(Task):
         # source composition:
         # source[index_obs][index_stack][index_file][index_layer]
         for index_obs, name in enumerate(conf_params_default.AGB.residual_function.formula_observables.name):
-            if not conf_params_default.AGB.residual_function.formula_observables.source[index_obs]:
+            if not conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs]:
 
-                layer_list_agb = ["", "", "", ""]
-
+                
                 print("index_obs {}, name {}".format(index_obs, name))
                 if name == "neg_sigma0_hh_db":
                     print("neg_sigma0_hh_db")
@@ -868,10 +865,13 @@ class StackBasedProcessingAGB(Task):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
-                            layer_list = [sigma0_file_name, 0,sigma_ground_res_m, 'none']
+                            layer_list = [sigma0_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
+                    
 
                 elif name == "neg_sigma0_hv_db":
                     print("neg_sigma0_hv_db")
@@ -881,10 +881,12 @@ class StackBasedProcessingAGB(Task):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
-                            layer_list = [sigma0_file_name, 0,sigma_ground_res_m, 'none']
+                            layer_list = [sigma0_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
 
                 elif name == "neg_sigma0_vv_db":
                     print("neg_sigma0_vv_db")
@@ -894,10 +896,12 @@ class StackBasedProcessingAGB(Task):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
-                            layer_list = [sigma0_file_name, 0,sigma_ground_res_m, 'none']
+                            layer_list = [sigma0_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
 
                 elif name == "cos_local_db":
                     print("cos_local_db")
@@ -905,43 +909,42 @@ class StackBasedProcessingAGB(Task):
                     for index_stack, theta_list in enumerate(theta_equi7_fnames.values()):
                         file_list = []
                         for index_file, theta_file_name in enumerate(theta_list):
-                            layer_list = [theta_file_name, 0,sigma_ground_res_m, 'rad']
+                            layer_list = [theta_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'rad'
+
+                elif name == "agb_1_cal_1km_db":
+                    print("agb_1_cal_1km_db")
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_1km_AF050M_E045N048T3.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 1000
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
 
                 elif name == "agb_1_cal_db":
-                    index_layer_agb = 0
                     print("agb_1_cal_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 't/ha']
-                    file_list = [layer_list_agb]
+                    # layer_list = ['none', 0]
+                    # file_list = [layer_list]
+                    # stack_list = [file_list]
+                    stack_list = []
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 50
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
+                    
+                    
+                elif name == "forest_class":
+                    print("forest_class")
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ForestMask\EQUI7_AF080M\E042N048T6\fnf_mask_AF080M_E042N048T6.tif', 0]
+                    file_list = [layer_list]
                     stack_list = [file_list]
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
-
-                elif name == "agb_2_cal_db":
-                    index_layer_agb = 1
-                    print("agb_2_cal_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 'dB']
-                    file_list = [layer_list_agb]
-                    stack_list = [file_list]
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
-
-                elif name == "agb_3_cal_db":
-                    index_layer_agb = 2
-                    print("agb_3_cal_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 'dB']
-                    file_list = [layer_list_agb]
-                    stack_list = [file_list]
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
-
-                elif name == "agb_4_cal_db":
-                    index_layer_agb = 3
-                    print("agb_4_cal_db")
-                    layer_list_agb = [lut_cal_paths[0], index_layer_agb, lut_cal_resolutions[0], 'dB']
-                    file_list = [layer_list_agb]
-                    stack_list = [file_list]
-                    conf_params_default.AGB.residual_function.formula_observables.source[index_obs] = stack_list
-
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
+                    
         # write the updatec conf file:
         coreprocessing_configuration_file_xml = os.path.join(
             proc_inputs.output_folder, "ConfigurationFile_CoreProcessingAGB.xml"
@@ -1160,28 +1163,35 @@ class CoreProcessingAGB(Task):
         # (output limits are easier for the user to define as they are more natural; 
         # the code will use transformed limits though)
         for idx, transform in enumerate(formula_parameters.transform):
-            formula_parameters.limits[idx][0] = transform_function(formula_parameters.limits[idx][0], [-np.inf,np.inf], transform,do_forward=True)
-            formula_parameters.limits[idx][1] = transform_function(formula_parameters.limits[idx][1], [-np.inf,np.inf], transform,do_forward=True)
-        # convert limits from deg to radians
-        # (again, limits are typically easier to define in degs)
-        for idx, unit in enumerate(formula_observables.units):
-            # extract all units for the current observable
-            all_source_units = np.array([curr_file[3].lower() for curr_stack in formula_observables.source[idx] if len(curr_stack)>0 for curr_file in curr_stack if len(curr_file)>0 ])
-            # check that they are all the same
-            if (len(np.unique(all_source_units))>1):
-                error_message = 'Sources of observable {} have different units. Aborting. '.format(formula_observables.name[idx])
-                logging.error(error_message)
-                raise RuntimeError(error_message)
-            elif (len(np.unique(all_source_units))==0):
-                warning_message = 'Unit information for observable {} missing. '.format(formula_observables.name[idx])
-                logging.warning(warning_message)
-                raise RuntimeWarning (warning_message)
-            else:
-                # if there is just one unit, check if the source unit is rad and limits unit is deg; if so, convet the limits unit
-                if (unit.lower() == "deg") & (np.unique(all_source_units)=='rad'):
-                    formula_observables.limits[idx][0] = np.deg2rad(formula_observables.limits[idx][0])
-                    formula_observables.limits[idx][1] = np.deg2rad(formula_observables.limits[idx][1])
+            if transform!='none':
+                formula_parameters.limits[idx][0] = transform_function(formula_parameters.limits[idx][0], [-np.inf,np.inf], transform,do_forward=True)
+                formula_parameters.limits[idx][1] = transform_function(formula_parameters.limits[idx][1], [-np.inf,np.inf], transform,do_forward=True)
+                formula_parameters.limit_units[idx] = transform + '_' + formula_parameters.limit_units[idx]
+        
+        
+        # convert  observable limits to radians if in degrees
+        for idx, unit in enumerate(formula_observables.limit_units):
+            # if there is just one unit, check if the source unit is rad and limits unit is deg; if so, convet the limits unit
+            if (unit.lower() == "deg"):
+                formula_observables.limits[idx][0] = np.deg2rad(formula_observables.limits[idx][0])
+                formula_observables.limits[idx][1] = np.deg2rad(formula_observables.limits[idx][1])
+                formula_observables.limit_units[idx] = "rad"
 
+    
+        # check source units agains limit units, flag discrepancies:
+        for unit_source, unit_limit, name in zip(formula_observables.source_unit, formula_observables.limit_units, formula_observables.name):
+            if unit_source.lower()!=unit_limit.lower():
+                logging.warning("AGB: source unit and limit unit do not match for parameter {} ({} and {}). Proceed with caution.".format(
+                    name,unit_source,unit_limit))
+
+        # check parameter limit units against associated observable limit units, flag discrepancies
+        for unit_limit, associated_observable, name in zip(formula_parameters.limit_units, formula_parameters.associated_observable_name, formula_parameters.name):
+            if associated_observable!='none':
+                observable_idx = np.where(np.array(formula_observables.name)==associated_observable)[0][0]
+                if (formula_observables.limit_units[observable_idx].lower()!=unit_limit.lower()):
+                    logging.warning("AGB: limit units for parameter {} and associated observable {} do not match ({} and {}). The observable source unit is {} and transform is {}. Proceed with caution.".format(
+                        name,associated_observable,unit_limit,formula_observables.limit_units[observable_idx],formula_observables.source_unit[observable_idx],formula_observables.transform[observable_idx]))
+                    
 
         # checking that none of observable and parameter names can be contained within each other
         # (parsing of the formula will fail if this is the case)
@@ -1204,7 +1214,13 @@ class CoreProcessingAGB(Task):
         # this path is temporary:
         test_additional_polygons = True
         if test_additional_polygons:
-            additional_sampling_polygons.append(Polygon([(4515000, 5036000), (4516000, 5036000), (4516000, 5037000)]))
+            # additional_sampling_polygons.append(Polygon([(4515000, 5036000), (4516000, 5036000), (4516000, 5037000)]))
+            
+            
+            # prepare 1 km resolution cells
+            ee,nn = [x.flatten() for x in np.meshgrid(np.arange(first_pixel_east,last_pixel_east+1000,1000),np.arange(last_pixel_north,first_pixel_north+1000,1000))]
+            for e,n in zip(ee,nn):
+                additional_sampling_polygons.append(Polygon([(e,n),(e,n+1000),(e+1000,n+1000),(e+1000,n)]))
         # cal_additional_data = gdal.rasterize( additional_sampling_polygons )
 
         
@@ -1265,7 +1281,6 @@ class CoreProcessingAGB(Task):
                 )
             )
             
-
             # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             try:
                 logging.info("AGB: Creating sampling grid and checking for data.")
@@ -1335,7 +1350,7 @@ class CoreProcessingAGB(Task):
                 # output equi7 projection info
                 #   here, we assume that the output tile and subtile will be that of the first observable source
                 #   that is covered by the current block
-                equi7_info_source_path = formula_observables.source[0][np.where(block_has_data)[0][0]][0][0]
+                equi7_info_source_path = formula_observables.source_paths[0][np.where(block_has_data)[0][0]][0][0]
                 equi7_subtile_name, equi7_tile_name = [x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]]
                 equi7_subgrid_code = equi7_subtile_name[:2]
                 equi7_projection_string = get_projection_from_path(equi7_info_source_path)
@@ -1375,16 +1390,10 @@ class CoreProcessingAGB(Task):
                     stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
                     stack_info_table_columns,  # column names for the abovementioned table
                     self.lut_fnf,
-                    [[x, 0, 50] for x in self.lut_fnf_paths],
-                    formula_observables.name,  # observable names in formula
-                    formula_observables.is_required,
-                    formula_observables.source,  # paths and band ids
-                    formula_observables.transform,  # transform function to apply to observable
-                    formula_observables.averaging_method,  # averaging method (most commonly 'mean', but could be other if required (e.g., for slope aspect angle))
-                    formula_observables.limits,  # permitted ranges, outside those the observable is set to nan
-                    formula_parameters.name,  # parameter names in formula
-                    formula_parameters.limits,  # permissible parameter intervals
-                    formula_parameters.variabilities,  # parameter variabilities across all dimensions
+                    [[x, 0] for x in self.lut_fnf_paths],
+                    50,  # fnf mask resolution
+                    formula_observables,
+                    formula_parameters,
                     number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
                 )
 
@@ -1405,7 +1414,16 @@ class CoreProcessingAGB(Task):
             # %% ### FITTING MODEL TO TABULATED DATA  AND SAVNG
 
             try:
-
+                # clean up the formula to only include terms that will not produce nans
+                observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+                terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_without_data)>=0,axis=1)
+                if np.any(terms_with_nan_observables):
+                    logging.warning("AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),', '.join(observables_without_data)))
+                    
+                formula_strings = subset_iterable(formula_terms.string,~terms_with_nan_observables)
+                formula_weights = subset_iterable(formula_terms.weight,~terms_with_nan_observables)
+            
+                
                 logging.info("AGB: fitting model to data...")
 
                 (
@@ -1415,8 +1433,8 @@ class CoreProcessingAGB(Task):
                     space_variant_parameter_table,
                     space_variant_parameter_names,
                 ) = fit_formula_to_random_subsets(
-                    formula_terms.string,
-                    formula_terms.weight,
+                    formula_strings,
+                    formula_weights,
                     number_of_subsets,
                     observable_table,
                     observable_names,
@@ -1426,7 +1444,7 @@ class CoreProcessingAGB(Task):
                     formula_parameters.name,
                     parameter_tables,
                     parameter_table_columns,
-                    formula_parameters.variabilities,
+                    formula_parameters.parameter_variabilities,
                     proc_conf.AGB.fraction_of_cal_per_test / 100 * 0.5,
                     proc_conf.AGB.fraction_of_roi_per_test / 100 * 0.5,
                     proc_conf.AGB.min_number_of_cals_per_test,

@@ -151,25 +151,31 @@ formula_parameters = namedtuple(
      save_as_map \
      transform \
      limits \
-     units \
+     limit_units \
      associated_observable_name \
-     changes_across_samples \
-     changes_across_forest_classes \
-     changes_across_stacks \
-     changes_across_global_cycles \
-     changes_across_headings \
-     changes_across_swaths \
-     changes_across_subswaths \
-     changes_across_azimuth_images \
-     variabilities",
+     parameter_variabilities",
+)
+    
+parameter_variabilities = namedtuple(
+    "parameter_variabilities",
+    "samples \
+     forest_classes \
+     stacks \
+     global_cycles \
+     headings \
+     swaths \
+     subswath \
+     azimuth_images",
 )
 # agb "formula_observables" sub-fields:
 formula_observables = namedtuple(
     "formula_observables",
     "name \
      is_required \
-     source \
-     units \
+     source_paths \
+     source_unit \
+     source_resolution \
+     limit_units \
      limits \
      transform \
      averaging_method",
@@ -838,7 +844,7 @@ def write_residual_function_core(Estimate_elem, configuration_params):
         transform.text = par_struct.transform[index]
 
         limits = SubElement(par, "limits")
-        limits.set("unit", par_struct.units[index])
+        limits.set("unit", par_struct.limit_units[index])
         min_item = SubElement(limits, "min")
         min_item.text = str(par_struct.limits[index][0])
         max_item = SubElement(limits, "max")
@@ -847,30 +853,26 @@ def write_residual_function_core(Estimate_elem, configuration_params):
         associated_observable = SubElement(par,"associated_observable_name")
         associated_observable.text = par_struct.associated_observable_name[index]
         
-        changes_across_samples = SubElement(par, "changes_across_samples")
-        changes_across_samples.text = str(par_struct.changes_across_samples[index])
-
-        changes_across_forest_classes = SubElement(par, "changes_across_forest_classes")
-        changes_across_forest_classes.text = str(par_struct.changes_across_forest_classes[index])
-
-        changes_across_stacks = SubElement(par, "changes_across_stacks")
-        changes_across_stacks.text = str(par_struct.changes_across_stacks[index])
-
-        changes_across_global_cycles = SubElement(par, "changes_across_global_cycles")
-        changes_across_global_cycles.text = str(par_struct.changes_across_global_cycles[index])
-
-        changes_across_headings = SubElement(par, "changes_across_headings")
-        changes_across_headings.text = str(par_struct.changes_across_headings[index])
-
-        changes_across_swaths = SubElement(par, "changes_across_swaths")
-        changes_across_swaths.text = str(par_struct.changes_across_swaths[index])
-
-        changes_across_subswaths = SubElement(par, "changes_across_subswaths")
-        changes_across_subswaths.text = str(par_struct.changes_across_subswaths[index])
-
-        changes_across_azimuth_images = SubElement(par, "changes_across_azimuth_images")
-        changes_across_azimuth_images.text = str(par_struct.changes_across_azimuth_images[index])
-
+        
+        parameter_variabilities = SubElement(par,"variability")
+        samples_item = SubElement(parameter_variabilities,"samples")
+        samples_item.text = str(par_struct.parameter_variabilities[index][0])
+        forest_classes_item = SubElement(parameter_variabilities,"forest_classes")
+        forest_classes_item.text = str(par_struct.parameter_variabilities[index][1])
+        stacks_item = SubElement(parameter_variabilities,"stacks")
+        stacks_item.text = str(par_struct.parameter_variabilities[index][2])
+        global_cycles_item = SubElement(parameter_variabilities,"global_cycles")
+        global_cycles_item.text = str(par_struct.parameter_variabilities[index][3])
+        headings_item = SubElement(parameter_variabilities,"headings")
+        headings_item.text = str(par_struct.parameter_variabilities[index][4])
+        swaths_item = SubElement(parameter_variabilities,"swaths")
+        swaths_item.text = str(par_struct.parameter_variabilities[index][5])
+        subswaths_item = SubElement(parameter_variabilities,"subswaths")
+        subswaths_item.text = str(par_struct.parameter_variabilities[index][6])
+        azimuth_images_item = SubElement(parameter_variabilities,"azimuth_images")
+        azimuth_images_item.text = str(par_struct.parameter_variabilities[index][7])
+        
+        
     formula_observables = SubElement(residual_function, "formula_observables")
     obs_struct = configuration_params.AGB.residual_function.formula_observables
     # obs_struct.source composition:
@@ -878,42 +880,39 @@ def write_residual_function_core(Estimate_elem, configuration_params):
     # and each layer has two fields: path and layer id
     # path = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
     # band_id = obs_struct.source[index_obs][index_stack][index_file][index_layer][0]
-    number_of_observables = len(obs_struct.source)
+    number_of_observables = len(obs_struct.source_paths)
     for index_obs in np.arange(number_of_observables):
-        source_curr = obs_struct.source[index_obs]
+        source_curr = obs_struct.source_paths[index_obs]
         obs = SubElement(formula_observables, "obs")
-
         name = SubElement(obs, "name")
         name.text = obs_struct.name[index_obs]
 
         is_required = SubElement(obs, "is_required")
         is_required.text = str(obs_struct.is_required[index_obs])
 
-        source_paths = SubElement(obs, "source_paths")
+        sources = SubElement(obs, "sources")
+        sources.set("unit",str(obs_struct.source_unit[index_obs]))
+        sources.set("resolution_m",str(obs_struct.source_resolution[index_obs]))
         number_of_stacks = len(source_curr)
         for index_stack in np.arange(number_of_stacks):
-            stack_curr = obs_struct.source[index_obs][index_stack]
+            stack_curr = obs_struct.source_paths[index_obs][index_stack]
 
-            stack = SubElement(source_paths, "stack")
+            stack = SubElement(sources, "stack")
             number_of_files = len(stack_curr)
             for index_file in np.arange(number_of_files):
-                file_curr = obs_struct.source[index_obs][index_stack][index_file]
+                file_curr = obs_struct.source_paths[index_obs][index_stack][index_file]
 
                 file = SubElement(stack, "file")
 
                 index_layer_text = 0
                 index_band_id = 1
-                index_resolution = 2
-                index_unit = 3
-                layer = SubElement(file, "layer")
+                layer = SubElement(file, "path")
                 layer.text = file_curr[index_layer_text]
-                layer.set("band_id", str(file_curr[index_band_id]))
-                layer.set("resolution_m", str(file_curr[index_resolution]))
-                layer.set("unit", str(file_curr[index_unit]))
+                layer.set("band", str(file_curr[index_band_id]))
 
         limits = SubElement(obs, "limits")
-        if not obs_struct.units[index_obs] == "":
-            limits.set("unit", obs_struct.units[index_obs])
+        if not obs_struct.limit_units[index_obs] == "":
+            limits.set("unit", obs_struct.limit_units[index_obs])
         min_item = SubElement(limits, "min")
         min_item.text = str(obs_struct.limits[index_obs][0])
         max_item = SubElement(limits, "max")
@@ -1695,14 +1694,6 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
     limits = []
     units_par = []
     associated_observable = []
-    changes_across_samples = []
-    changes_across_forest_classes = []
-    changes_across_stacks = []
-    changes_across_global_cycles = []
-    changes_across_headings = []
-    changes_across_swaths = []
-    changes_across_subswaths = []
-    changes_across_azimuth_images = []
     variabilities = []
     for par_item in formula_parameters_Item.findall("par"):
 
@@ -1714,25 +1705,17 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
         units_par.append(par_item.find("limits").attrib["unit"])
         limits.append([min_limit, max_limit])
         associated_observable.append(par_item.find("associated_observable_name").text)
+        variabilities.append([
+            bool_from_string(par_item.find("variability").find("samples").text),
+            bool_from_string(par_item.find("variability").find("forest_classes").text),
+            bool_from_string(par_item.find("variability").find("stacks").text),
+            bool_from_string(par_item.find("variability").find("global_cycles").text),
+            bool_from_string(par_item.find("variability").find("headings").text),
+            bool_from_string(par_item.find("variability").find("swaths").text),
+            bool_from_string(par_item.find("variability").find("subswaths").text),
+            bool_from_string(par_item.find("variability").find("azimuth_images").text),
+        ])
         
-        changes_across_samples.append(bool_from_string(par_item.find("changes_across_samples").text))
-        changes_across_forest_classes.append(bool_from_string(par_item.find("changes_across_forest_classes").text))
-        changes_across_stacks.append(bool_from_string(par_item.find("changes_across_stacks").text))
-        changes_across_global_cycles.append(bool_from_string(par_item.find("changes_across_global_cycles").text))
-        changes_across_headings.append(bool_from_string(par_item.find("changes_across_headings").text))
-        changes_across_swaths.append(bool_from_string(par_item.find("changes_across_swaths").text))
-        changes_across_subswaths.append(bool_from_string(par_item.find("changes_across_subswaths").text))
-        changes_across_azimuth_images.append(bool_from_string(par_item.find("changes_across_azimuth_images").text))
-        variabilities.append(np.array([
-            changes_across_samples[-1],
-            changes_across_forest_classes[-1],
-            changes_across_stacks[-1],
-            changes_across_global_cycles[-1],
-            changes_across_headings[-1],
-            changes_across_swaths[-1],
-            changes_across_subswaths[-1],
-            changes_across_azimuth_images[-1],
-            ]))
         
     formula_parameters_struct = formula_parameters(
         name,
@@ -1741,23 +1724,17 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
         limits,
         units_par,
         associated_observable,
-        changes_across_samples,
-        changes_across_forest_classes,
-        changes_across_stacks,
-        changes_across_global_cycles,
-        changes_across_headings,
-        changes_across_swaths,
-        changes_across_subswaths,
-        changes_across_azimuth_images,
         variabilities,
     )
 
     name = []
     is_required = []
-    observables_sources = []  # contains one sub list for each observable:
+    source_paths = []  # contains one sub list for each observable:
+    source_units = []
+    source_resolutions = []
     # observables_sourcesobs_struct.source[index_obs][index_stack][index_file][index_layer]
     
-    units_obs = []
+    limits_units = []
     limits = []
     transform = []
     averaging_method = []
@@ -1768,15 +1745,21 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
         min_range = float(obs_item.find("limits").find("min").text)
         max_range = float(obs_item.find("limits").find("max").text)
         if obs_item.find("limits").attrib == {}:
-            units_obs.append("")
+            limits_units.append("")
         else:
-            units_obs.append(obs_item.find("limits").attrib["unit"])
+            limits_units.append(obs_item.find("limits").attrib["unit"])
         limits.append([min_range, max_range])
         transform.append(obs_item.find("transform").text)
         averaging_method.append(obs_item.find("averaging_method").text)
 
-        source_item = obs_item.find("source_paths")
-
+        source_item = obs_item.find("sources")
+        if obs_item.find("sources").attrib == {}:
+            source_units.append("")
+            source_resolutions.append(0)
+        else:
+            source_resolutions.append(float(obs_item.find("sources").attrib["resolution_m"]))
+            source_units.append(obs_item.find("sources").attrib["unit"])
+            
         curr_obs_stacks = []
         for stack_item in source_item.findall("stack"):
 
@@ -1784,23 +1767,19 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
             for file_item in stack_item.findall("file"):
 
                 curr_file_layers = []
-                for layer_item in file_item.findall("layer"):
+                for layer_item in file_item.findall("path"):
 
                     layer_path = os.path.join(os.path.dirname(output_folder), layer_item.text)
-                    band_id = int(layer_item.attrib["band_id"])
-                    resolution = float(layer_item.attrib["resolution_m"])
-                    unit = layer_item.attrib["unit"]
+                    band_id = int(layer_item.attrib["band"])
                     curr_file_layers.append(layer_path)
                     curr_file_layers.append(band_id)
-                    curr_file_layers.append(resolution)
-                    curr_file_layers.append(unit)
-
+                    
                 curr_stack_files.append(curr_file_layers)
             curr_obs_stacks.append(curr_stack_files)
-        observables_sources.append(curr_obs_stacks)
+        source_paths.append(curr_obs_stacks)
 
     formula_observables_struct = formula_observables(
-        name, is_required, observables_sources, units_obs, limits, transform, averaging_method,
+        name, is_required, source_paths, source_units, source_resolutions, limits_units, limits, transform, averaging_method,
     )
 
     residual_function_struct = residual_function(formula_terms_struct, formula_parameters_struct, formula_observables_struct,)
