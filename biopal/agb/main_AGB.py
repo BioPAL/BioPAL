@@ -1153,13 +1153,14 @@ class CoreProcessingAGB(Task):
         )
 
         #### read formula, parameter and observable defitions
-        formula_terms = proc_conf.AGB.residual_function.formula_terms
-        formula_parameters = proc_conf.AGB.residual_function.formula_parameters
-        formula_observables = proc_conf.AGB.residual_function.formula_observables
+        algorithm_setup = proc_conf.AGB
+        formula_terms = algorithm_setup.residual_function.formula_terms
+        formula_parameters = algorithm_setup.residual_function.formula_parameters
+        formula_observables = algorithm_setup.residual_function.formula_observables
         
+        # list with paths for images that will be merged at the end
         parameter_map_pathlists = [[] for formula_parameter_name in formula_parameters.name]
         
-        ### checking and converting some of the parameter/observables; this check is not exhaustive
         
         
         # convert parameter limits from output units to input units
@@ -1320,10 +1321,10 @@ class CoreProcessingAGB(Task):
             #     number_of_samples = number_of_samples_on_grid + len(additional_sampling_polygons)
 
             #     # checking the number of samples
-            #     if number_of_samples < proc_conf.AGB.min_number_of_rois:
+            #     if number_of_samples < algorithm_setup.min_number_of_rois:
             #         logging.info(
             #             "... skipping block #{} because the number of samples #{} cannot be less than #{}".format(
-            #                 current_block_index, number_of_samples_on_grid, proc_conf.AGB.min_number_of_rois
+            #                 current_block_index, number_of_samples_on_grid, algorithm_setup.min_number_of_rois
             #             )
             #         )
             #         skip_current_block = True
@@ -1399,7 +1400,7 @@ class CoreProcessingAGB(Task):
                     stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
                     stack_info_table_columns,  # column names for the abovementioned table
                     formula_observables,
-                    'forest_class',
+                    algorithm_setup.forest_class_observable_name,
                     formula_parameters,
                     number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
                 )
@@ -1452,10 +1453,10 @@ class CoreProcessingAGB(Task):
                     parameter_tables,
                     parameter_table_columns,
                     formula_parameters.parameter_variabilities,
-                    proc_conf.AGB.fraction_of_cal_per_test,
-                    proc_conf.AGB.fraction_of_roi_per_test,
-                    proc_conf.AGB.min_number_of_cals_per_test,
-                    proc_conf.AGB.min_number_of_rois_per_test,
+                    algorithm_setup.fraction_of_cal_per_test,
+                    algorithm_setup.fraction_of_roi_per_test,
+                    algorithm_setup.min_number_of_cals_per_test,
+                    algorithm_setup.min_number_of_rois_per_test,
                 )
 
                 # checking if the tables contain any data
@@ -1646,6 +1647,7 @@ class CoreProcessingAGB(Task):
 
                 (space_variant_parameters_3d, space_variant_parameters_3d_names,) = map_space_variant_parameters(
                     formula_strings,
+                    formula_weights,
                     forest_class_3d,
                     subset_iterable(observables_3d,observables_for_mapping),
                     subset_iterable(observables_3d_names,observables_for_mapping),

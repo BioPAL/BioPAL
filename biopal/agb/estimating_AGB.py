@@ -74,11 +74,42 @@ def sample_and_tabulate_data(
 
     # allocate observable table
     observable_table = np.nan * np.zeros((number_of_samples * number_of_stacks , number_of_observables))
-    sample_info_table = np.nan*np.zeros((number_of_samples*number_of_stacks,3))
-    sample_info_table_columns = ['easting','northing','area']
+    sample_info_table_columns = ['easting','northing','area','east_range','north_range']
+    sample_info_table = np.nan*np.zeros((number_of_samples*number_of_stacks,len(sample_info_table_columns)))
     
-    # for current_resolution in all_resolutions:
-    #     logging.info("reading data with resolution %d" % (current_resolution))
+    
+    ## get info about samples (coordinates, area, shape factor)
+    # calculating sample area and coordinates
+    
+    sample_info_table = []
+    
+    for current_map,current_stat,current_name in zip(
+            [pixel_mesh_east,
+             pixel_mesh_north,
+             pixel_mesh_east*0 + np.abs(np.diff(pixel_axis_east)[0]*np.diff(pixel_axis_north)[0]),
+             pixel_mesh_east,
+             pixel_mesh_north],
+            ["mean","mean","sum","range","range"],
+            sample_info_table_columns):
+        
+        logging.info("AGB: calculating sample statistic '{}'".format(current_name))
+        
+        sample_info_table.append(
+            np.round(
+                stats_on_all_samples(
+                    current_map,
+                    0,
+                    pixel_mesh_east,
+                    pixel_mesh_north,
+                    sampling_polygons,
+                    current_stat,
+                )
+            )
+        )
+    
+    
+    sample_info_table = np.column_stack(sample_info_table)
+    sample_info_table = np.kron(sample_info_table, np.ones((number_of_stacks,1)))
     
     
     ### READING OBSERVABLE DATA
@@ -87,37 +118,44 @@ def sample_and_tabulate_data(
         # number of stacks in current observable (must be either 1 or number_of_stacks)
         current_number_of_stacks = len(formula_observables.source_paths[observable_idx])
 
-        # check if observable is stacked (i.e., the list length equals number of stacks)
-        if current_number_of_stacks == number_of_stacks:
+        is_stacked = (current_number_of_stacks==number_of_stacks)
 
-            # cycle over stacks
-            for stack_idx in range(number_of_stacks):
+        # cycle over stacks
+        for stack_idx in range(current_number_of_stacks):
 
-                # go ahead only if current stack is (at least partially) contained in the current parameter block:
-                if stack_in_block[stack_idx]:
+            # go ahead only if current stack is (at least partially) contained in the current parameter block:
+            if (is_stacked and stack_in_block[stack_idx]) or not is_stacked:
 
-                    # cycle over all the equi7 tiles, interpolate over pixel grid and average
-                    source_data_interp = np.NaN * np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="float")
+                # cycle over all the equi7 tiles, interpolate over pixel grid and average
+                source_data_interp = np.NaN * np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="float")
 
-                    for file_idx, file_source in enumerate(formula_observables.source_paths[observable_idx][stack_idx]):
+                for file_idx, file_source in enumerate(formula_observables.source_paths[observable_idx][stack_idx]):
 
-                        if file_source[0]!='none':#np.round(file_source[2])<=current_resolution:
-                            source_data_interp_curr = interp2d_wrapper(
-                                file_source[0], file_source[1] + 1, pixel_axis_east, pixel_axis_north, fill_value=np.NaN,
-                            )
-    
-                            source_data_interp = merge_agb_intermediate(
-                                source_data_interp, source_data_interp_curr, method="nan_mean"
-                            )
+                    if file_source[0]!='none':#np.round(file_source[2])<=current_resolution:
+                        source_data_interp_curr = interp2d_wrapper(
+                            file_source[0], file_source[1] + 1, pixel_axis_east, pixel_axis_north, fill_value=np.NaN,
+                        )
 
-                            # # masking the stack:
-                            # source_data_interp[forest_class_map_interp == 0] = np.NaN
-        
+                        source_data_interp = merge_agb_intermediate(
+                            source_data_interp, source_data_interp_curr, method="nan_mean"
+                        )
+
+                        # # masking the stack:
+                        # source_data_interp[forest_class_map_interp == 0] = np.NaN
+                        if is_stacked:
                             logging.info(
-                                "AGB: sampling and transforming stacked data for observable '{}' (stack {}/{}, file {}/{})".format(
+                                "AGB: sampling and transforming data for stacked observable '{}' (stack {}/{}, file {}/{})".format(
                                     formula_observables.name[observable_idx],
                                     stack_idx + 1,
                                     number_of_stacks,
+                                    file_idx + 1,
+                                    len(formula_observables.source_paths[observable_idx][stack_idx]),
+                                )
+                            )
+                        else:
+                            logging.info(
+                                "AGB: sampling and transforming data for unstacked observable '{}' (file {}/{})".format(
+                                    formula_observables.name[observable_idx],
                                     file_idx + 1,
                                     len(formula_observables.source_paths[observable_idx][stack_idx]),
                                 )
@@ -136,159 +174,25 @@ def sample_and_tabulate_data(
                         formula_observables.limits[observable_idx],
                         formula_observables.transform[observable_idx],
                     )
-                    # find rows where the stack id matches the current stack id
-                    current_rows = (identifier_table[:, 2] == stack_id_vector[stack_idx])# & (identifier_table[:,-1]==current_resolution)
-                    # fill out the table
-                    observable_table[current_rows, observable_idx] = temp_transformed_sampled_data
-
-        # otherwise, replicate across stacks
-        elif current_number_of_stacks == 1:
-
-            source_data_interp = np.nan * np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="float")
-
-            for file_idx, file_source in enumerate(formula_observables.source_paths[observable_idx][0]):
-
-                if file_source[0]!='none':#np.round(file_source[2])<=current_resolution:
-                    source_data_interp_curr = interp2d_wrapper(
-                        file_source[0], file_source[1] + 1, pixel_axis_east, pixel_axis_north, fill_value=np.NaN,
-                    )
-    
-                    source_data_interp = merge_agb_intermediate(
-                        source_data_interp, source_data_interp_curr, method="nan_mean"
-                    )
-    
-                    logging.info(
-                        "AGB: sampling and transforming unstacked data for observable '{}' (file {}/{})".format(
-                            formula_observables.name[observable_idx], file_idx + 1, len(formula_observables.source_paths[observable_idx][0])
-                        )
-                    )
-
-            # statistics over samples
-            temp_transformed_sampled_data = transform_function(
-                stats_on_all_samples(
-                    source_data_interp,
-                    formula_observables.source_resolution[observable_idx],
-                    pixel_mesh_east,
-                    pixel_mesh_north,
-                    sampling_polygons,
-                    method="nan_mean",
-                ),
-                formula_observables.limits[observable_idx],
-                formula_observables.transform[observable_idx],
-            )
-            # fill out the table
-            observable_table[:, observable_idx] = np.kron(temp_transformed_sampled_data, np.ones(number_of_stacks))
-
+                    
+                    # check if observable is stacked (i.e., the list length equals number of stacks)
+                    if is_stacked:
+                        # find rows where the stack id matches the current stack id
+                        current_rows = (identifier_table[:, 2] == stack_id_vector[stack_idx])# & (identifier_table[:,-1]==current_resolution)
+                        # fill out the table
+                        observable_table[current_rows, observable_idx] = temp_transformed_sampled_data
+                    else:
+                        
+                        # fill out the table by replicating the averaged data
+                        observable_table[:, observable_idx] = np.kron(temp_transformed_sampled_data, np.ones(number_of_stacks))
+                        
+                        
         # break if this is a required observable and all sampled data are nan
         # (speeds up the reading)
         if np.all(np.isnan(observable_table[:, observable_idx])) & formula_observables.is_required[observable_idx]:
             logging.info("AGB: no data for the first required observable, skipping the rest")
             break
 
-
-    # ### READING AND SAMPLING FOREST CLASS DATA
-    # logging.info("AGB: sampling forest class data")
-
-    # forest_class_map_interp = np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="float")
-
-    # for file_idx, file_source in enumerate(forest_class_sources):
-        
-        
-
-    #     forest_class_map_boundaries = forest_class_boundaries[file_idx]
-
-    #     forest_class_map_is_inside = check_intersection(
-    #         forest_class_map_boundaries[0],
-    #         forest_class_map_boundaries[1],
-    #         forest_class_map_boundaries[2],
-    #         forest_class_map_boundaries[3],
-    #         block_extents[0],
-    #         block_extents[1],
-    #         block_extents[3],
-    #         block_extents[2],
-    #     )
-    #     if forest_class_map_is_inside and (file_source[0]!='none'):
-
-    #         forest_class_map_interp_curr = np.round(
-    #             interp2d_wrapper(
-    #                 file_source[0], file_source[1] + 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
-    #             )
-    #         )
-
-    #         # mean all the fnf tiles
-    #         forest_class_map_interp = np.ceil(
-    #             merge_agb_intermediate(forest_class_map_interp, forest_class_map_interp_curr, method="nan_mean")
-    #         )
-
-    #         logging.info("AGB: sampling forest class data (file {}/{})".format(file_idx + 1, len(forest_class_sources)))
-
-    #         # set all unrealistic values to 0 = non-forest
-    #         forest_class_map_interp[(forest_class_map_interp <= 0) | np.isnan(forest_class_map_interp)] = 0
-
-    #     # err_str = 'Cannot find any forest class map falling in current block coordinates.'
-    #     # logging.error(err_str)
-    #     # raise ImportError(err_str)
-
-    # # sampling forest class map
-    
-    # temp_forest_class_vector = np.int32(
-    #     np.round(
-    #         stats_on_all_samples(
-    #             forest_class_map_interp,
-    #             forest_class_resolution,
-    #             pixel_mesh_east,
-    #             pixel_mesh_north,     
-    #             sampling_polygons,
-    #             "mode",
-    #         )
-    #     )
-    # )
-    
-
-    
-    
-    # calculating sample area and coordinates
-    temp_east_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                pixel_mesh_east,
-                0,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sampling_polygons,
-                "mean",
-            )
-        )
-    )
-    temp_north_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                pixel_mesh_north,
-                0,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sampling_polygons,
-                "mean",
-            )
-        )
-    )
-    temp_area_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                pixel_mesh_east*0 + np.abs(np.diff(pixel_axis_east)[0]*np.diff(pixel_axis_north)[0]),
-                0,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sampling_polygons,
-                "sum",
-            )
-        )
-    )
-    
-    sample_info_table[:,0] = np.kron(temp_east_vector,np.ones(number_of_stacks))
-    sample_info_table[:,1] = np.kron(temp_north_vector,np.ones(number_of_stacks))
-    sample_info_table[:,2] = np.kron(temp_area_vector,np.ones(number_of_stacks))
-    
     
     # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
     # identifier_table[:, 1] = np.kron(temp_forest_class_vector, np.ones(number_of_stacks))
@@ -1071,6 +975,7 @@ def read_and_organise_3d_data(
 # %%
 def map_space_variant_parameters(
     formula,
+    formula_weights,
     forest_class_3d,
     observables_3d,
     observables_3d_names,
@@ -1121,6 +1026,7 @@ def map_space_variant_parameters(
         all_observables_3d_names = observables_3d_names + space_invariant_parameters_3d_names
         converted_formula = swap_names_and_merge_formula_3d(
             formula,
+            formula_weights,
             all_observables_3d_names,
             space_variant_parameters_3d_names,
             data_list_name,
@@ -1176,12 +1082,12 @@ def map_space_variant_parameters(
 
 #% swap variable names in formulas to slices of an array
 def swap_names_and_merge_formula_3d(
-    original_formulas, observable_names, parameter_names, new_table_name, use_observable_if_repeated_and_available=True
+    original_formulas, weights, observable_names, parameter_names, new_table_name, use_observable_if_repeated_and_available=True
 ):
     original_variable_names = observable_names + parameter_names
     unique_variable_names, name_counts = np.unique(np.array(original_variable_names), return_counts=True)
     new_formula = "0"
-    for current_formula in original_formulas:
+    for current_formula, current_weight in zip(original_formulas,weights):
         for unique_variable_name, name_count in zip(unique_variable_names, name_counts):
             if name_count == 1:
                 position_in_variable_names_vector = np.where(np.array(original_variable_names) == unique_variable_name)[
@@ -1194,7 +1100,7 @@ def swap_names_and_merge_formula_3d(
             current_formula = current_formula.replace(
                 unique_variable_name, new_table_name + ("[%d]" % (position_in_variable_names_vector))
             )
-        new_formula = new_formula + " + (%s)**2" % (current_formula)
+        new_formula = new_formula + " + %f*(%s)**2" % (current_weight,current_formula)
     return new_formula.replace("0 + ", "")
 
 
@@ -1352,6 +1258,9 @@ def transform_function(in_data, interval, kind, do_forward=True):
             out_data = np.cos(in_data)
         else:
             out_data = np.arccos(in_data)
+    elif kind == "round":
+        out_data = np.round(in_data)
+        
     else:
         out_data = np.copy(in_data)
     return out_data
@@ -1417,8 +1326,16 @@ def stats_on_polygons(data, pixel_axis_east, pixel_axis_north, reference_polygon
                 polygon_means_vec[index] = np.nanmedian(data[datamask])
             elif method == "mode":
                 polygon_means_vec[index] = sp.stats.mode(data[datamask])[0]
+            elif method == "mode_knp":
+                if np.any(data[datamask]<=0):
+                    polygon_means_vec[index] = np.nan
+                else:
+                    polygon_means_vec[index] = sp.stats.mode(data[datamask])[0]
+                    
             elif method == "sum":
                 polygon_means_vec[index] = np.sum(data[datamask])
+            elif method == "range":
+                polygon_means_vec[index] = np.max(data[datamask])-np.min(data[datamask])
 
         raster_support_driver = None
         poly_layer_support_driver = None
