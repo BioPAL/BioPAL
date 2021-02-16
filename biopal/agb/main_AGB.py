@@ -849,9 +849,10 @@ class StackBasedProcessingAGB(Task):
             os.path.dirname(self.configuration_file_xml), "ConfigurationFile_CoreProcessingAGB_Default.xml"
         )
         conf_params_default = parse_coreprocessing_agb_configuration_file(default_coreprocessing_conf_file)
+        
         # update the conf paths:
         # source composition:
-        # source[index_obs][index_stack][index_file][index_layer]
+        # source[index_obs][index_stack][index_file][path,band_id]
         for index_obs, name in enumerate(conf_params_default.AGB.residual_function.formula_observables.name):
             if not conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs]:
 
@@ -925,7 +926,9 @@ class StackBasedProcessingAGB(Task):
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 1000
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
 
+        
                 elif name == "agb_1_cal_db":
+                    # if any high-res calibrationd ata become available, then include it here
                     print("agb_1_cal_db")
                     # layer_list = ['none', 0]
                     # file_list = [layer_list]
@@ -1181,7 +1184,7 @@ class CoreProcessingAGB(Task):
         # check source units agains limit units, flag discrepancies:
         for unit_source, unit_limit, name in zip(formula_observables.source_unit, formula_observables.limit_units, formula_observables.name):
             if unit_source.lower()!=unit_limit.lower():
-                logging.warning("AGB: source unit and limit unit do not match for parameter {} ({} and {}). Proceed with caution.".format(
+                logging.warning("AGB: source unit and limit unit do not match for parameter {} ({} and {}). Could still be OK. Proceed with caution.".format(
                     name,unit_source,unit_limit))
 
         # check parameter limit units against associated observable limit units, flag discrepancies
@@ -1189,7 +1192,7 @@ class CoreProcessingAGB(Task):
             if associated_observable!='none':
                 observable_idx = np.where(np.array(formula_observables.name)==associated_observable)[0][0]
                 if (formula_observables.limit_units[observable_idx].lower()!=unit_limit.lower()):
-                    logging.warning("AGB: limit units for parameter {} and associated observable {} do not match ({} and {}). The observable source unit is {} and transform is {}. Proceed with caution.".format(
+                    logging.warning("AGB: limit units for parameter {} and associated observable {} do not match ({} and {}). However, this could still be OK: the observable source unit is {} and transform is {}. Proceed with caution.".format(
                         name,associated_observable,unit_limit,formula_observables.limit_units[observable_idx],formula_observables.source_unit[observable_idx],formula_observables.transform[observable_idx]))
                     
 
@@ -1283,7 +1286,7 @@ class CoreProcessingAGB(Task):
             
             # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             try:
-                logging.info("AGB: Creating sampling grid and checking for data.")
+            #     logging.info("AGB: Creating sampling grid and checking for data.")
 
                 # extent of current block # [min_east, max_east, min_north, max_north]
                 current_block_extents = np.array(
@@ -1295,50 +1298,60 @@ class CoreProcessingAGB(Task):
                     ]
                 )
 
-                # sampling axes and meshes for current block
                 sampling_axis_east = np.arange(current_block_extents[0], current_block_extents[1], sample_spacing_east)
                 sampling_axis_north = np.arange(
                     current_block_extents[2], current_block_extents[3], sample_spacing_north
                 )
                 sampling_mesh_east, sampling_mesh_north = np.meshgrid(sampling_axis_east, sampling_axis_north)
-                number_of_samples_on_grid = len(sampling_mesh_east.flatten())
+    
+                # prepare main sampling polygons
+                main_sampling_areas = []
+                for e,n in zip(sampling_mesh_east.flatten(),sampling_mesh_north.flatten()):
+                    main_sampling_areas.append(Polygon([(e,n),(e,n+sample_size_east),(e+sample_size_east,n+sample_size_north),(e+sample_size_north,n)]))
+                    
+                block_has_data = np.ones(len(self.lut_stacks_boundaries))==1
+                block_has_cal = np.ones(len(self.lut_cal))==1
+                
+            #     # sampling axes and meshes for current block
+            
+            #     number_of_samples_on_grid = len(sampling_mesh_east.flatten())
 
-                # calculate the total number of samples
-                number_of_samples = number_of_samples_on_grid + len(additional_sampling_polygons)
+            #     # calculate the total number of samples
+            #     number_of_samples = number_of_samples_on_grid + len(additional_sampling_polygons)
 
-                # checking the number of samples
-                if number_of_samples < proc_conf.AGB.min_number_of_rois:
-                    logging.info(
-                        "... skipping block #{} because the number of samples #{} cannot be less than #{}".format(
-                            current_block_index, number_of_samples_on_grid, proc_conf.AGB.min_number_of_rois
-                        )
-                    )
-                    skip_current_block = True
-                    block_status[counter_blocks_run] = 1
+            #     # checking the number of samples
+            #     if number_of_samples < proc_conf.AGB.min_number_of_rois:
+            #         logging.info(
+            #             "... skipping block #{} because the number of samples #{} cannot be less than #{}".format(
+            #                 current_block_index, number_of_samples_on_grid, proc_conf.AGB.min_number_of_rois
+            #             )
+            #         )
+            #         skip_current_block = True
+            #         block_status[counter_blocks_run] = 1
 
-                else:
-                    # examine stack and calibration data
-                    (block_has_data, block_has_cal) = check_block_for_data_and_cal(
-                        current_block_extents, self.lut_stacks_boundaries, self.lut_cal
-                    )
+            #     else:
+            #         # examine stack and calibration data
+            #         (block_has_data, block_has_cal) = check_block_for_data_and_cal(
+            #             current_block_extents, self.lut_stacks_boundaries, self.lut_cal
+            #         )
 
-                    # checking availability of calibration and stack data
-                    if ~np.any(block_has_data) or ~np.any(block_has_cal):
-                        logging.info(
-                            "... skipping block #{} due to lack of valid data or calibration points".format(
-                                current_block_index
-                            )
-                        )
-                        skip_current_block = True
-                        block_status[counter_blocks_run] = 1
+            #         # checking availability of calibration and stack data
+            #         if ~np.any(block_has_data) or ~np.any(block_has_cal):
+            #             logging.info(
+            #                 "... skipping block #{} due to lack of valid data or calibration points".format(
+            #                     current_block_index
+            #                 )
+            #             )
+            #             skip_current_block = True
+            #             block_status[counter_blocks_run] = 1
 
             except Exception as e:
                 logging.error("AGB: error during sampling grid preparation." + str(e), exc_info=True)
                 block_status[counter_blocks_run] = -1
                 raise
 
-            if skip_current_block:
-                continue
+            # if skip_current_block:
+            #     continue
             # %% ### TABULATING DATA
             try:
                 logging.info("AGB: tabulating data...")
@@ -1350,7 +1363,7 @@ class CoreProcessingAGB(Task):
                 # output equi7 projection info
                 #   here, we assume that the output tile and subtile will be that of the first observable source
                 #   that is covered by the current block
-                equi7_info_source_path = formula_observables.source_paths[0][np.where(block_has_data)[0][0]][0][0]
+                equi7_info_source_path = [x[0] for z in formula_observables.source_paths for y in z for x in y if x[0].find('EQUI7')>=0][0]
                 equi7_subtile_name, equi7_tile_name = [x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]]
                 equi7_subgrid_code = equi7_subtile_name[:2]
                 equi7_projection_string = get_projection_from_path(equi7_info_source_path)
@@ -1378,21 +1391,15 @@ class CoreProcessingAGB(Task):
                     sample_info_table,
                     sample_info_table_columns,
                 ) = sample_and_tabulate_data(
-                    current_block_extents,  # extent of the current area for which the table is created
+                    current_block_extents,
                     pixel_axis_east,  # east north axes onto which data are interpolated
                     pixel_axis_north,
-                    sampling_axis_east,
-                    sampling_axis_north,
-                    sample_size_east,  # east north extents of the samples
-                    sample_size_north,
-                    additional_sampling_polygons,  # additional arbitrarily shaped polygons
+                    main_sampling_areas + additional_sampling_polygons,  # sampling polygons
                     block_has_data,  # flags whether each stack is in current block
                     stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
                     stack_info_table_columns,  # column names for the abovementioned table
-                    self.lut_fnf,
-                    [[x, 0] for x in self.lut_fnf_paths],
-                    50,  # fnf mask resolution
                     formula_observables,
+                    'forest_class',
                     formula_parameters,
                     number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
                 )
@@ -1445,8 +1452,8 @@ class CoreProcessingAGB(Task):
                     parameter_tables,
                     parameter_table_columns,
                     formula_parameters.parameter_variabilities,
-                    proc_conf.AGB.fraction_of_cal_per_test / 100 * 0.5,
-                    proc_conf.AGB.fraction_of_roi_per_test / 100 * 0.5,
+                    proc_conf.AGB.fraction_of_cal_per_test,
+                    proc_conf.AGB.fraction_of_roi_per_test,
                     proc_conf.AGB.min_number_of_cals_per_test,
                     proc_conf.AGB.min_number_of_rois_per_test,
                 )

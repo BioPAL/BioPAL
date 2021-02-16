@@ -1629,12 +1629,12 @@ def parse_estimateagb_core(chain_field_Item, output_folder=""):
     if residual_function_Item:
         residual_function_struct = parse_agb_residual_function_core(residual_function_Item, output_folder)
 
-    number_of_tests = float(chain_field_Item.find("number_of_tests").text)
+    number_of_tests = int(chain_field_Item.find("number_of_tests").text)
     intermediate_ground_averaging = float(chain_field_Item.find("intermediate_ground_averaging").text)
 
     distance_sampling_area = float(chain_field_Item.find("distance_sampling_area").text)
-    fraction_of_roi_per_test = int(chain_field_Item.find("fraction_of_roi_per_test").text)
-    fraction_of_cal_per_test = int(chain_field_Item.find("fraction_of_cal_per_test").text)
+    fraction_of_roi_per_test = float(chain_field_Item.find("fraction_of_roi_per_test").text)
+    fraction_of_cal_per_test = float(chain_field_Item.find("fraction_of_cal_per_test").text)
 
     add_variability_on_cal_data = bool_from_string(chain_field_Item.find("add_variability_on_cal_data").text)
 
