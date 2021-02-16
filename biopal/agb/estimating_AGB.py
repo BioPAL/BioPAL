@@ -28,18 +28,12 @@ def sample_and_tabulate_data(
     block_extents,  # extent of the current area for which the table is created
     pixel_axis_east,  # east north axes onto which data are interpolated
     pixel_axis_north,
-    sample_axis_east,  # east north axes of the regular sampling grid
-    sample_axis_north,
-    sample_size_east,  # east north extents of the samples
-    sample_size_north,
-    additional_sampling_polygons,  # additional arbitrarily shaped polygons
+    sampling_polygons,  # additional arbitrarily shaped polygons
     stack_in_block,  # flags whether each stack is in current block
     stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
     stack_info_table_column_names,  # column names for the abovementioned table
-    forest_class_boundaries,
-    forest_class_sources,
-    forest_class_resolution,
     formula_observables,
+    observable_for_forest_class,
     formula_parameters,
     number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
 ):
@@ -47,7 +41,7 @@ def sample_and_tabulate_data(
     # derived parameters
     number_of_stacks = stack_info_table.shape[0]
     stack_id_vector = stack_info_table[:, 0]
-    number_of_samples = len(sample_axis_east) * len(sample_axis_north) + len(additional_sampling_polygons)
+    number_of_samples = len(sampling_polygons)
     number_of_parameters = len(formula_parameters.name)
     number_of_observables = len(formula_observables.name)
     pixel_mesh_east, pixel_mesh_north = np.meshgrid(pixel_axis_east, pixel_axis_north)
@@ -87,129 +81,6 @@ def sample_and_tabulate_data(
     #     logging.info("reading data with resolution %d" % (current_resolution))
     
     
-    ### READING AND SAMPLING FOREST CLASS DATA
-    logging.info("AGB: sampling forest class data")
-
-    forest_class_map_interp = np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="float")
-
-    for file_idx, file_source in enumerate(forest_class_sources):
-        
-        
-
-        forest_class_map_boundaries = forest_class_boundaries[file_idx]
-
-        forest_class_map_is_inside = check_intersection(
-            forest_class_map_boundaries[0],
-            forest_class_map_boundaries[1],
-            forest_class_map_boundaries[2],
-            forest_class_map_boundaries[3],
-            block_extents[0],
-            block_extents[1],
-            block_extents[3],
-            block_extents[2],
-        )
-        if forest_class_map_is_inside and (file_source[0]!='none'):
-
-            forest_class_map_interp_curr = np.round(
-                interp2d_wrapper(
-                    file_source[0], file_source[1] + 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
-                )
-            )
-
-            # mean all the fnf tiles
-            forest_class_map_interp = np.ceil(
-                merge_agb_intermediate(forest_class_map_interp, forest_class_map_interp_curr, method="nan_mean")
-            )
-
-            logging.info("AGB: sampling forest class data (file {}/{})".format(file_idx + 1, len(forest_class_sources)))
-
-            # set all unrealistic values to 0 = non-forest
-            forest_class_map_interp[(forest_class_map_interp <= 0) | np.isnan(forest_class_map_interp)] = 0
-
-        # err_str = 'Cannot find any forest class map falling in current block coordinates.'
-        # logging.error(err_str)
-        # raise ImportError(err_str)
-
-    # sampling forest class map
-    
-    temp_forest_class_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                forest_class_map_interp,
-                forest_class_resolution,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sample_axis_east,
-                sample_size_east,
-                sample_axis_north,
-                sample_size_north,
-                additional_sampling_polygons,
-                "mode",
-            )
-        )
-    )
-    
-
-    
-    
-    # calculating sample area and coordinates
-    temp_east_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                pixel_mesh_east,
-                forest_class_resolution,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sample_axis_east,
-                sample_size_east,
-                sample_axis_north,
-                sample_size_north,
-                additional_sampling_polygons,
-                "mean",
-            )
-        )
-    )
-    temp_north_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                pixel_mesh_north,
-                forest_class_resolution,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sample_axis_east,
-                sample_size_east,
-                sample_axis_north,
-                sample_size_north,
-                additional_sampling_polygons,
-                "mean",
-            )
-        )
-    )
-    temp_area_vector = np.int32(
-        np.round(
-            stats_on_all_samples(
-                pixel_mesh_east*0 + np.abs(np.diff(pixel_axis_east)[0]*np.diff(pixel_axis_north)[0]),
-                forest_class_resolution,
-                pixel_mesh_east,
-                pixel_mesh_north,
-                sample_axis_east,
-                sample_size_east,
-                sample_axis_north,
-                sample_size_north,
-                additional_sampling_polygons,
-                "sum",
-            )
-        )
-    )
-    
-    sample_info_table[:,0] = np.kron(temp_east_vector,np.ones(number_of_stacks))
-    sample_info_table[:,1] = np.kron(temp_north_vector,np.ones(number_of_stacks))
-    sample_info_table[:,2] = np.kron(temp_area_vector,np.ones(number_of_stacks))
-    
-    
-    # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
-    identifier_table[:, 1] = np.kron(temp_forest_class_vector, np.ones(number_of_stacks))
-
     ### READING OBSERVABLE DATA
     # cycle through observable sources in the stack
     for observable_idx in range(number_of_observables):
@@ -239,8 +110,8 @@ def sample_and_tabulate_data(
                                 source_data_interp, source_data_interp_curr, method="nan_mean"
                             )
 
-                            # masking the stack:
-                            source_data_interp[forest_class_map_interp == 0] = np.NaN
+                            # # masking the stack:
+                            # source_data_interp[forest_class_map_interp == 0] = np.NaN
         
                             logging.info(
                                 "AGB: sampling and transforming stacked data for observable '{}' (stack {}/{}, file {}/{})".format(
@@ -259,11 +130,7 @@ def sample_and_tabulate_data(
                             formula_observables.source_resolution[observable_idx],
                             pixel_mesh_east,
                             pixel_mesh_north,
-                            sample_axis_east,
-                            sample_size_east,
-                            sample_axis_north,
-                            sample_size_north,
-                            additional_sampling_polygons,
+                            sampling_polygons,
                             formula_observables.averaging_method[observable_idx],
                         ),
                         formula_observables.limits[observable_idx],
@@ -303,11 +170,7 @@ def sample_and_tabulate_data(
                     formula_observables.source_resolution[observable_idx],
                     pixel_mesh_east,
                     pixel_mesh_north,
-                    sample_axis_east,
-                    sample_size_east,
-                    sample_axis_north,
-                    sample_size_north,
-                    additional_sampling_polygons,
+                    sampling_polygons,
                     method="nan_mean",
                 ),
                 formula_observables.limits[observable_idx],
@@ -321,6 +184,121 @@ def sample_and_tabulate_data(
         if np.all(np.isnan(observable_table[:, observable_idx])) & formula_observables.is_required[observable_idx]:
             logging.info("AGB: no data for the first required observable, skipping the rest")
             break
+
+
+    # ### READING AND SAMPLING FOREST CLASS DATA
+    # logging.info("AGB: sampling forest class data")
+
+    # forest_class_map_interp = np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="float")
+
+    # for file_idx, file_source in enumerate(forest_class_sources):
+        
+        
+
+    #     forest_class_map_boundaries = forest_class_boundaries[file_idx]
+
+    #     forest_class_map_is_inside = check_intersection(
+    #         forest_class_map_boundaries[0],
+    #         forest_class_map_boundaries[1],
+    #         forest_class_map_boundaries[2],
+    #         forest_class_map_boundaries[3],
+    #         block_extents[0],
+    #         block_extents[1],
+    #         block_extents[3],
+    #         block_extents[2],
+    #     )
+    #     if forest_class_map_is_inside and (file_source[0]!='none'):
+
+    #         forest_class_map_interp_curr = np.round(
+    #             interp2d_wrapper(
+    #                 file_source[0], file_source[1] + 1, pixel_axis_east, pixel_axis_north, fill_value=float(0)
+    #             )
+    #         )
+
+    #         # mean all the fnf tiles
+    #         forest_class_map_interp = np.ceil(
+    #             merge_agb_intermediate(forest_class_map_interp, forest_class_map_interp_curr, method="nan_mean")
+    #         )
+
+    #         logging.info("AGB: sampling forest class data (file {}/{})".format(file_idx + 1, len(forest_class_sources)))
+
+    #         # set all unrealistic values to 0 = non-forest
+    #         forest_class_map_interp[(forest_class_map_interp <= 0) | np.isnan(forest_class_map_interp)] = 0
+
+    #     # err_str = 'Cannot find any forest class map falling in current block coordinates.'
+    #     # logging.error(err_str)
+    #     # raise ImportError(err_str)
+
+    # # sampling forest class map
+    
+    # temp_forest_class_vector = np.int32(
+    #     np.round(
+    #         stats_on_all_samples(
+    #             forest_class_map_interp,
+    #             forest_class_resolution,
+    #             pixel_mesh_east,
+    #             pixel_mesh_north,     
+    #             sampling_polygons,
+    #             "mode",
+    #         )
+    #     )
+    # )
+    
+
+    
+    
+    # calculating sample area and coordinates
+    temp_east_vector = np.int32(
+        np.round(
+            stats_on_all_samples(
+                pixel_mesh_east,
+                0,
+                pixel_mesh_east,
+                pixel_mesh_north,
+                sampling_polygons,
+                "mean",
+            )
+        )
+    )
+    temp_north_vector = np.int32(
+        np.round(
+            stats_on_all_samples(
+                pixel_mesh_north,
+                0,
+                pixel_mesh_east,
+                pixel_mesh_north,
+                sampling_polygons,
+                "mean",
+            )
+        )
+    )
+    temp_area_vector = np.int32(
+        np.round(
+            stats_on_all_samples(
+                pixel_mesh_east*0 + np.abs(np.diff(pixel_axis_east)[0]*np.diff(pixel_axis_north)[0]),
+                0,
+                pixel_mesh_east,
+                pixel_mesh_north,
+                sampling_polygons,
+                "sum",
+            )
+        )
+    )
+    
+    sample_info_table[:,0] = np.kron(temp_east_vector,np.ones(number_of_stacks))
+    sample_info_table[:,1] = np.kron(temp_north_vector,np.ones(number_of_stacks))
+    sample_info_table[:,2] = np.kron(temp_area_vector,np.ones(number_of_stacks))
+    
+    
+    # repeating it across stacks and inserting into observable data table (note: forest class assumed constant across stacks)
+    # identifier_table[:, 1] = np.kron(temp_forest_class_vector, np.ones(number_of_stacks))
+    forest_class_position = np.where(match_string_lists(formula_observables.name,[observable_for_forest_class]).flatten()>=0)[0]
+    if len(forest_class_position)==0:
+        logging.error('AGB: cannot find forest class observable {}.' .format(observable_for_forest_class))
+    else:
+        forest_class_position = forest_class_position[0]
+    identifier_table[:,1] = observable_table[:,forest_class_position]
+    
 
     # observable_table = np.nan*observable_table # this is just a dummy thing to check the behaviour of this function in case of lack of data
 
@@ -1454,36 +1432,15 @@ def stats_on_all_samples(
     data_resolution,
     pixel_axis_east,
     pixel_axis_north,
-    sample_axis_east,
-    sample_size_east,
-    sample_axis_north,
-    sample_size_north,
     polygons,
     method,
 ):
-    stats = mean_on_rois(
-        data,
-        pixel_axis_east,
-        pixel_axis_north,
-        sample_axis_east,
-        sample_size_east,
-        sample_axis_north,
-        sample_size_north,
-        method,
-    )
+    stats_polygons = stats_on_polygons(data, pixel_axis_east, pixel_axis_north, polygons, method)
     
-    # kill all estimates if there is a resolution mismatch
-    if data_resolution**2>np.abs(sample_size_north*sample_size_east):
-        stats = np.nan * stats
-        
-    if polygons:
-        stats_polygons = stats_on_polygons(data, pixel_axis_east, pixel_axis_north, polygons, method)
-        
-        def get_polygon_areas(polygons):
-            return np.array([polygon.area for polygon in polygons])
-        # kill the polygons with area smaller than the resolution cell 
-        stats_polygons[get_polygon_areas(polygons)<data_resolution**2] = np.nan        
-        
-        stats = np.concatenate((stats, stats_polygons))
-    return stats
+    def get_polygon_areas(polygons):
+        return np.array([polygon.area for polygon in polygons])
+    # kill the polygons with area smaller than the resolution cell 
+    stats_polygons[get_polygon_areas(polygons)<data_resolution**2] = np.nan        
+    
+    return stats_polygons
 
