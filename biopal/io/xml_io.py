@@ -123,6 +123,7 @@ agb_est_params = namedtuple(
     "agb_est_params",
     "residual_function \
                                  number_of_tests \
+                                 forest_class_observable_name \
                                  fraction_of_roi_per_test \
                                  fraction_of_cal_per_test \
                                  add_variability_on_cal_data \
@@ -759,6 +760,9 @@ def write_estimateagb_core(Estimate_elem, configuration_params):
     number_of_tests = SubElement(Estimate_elem, "number_of_tests")
     number_of_tests.text = str(params_curr.number_of_tests)
 
+    forest_class_observable_name = SubElement(Estimate_elem, "forest_class_observable_name")
+    forest_class_observable_name.text = str(params_curr.forest_class_observable_name)
+    
     fraction_of_roi_per_test = SubElement(Estimate_elem, "fraction_of_roi_per_test")
     fraction_of_roi_per_test.text = str(params_curr.fraction_of_roi_per_test)
 
@@ -1630,6 +1634,7 @@ def parse_estimateagb_core(chain_field_Item, output_folder=""):
         residual_function_struct = parse_agb_residual_function_core(residual_function_Item, output_folder)
 
     number_of_tests = int(chain_field_Item.find("number_of_tests").text)
+    forest_class_observable_name = str(chain_field_Item.find("forest_class_observable_name").text)
     intermediate_ground_averaging = float(chain_field_Item.find("intermediate_ground_averaging").text)
 
     distance_sampling_area = float(chain_field_Item.find("distance_sampling_area").text)
@@ -1654,6 +1659,7 @@ def parse_estimateagb_core(chain_field_Item, output_folder=""):
     AGB = agb_est_params(
         residual_function_struct,
         number_of_tests,
+        forest_class_observable_name,
         fraction_of_roi_per_test,
         fraction_of_cal_per_test,
         add_variability_on_cal_data,
