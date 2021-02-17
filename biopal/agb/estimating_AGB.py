@@ -275,8 +275,7 @@ def sample_and_tabulate_data(
 
 
 def fit_formula_to_random_subsets(
-    formula,
-    formula_weights,
+    formula_terms,
     number_of_subsets,
     observable_table,
     observable_names,
@@ -291,6 +290,7 @@ def fit_formula_to_random_subsets(
     estimation_fraction,
     calibration_areas_per_test,  # proc_conf.AGB.min_number_of_cals_per_test
     estimation_areas_per_test,  # proc_conf.AGB.min_number_of_rois_per_test
+    transfer_function_name,
 ):
 
     
@@ -382,26 +382,53 @@ def fit_formula_to_random_subsets(
 
     else:
         if number_of_accepted_subsets < number_of_subsets:
-            logging.info(
-                "AGB: warning: number of accepted subsets ({}) is less than the required number of subsets ({}).".format(
+            logging.warning(
+                "AGB: number of accepted subsets ({}) is less than the required number of subsets ({}).".format(
                     number_of_accepted_subsets, number_of_subsets
                 )
             )
-
+            
+            
+        # detect observables without data (used to remove formula terms that would generate nans)
+        observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+        terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_without_data)>=0,axis=1)
+        
+        if np.any(terms_with_nan_observables):
+            logging.warning(
+                "AGB: skipping formula terms: {} in steps 1-3 due to lack of useful data for observables: {}.".format(
+                    ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),
+                    ', '.join(observables_without_data)))
+        
+        
         ### FIRST, WE PERFORM THE ESTIMATION OF PARAMETERS FOR SUBSETS
-
+        
+        
+        logging.info("AGB: parameter estimation step 1: estimation for subsets")
+        
+        
+        #### select relevant formula and weights for this step
+        terms_with_zero_weight_fitting = np.array(formula_terms.formula_weights.fitting) == 0
+        if np.any(terms_with_zero_weight_fitting):
+            logging.warning(
+                "AGB: skipping formula terms: {} in step 1 due to zero weights.".format(
+                    ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_zero_weight_fitting)[0]])))
+        
+        terms_to_take_fitting = ~(terms_with_nan_observables | terms_with_zero_weight_fitting)
+        formula_fitting = subset_iterable(formula_terms.string,terms_to_take_fitting)
+        formula_weights_fitting = subset_iterable(formula_terms.formula_weights.fitting,terms_to_take_fitting)
+        
         # find observables and parameters in formula and create
         # vectors for selecting parameters and observables that exist in formula
-        observables_in_formula = np.any(match_string_lists(formula, observable_names) >= 0, axis=0)
+        observables_in_formula_fitting = np.any(match_string_lists(formula_fitting, observable_names) >= 0, axis=0)
         observables_in_parameters = np.any(match_string_lists(parameter_names, observable_names) >= 0, axis=0)
-        parameters_in_formula = np.any(match_string_lists(formula, parameter_names) >= 0, axis=0)
+        parameters_in_formula_fitting = np.any(match_string_lists(formula_fitting, parameter_names) >= 0, axis=0)
         # find parameters that do not change between samples
         space_invariant_parameters = False == np.column_stack(parameter_variabilities)[0, :]
         # some more flag vectors
-        space_invariant_parameters_in_formula = space_invariant_parameters & parameters_in_formula
-        space_variant_parameters_in_formula = ~space_invariant_parameters & parameters_in_formula
-        observables_in_formula_not_in_parameters = observables_in_formula & ~observables_in_parameters
-
+        space_invariant_parameters_in_formula_fitting = space_invariant_parameters & parameters_in_formula_fitting
+        # space_variant_parameters_in_formula_fitting = ~space_invariant_parameters & parameters_in_formula_fitting
+        # observables_in_formula_fitting_not_in_parameters = observables_in_formula_fitting & ~observables_in_parameters
+        
         # loop through calibration subsets
         for subset_idx, current_subset in enumerate(subset_indexing_vectors):
 
@@ -410,12 +437,12 @@ def fit_formula_to_random_subsets(
             )
 
             # subset parameter and observable tables
-            current_parameter_position_table = parameter_position_table[current_subset, :][:, parameters_in_formula]
-            current_parameter_names = subset_iterable(parameter_names, parameters_in_formula, False)
-            current_observable_table = observable_table[current_subset, :][:, observables_in_formula]
-            current_observable_names = subset_iterable(observable_names, observables_in_formula, False)
+            current_parameter_position_table = parameter_position_table[current_subset, :][:, parameters_in_formula_fitting]
+            current_parameter_names = subset_iterable(parameter_names, parameters_in_formula_fitting, False)
+            current_observable_table = observable_table[current_subset, :][:, observables_in_formula_fitting]
+            current_observable_names = subset_iterable(observable_names, observables_in_formula_fitting, False)
             # create min-max tables
-            individual_parameter_min_max_tables = subset_iterable(parameter_tables, parameters_in_formula, False)
+            individual_parameter_min_max_tables = subset_iterable(parameter_tables, parameters_in_formula_fitting, False)
             for parameter_idx in range(len(individual_parameter_min_max_tables)):
                 individual_parameter_min_max_tables[parameter_idx] = individual_parameter_min_max_tables[parameter_idx][
                     :, -number_of_subsets - 3 : -number_of_subsets - 1
@@ -423,17 +450,18 @@ def fit_formula_to_random_subsets(
 
             # estimate both parameters and AGB for the subset
             (current_lut_all_parameters, _, _,) = fit_formula_to_table_data(
-                formula,
-                formula_weights,
+                formula_fitting,
+                formula_weights_fitting,
                 current_observable_table,#subset_iterable(current_observable_table.transpose(),~np.all(np.isnan(current_observable_table),axis=0),return_array=True).transpose(),
                 current_observable_names,#subset_iterable(current_observable_names,~np.all(np.isnan(current_observable_table),axis=0)),
                 current_parameter_position_table,
                 current_parameter_names,
                 individual_parameter_min_max_tables,
+                transfer_function_name,
             )
 
             # fill out parameter tables with estimates of space invariant parameters
-            for current_parameter_idx in np.where(space_invariant_parameters_in_formula)[0]:
+            for current_parameter_idx in np.where(space_invariant_parameters_in_formula_fitting)[0]:
                 # identify column in the current output table
                 current_column_idx = np.where(
                     np.array(current_parameter_names) == np.array(parameter_names[current_parameter_idx])
@@ -448,8 +476,32 @@ def fit_formula_to_random_subsets(
                     np.int32(current_lut_all_parameters[current_rows, 2]), -number_of_subsets + subset_idx
                 ] = current_lut_all_parameters[current_rows, -1]
 
-        ### THEN, WE ESTIMATE SPACE VARIANT PARAMETERS FOR ALL SAMPLES USING SPACE INVARIANT PARAMETERS FROM SUBSETS
 
+
+
+
+
+        ### THEN, WE ESTIMATE SPACE VARIANT PARAMETERS FOR ALL SAMPLES USING SPACE INVARIANT PARAMETERS FROM SUBSETS
+        logging.info("AGB: parameter estimation step 2: estimation of AGB from subset estimated parameters")
+        
+        
+        #### select relevant formula and weights for this step
+        terms_with_zero_weight_estimation1 = np.array(formula_terms.formula_weights.estimation1) == 0
+        if np.any(terms_with_zero_weight_estimation1):
+            logging.warning(
+                "AGB: skipping formula terms: {} in step 2 due to zero weights.".format(
+                    ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_zero_weight_estimation1)[0]])))
+        terms_to_take_estimation1 = ~(terms_with_nan_observables | terms_with_zero_weight_estimation1)
+        formula_estimation1 = subset_iterable(formula_terms.string,terms_to_take_estimation1)
+        formula_weights_estimation1 = subset_iterable(formula_terms.formula_weights.estimation1,terms_to_take_estimation1)
+        
+        observables_in_formula_estimation1 = np.any(match_string_lists(formula_estimation1, observable_names) >= 0, axis=0)
+        parameters_in_formula_estimation1 = np.any(match_string_lists(formula_estimation1, parameter_names) >= 0, axis=0)
+        space_invariant_parameters_in_formula_estimation1 = space_invariant_parameters & parameters_in_formula_estimation1
+        space_variant_parameters_in_formula_estimation1 = ~space_invariant_parameters & parameters_in_formula_estimation1
+        observables_in_formula_estimation1_not_in_parameters = observables_in_formula_estimation1 & ~observables_in_parameters
+
+        
         # loop through calibration subsets
         for subset_idx in range(number_of_subsets):
 
@@ -461,10 +513,10 @@ def fit_formula_to_random_subsets(
 
             # create a table with all space invariant parameters
             space_invariant_parameter_names = subset_iterable(
-                parameter_names, space_invariant_parameters_in_formula, False
+                parameter_names, space_invariant_parameters_in_formula_estimation1, False
             )
             current_space_invariant_parameter_table = []
-            for current_parameter_idx in np.where(space_invariant_parameters_in_formula)[0]:
+            for current_parameter_idx in np.where(space_invariant_parameters_in_formula_estimation1)[0]:
                 # extract current parameter table
                 current_parameter_table = parameter_tables[current_parameter_idx]
                 # extract the current position vector
@@ -480,19 +532,19 @@ def fit_formula_to_random_subsets(
             # these parameters are now treated as observables, so
             # space invariant parameter table is merged with observable table
             new_observable_table = np.column_stack(
-                (observable_table[:, observables_in_formula_not_in_parameters], current_space_invariant_parameter_table)
+                (observable_table[:, observables_in_formula_estimation1_not_in_parameters], current_space_invariant_parameter_table)
             )
             new_observable_names = (
-                subset_iterable(observable_names, observables_in_formula_not_in_parameters, False)
+                subset_iterable(observable_names, observables_in_formula_estimation1_not_in_parameters, False)
                 + space_invariant_parameter_names
             )
 
             # now, only the space-variant parameters are treated us unknown parameters
             # the corresponding tables and lists are now created
-            new_parameter_position_table = parameter_position_table[:, space_variant_parameters_in_formula]
-            new_parameter_names = subset_iterable(parameter_names, space_variant_parameters_in_formula, False)
+            new_parameter_position_table = parameter_position_table[:, space_variant_parameters_in_formula_estimation1]
+            new_parameter_names = subset_iterable(parameter_names, space_variant_parameters_in_formula_estimation1, False)
             new_individual_parameter_min_max_tables = subset_iterable(
-                parameter_tables, space_variant_parameters_in_formula, False
+                parameter_tables, space_variant_parameters_in_formula_estimation1, False
             )
             for parameter_idx in range(len(new_individual_parameter_min_max_tables)):
                 new_individual_parameter_min_max_tables[parameter_idx] = new_individual_parameter_min_max_tables[
@@ -501,17 +553,18 @@ def fit_formula_to_random_subsets(
 
             # estimate space variant parameters for all samples
             (current_lut_space_variant_parameters, space_variant_parameter_table, _,) = fit_formula_to_table_data(
-                formula,
-                formula_weights,
+                formula_estimation1,
+                formula_weights_estimation1,
                 new_observable_table,
                 new_observable_names,
                 new_parameter_position_table,
                 new_parameter_names,
                 new_individual_parameter_min_max_tables,
+                transfer_function_name,
             )
 
             # fill out parameter tables with estimates of space invariant parameters
-            for current_parameter_idx in np.where(space_variant_parameters_in_formula)[0]:
+            for current_parameter_idx in np.where(space_variant_parameters_in_formula_estimation1)[0]:
                 # identify column
                 current_column_idx = np.where(
                     np.array(new_parameter_names) == np.array(parameter_names[current_parameter_idx])
@@ -528,13 +581,29 @@ def fit_formula_to_random_subsets(
 
         ### FINALLY, WE ESTIMATE SPACE INVARIANT PARAMETERS USING THE AVERAGE SPACE VARIANT PARAMETER VALUES FROM ALL SUBSETS FOR ALL SAMPLES
 
-        logging.info("AGB: estimating space-invariant parameters using space-variant parameter estimate")
+        logging.info("AGB: parameter estimation step 3: fitting space-invariant parameters using space-variant parameter estimate")
+
+        terms_with_zero_weight_estimation2 = np.array(formula_terms.formula_weights.estimation2) == 0
+        if np.any(terms_with_zero_weight_estimation2):
+            logging.warning(
+                "AGB: skipping formula terms: {} in step 3 due to zero weights.".format(
+                    ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_zero_weight_estimation2)[0]])))
+        terms_to_take_estimation2 = ~(terms_with_nan_observables | terms_with_zero_weight_estimation2)
+        formula_estimation2 = subset_iterable(formula_terms.string,terms_to_take_estimation2)
+        formula_weights_estimation2 = subset_iterable(formula_terms.formula_weights.estimation2,terms_to_take_estimation2)
+        
+        observables_in_formula_estimation2 = np.any(match_string_lists(formula_estimation2, observable_names) >= 0, axis=0)
+        parameters_in_formula_estimation2 = np.any(match_string_lists(formula_estimation2, parameter_names) >= 0, axis=0)
+        space_invariant_parameters_in_formula_estimation2 = space_invariant_parameters & parameters_in_formula_estimation2
+        space_variant_parameters_in_formula_estimation2 = ~space_invariant_parameters & parameters_in_formula_estimation2
+        observables_in_formula_estimation2_not_in_parameters = observables_in_formula_estimation2 & ~observables_in_parameters
+
 
         # names for table columns
-        space_variant_parameter_names = subset_iterable(parameter_names, space_variant_parameters_in_formula, False)
+        space_variant_parameter_names = subset_iterable(parameter_names, space_variant_parameters_in_formula_estimation2, False)
         # create table with all space invariant parameters
         current_space_variant_parameter_table = []
-        for position_in_parameter_table_list in np.where(space_variant_parameters_in_formula)[0]:
+        for position_in_parameter_table_list in np.where(space_variant_parameters_in_formula_estimation2)[0]:
             current_parameter_table = parameter_tables[position_in_parameter_table_list]
             current_parameter_position_vector = np.int32(parameter_position_table[:, position_in_parameter_table_list])
             current_columns_in_parameter_table = np.arange(-number_of_subsets, 0)
@@ -550,17 +619,17 @@ def fit_formula_to_random_subsets(
 
         # new observable table is the combination of observable table and space variant parameter table
         new_observable_table = np.column_stack(
-            (observable_table[:, observables_in_formula_not_in_parameters], current_space_variant_parameter_table)
+            (observable_table[:, observables_in_formula_estimation2_not_in_parameters], current_space_variant_parameter_table)
         )
         new_observable_names = (
-            subset_iterable(observable_names, observables_in_formula_not_in_parameters, False)
+            subset_iterable(observable_names, observables_in_formula_estimation2_not_in_parameters, False)
             + space_variant_parameter_names
         )
 
-        new_parameter_position_table = parameter_position_table[:, space_invariant_parameters_in_formula]
-        new_parameter_names = subset_iterable(parameter_names, space_invariant_parameters_in_formula, False)
+        new_parameter_position_table = parameter_position_table[:, space_invariant_parameters_in_formula_estimation2]
+        new_parameter_names = subset_iterable(parameter_names, space_invariant_parameters_in_formula_estimation2, False)
         new_individual_parameter_min_max_tables = subset_iterable(
-            parameter_tables, space_invariant_parameters_in_formula, False
+            parameter_tables, space_invariant_parameters_in_formula_estimation2, False
         )
         for parameter_idx in range(len(new_individual_parameter_min_max_tables)):
             new_individual_parameter_min_max_tables[parameter_idx] = new_individual_parameter_min_max_tables[
@@ -569,13 +638,14 @@ def fit_formula_to_random_subsets(
 
         # estimate space variant parameters for all samples
         (_, space_invariant_parameter_table, _,) = fit_formula_to_table_data(
-            formula,
-            formula_weights,
+            formula_estimation2,
+            formula_weights_estimation2,
             new_observable_table,
             new_observable_names,
             new_parameter_position_table,
             new_parameter_names,
             new_individual_parameter_min_max_tables,
+            transfer_function_name,
         )
     return (
         parameter_tables,
@@ -675,6 +745,7 @@ def fit_formula_to_table_data(
     parameter_position_table,
     parameter_position_table_column_names,
     individual_parameter_min_max_tables,
+    transfer_function_name,
 ):
    
 
@@ -720,7 +791,7 @@ def fit_formula_to_table_data(
         observable_table,
         unique_index_table,
         table_name_in_converted_formula,
-        lambda x: parameter_transfer_function(x, p_lower, p_upper, False),
+        lambda x: parameter_transfer_function(x, p_lower, p_upper, False, transfer_function_name),
         True,
     )
 
@@ -731,14 +802,14 @@ def fit_formula_to_table_data(
         # creating initial values by randomising
         p_initial = p_lower + np.random.rand(length_of_p_vector) * (p_upper - p_lower)
         # converting to x
-        x_initial = parameter_transfer_function(p_initial, p_lower, p_upper, True)
+        x_initial = parameter_transfer_function(p_initial, p_lower, p_upper, True, transfer_function_name)
         
         # fit the model
         fitted_model = sp.optimize.minimize(cost_function, x_initial, cost_function_arguments, method="BFGS")
         if fitted_model.success:
-            p_estimated = parameter_transfer_function(fitted_model.x, p_lower, p_upper, False)
+            p_estimated = parameter_transfer_function(fitted_model.x, p_lower, p_upper, False, transfer_function_name)
             cost_function_values = cost_function(
-                parameter_transfer_function(p_estimated, p_lower, p_upper, True), *cost_function_arguments[:-1],False
+                parameter_transfer_function(p_estimated, p_lower, p_upper, True, transfer_function_name), *cost_function_arguments[:-1],False
             )
             logging.info(" ... finished with success (cost function values: [%s])." % (', '.join(['%.2f' % (curr_value) for curr_value in cost_function_values])))
             break
@@ -986,6 +1057,7 @@ def map_space_variant_parameters(
     space_variant_parameters_3d_names,
     space_variant_parameters_3d_variabilities,
     space_variant_parameters_3d_limits,
+    transfer_function_name,
 ):
     def small_change_in_intermediate_parameters_3d(intermediate_parameter, additional_arguments, small_step):
         def cost_function_3d(intermediate_parameter, additional_arguments):
@@ -994,13 +1066,15 @@ def map_space_variant_parameters(
                 converted_formula,
                 all_observables_3d,
                 transfer_function,
+                transfer_function_name,
                 space_variant_parameter_limits,
                 data_list_name,
             ) = additional_arguments
             space_variant_parameter = np.kron(
                 np.ones((1, 1, all_observables_3d[0].shape[2])),
                 transfer_function(
-                    intermediate_parameter, space_variant_parameter_limits[0], space_variant_parameter_limits[1], False
+                    intermediate_parameter, space_variant_parameter_limits[0], space_variant_parameter_limits[1], False,
+                    transfer_function_name,
                 ),
             )
             data_list = all_observables_3d + [space_variant_parameter]
@@ -1043,18 +1117,30 @@ def map_space_variant_parameters(
             space_variant_parameters_3d_limits[0][0],
             space_variant_parameters_3d_limits[0][1],
             True,
+            transfer_function_name,
         )
 
         additional_arguments = (
             converted_formula,
             all_observables_3d,
             parameter_transfer_function,
+            transfer_function_name,
             space_variant_parameters_3d_limits[0],
             data_list_name,
         )
-        small_step = 0.01
-        maximal_change_magnitude = 0.03
-        number_of_iterations = 100
+        
+        
+        # this is a tricky part because the small step and max change depend on the quantity that we optimise for
+        if transfer_function_name == 'sin2':
+                
+            small_step = 0.01
+            maximal_change_magnitude = 0.03
+        else:
+            small_step = 0.25
+            maximal_change_magnitude = 1
+            
+            
+        number_of_iterations = 1000
         scaling_factor = 0.8
         for ii in np.arange(number_of_iterations):
             small_change, cost_function_value = small_change_in_intermediate_parameters_3d(
@@ -1069,6 +1155,7 @@ def map_space_variant_parameters(
             space_variant_parameters_3d_limits[0][0],
             space_variant_parameters_3d_limits[0][1],
             False,
+            transfer_function_name,
         )
         logging.info(
             "AGB: map creation successful (average cost function value: %.2f)" % (np.nanmean(cost_function_value))
@@ -1115,14 +1202,16 @@ def match_string_lists(ref_string_list, test_string_list):
 
 
 # %% define parameter transfer functions
-def parameter_transfer_function(in_vector, p_lower, p_upper, in_vector_is_p=False):
+def parameter_transfer_function(in_vector, p_lower, p_upper, in_vector_is_p=False,transfer_function_name='sin2'):
     # note: no check of x_vector, p_upper, p_lower is done here,
     # it is assumed that the inputs are correct
-    if not in_vector_is_p:
-        return p_lower + (p_upper - p_lower) * np.sin(in_vector) ** 2
+    if transfer_function_name == 'sin2':
+        if not in_vector_is_p:
+            return p_lower + (p_upper - p_lower) * np.sin(in_vector) ** 2
+        else:
+            return np.arcsin(np.sqrt((in_vector - p_lower) / (p_upper - p_lower)))
     else:
-        return np.arcsin(np.sqrt((in_vector - p_lower) / (p_upper - p_lower)))
-
+        return in_vector
 
 # %%
 def save_human_readable_table(

@@ -857,9 +857,7 @@ class StackBasedProcessingAGB(Task):
             if not conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs]:
 
                 
-                print("index_obs {}, name {}".format(index_obs, name))
                 if name == "neg_sigma0_hh_db":
-                    print("neg_sigma0_hh_db")
                     pol_name = "hh"
                     stack_list = []
                     for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
@@ -875,7 +873,6 @@ class StackBasedProcessingAGB(Task):
                     
 
                 elif name == "neg_sigma0_hv_db":
-                    print("neg_sigma0_hv_db")
                     pol_name = "vh"
                     stack_list = []
                     for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
@@ -890,7 +887,6 @@ class StackBasedProcessingAGB(Task):
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
 
                 elif name == "neg_sigma0_vv_db":
-                    print("neg_sigma0_vv_db")
                     pol_name = "vv"
                     stack_list = []
                     for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
@@ -904,8 +900,8 @@ class StackBasedProcessingAGB(Task):
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
 
-                elif name == "cos_local_db":
-                    print("cos_local_db")
+                elif (name == "cos_local_db") or (name == "theta_local"):
+                    
                     stack_list = []
                     for index_stack, theta_list in enumerate(theta_equi7_fnames.values()):
                         file_list = []
@@ -918,7 +914,6 @@ class StackBasedProcessingAGB(Task):
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'rad'
 
                 elif name == "agb_1_cal_1km_db":
-                    print("agb_1_cal_1km_db")
                     layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_1km_AF050M_E045N048T3.tif', 0]
                     file_list = [layer_list]
                     stack_list = [file_list]
@@ -928,19 +923,25 @@ class StackBasedProcessingAGB(Task):
 
         
                 elif name == "agb_1_cal_db":
-                    # if any high-res calibrationd ata become available, then include it here
-                    print("agb_1_cal_db")
-                    # layer_list = ['none', 0]
-                    # file_list = [layer_list]
-                    # stack_list = [file_list]
                     stack_list = []
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 50
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
                     
                     
+        
+                elif (name == "th_db") or (name == "tomo_h_db"):
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'm'
+                    
                 elif name == "forest_class":
-                    print("forest_class")
                     layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ForestMask\EQUI7_AF080M\E042N048T6\fnf_mask_AF080M_E042N048T6.tif', 0]
                     file_list = [layer_list]
                     stack_list = [file_list]
@@ -1422,14 +1423,26 @@ class CoreProcessingAGB(Task):
             # %% ### FITTING MODEL TO TABULATED DATA  AND SAVNG
 
             try:
-                # clean up the formula to only include terms that will not produce nans
-                observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
-                terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_without_data)>=0,axis=1)
-                if np.any(terms_with_nan_observables):
-                    logging.warning("AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),', '.join(observables_without_data)))
+                # # clean up the formula to only include terms that will not produce nans
+                # observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+                # terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_without_data)>=0,axis=1)
+                
+                # if np.any(terms_with_nan_observables):
+                #     logging.warning(
+                #         "AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(
+                #             ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),
+                #             ', '.join(observables_without_data)))
+                
+                # terms_with_zero_weight = np.array(formula_terms.weight_fitting) == 0
+                # if np.any(terms_with_zero_weight):
+                #     logging.warning(
+                #         "AGB: skipping formula terms: {} due to zero weights.".format(
+                #             ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_zero_weight)[0]])))
+                
+                # terms_to_take = ~(terms_with_nan_observables | terms_with_zero_weight)
                     
-                formula_strings = subset_iterable(formula_terms.string,~terms_with_nan_observables)
-                formula_weights = subset_iterable(formula_terms.weight,~terms_with_nan_observables)
+                # formula_strings = subset_iterable(formula_terms.string,terms_to_take)
+                # formula_weights = subset_iterable(formula_terms.weight_fitting,terms_to_take)
             
                 
                 logging.info("AGB: fitting model to data...")
@@ -1441,8 +1454,7 @@ class CoreProcessingAGB(Task):
                     space_variant_parameter_table,
                     space_variant_parameter_names,
                 ) = fit_formula_to_random_subsets(
-                    formula_strings,
-                    formula_weights,
+                    formula_terms,
                     number_of_subsets,
                     observable_table,
                     observable_names,
@@ -1457,6 +1469,7 @@ class CoreProcessingAGB(Task):
                     algorithm_setup.fraction_of_roi_per_test,
                     algorithm_setup.min_number_of_cals_per_test,
                     algorithm_setup.min_number_of_rois_per_test,
+                    algorithm_setup.transfer_function_name,
                 )
 
                 # checking if the tables contain any data
@@ -1620,23 +1633,53 @@ class CoreProcessingAGB(Task):
 
                 logging.info("AGB: creating space variant parameter images.")
 
+
+                # detect observables without data (used to remove formula terms that would generate nans)
                 observables_with_partial_data = [observable_name for is_nan,observable_name in zip(np.any(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+                terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_with_partial_data)>=0,axis=1)
+                
+                if np.any(terms_with_nan_observables):
+                    logging.warning(
+                        "AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(
+                            ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),
+                            ', '.join(observables_with_partial_data)))
+                
+                #### select relevant formula and weights for this step
+                terms_with_zero_weight = np.array(formula_terms.formula_weights.estimation1) == 0
+                if np.any(terms_with_zero_weight):
+                    logging.warning(
+                        "AGB: skipping formula terms: {} due to zero weights.".format(
+                            ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_zero_weight)[0]])))
+                
+                terms_to_take = ~(terms_with_nan_observables | terms_with_zero_weight)
+                formula = subset_iterable(formula_terms.string,terms_to_take)
+                formula_weights = subset_iterable(formula_terms.formula_weights.estimation1,terms_to_take)
+
+                # observables_with_partial_data = [observable_name for is_nan,observable_name in zip(np.any(np.isnan(observable_table),axis=0),observable_names) if is_nan]
                 
                 # take out the observables that are in formula and not among space variant parameters
-                parameters_for_mapping = np.any(match_string_lists(formula_terms.string, formula_parameters.name) >= 0, axis=0) & ~np.any(
+                parameters_for_mapping = np.any(match_string_lists(formula, formula_parameters.name) >= 0, axis=0) & ~np.any(
                     match_string_lists(space_invariant_parameter_names, formula_parameters.name) >= 0, axis=0
                 )
                 
                 
                 
-                # clean up the formula to only include terms that will not produce nans
-                # observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
-                terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_with_partial_data)>=0,axis=1)
-                if np.any(terms_with_nan_observables):
-                    logging.warning("AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),', '.join(observables_with_partial_data)))
+                # # clean up the formula to only include terms that will not produce nans
+                # # observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
+                # terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_with_partial_data)>=0,axis=1)
+                # mask = (~terms_with_nan_observables) & (formula_terms.weight_estimation!=0)
+                # if np.any(~mask):
+                #     logging.warning(
+                #         "AGB: skipping formula terms: {} due to lack of useful data for observables or weights set to zero: {}.".format(
+                #             ', '.join(['%d' % (ii+1) for ii in np.where(~mask)[0]]),
+                #             ', '.join([observable_name for observable_name,is_nan in zip(observable_names,mask) if ~mask])))
                     
-                formula_strings = subset_iterable(formula_terms.string,~terms_with_nan_observables)
-                formula_weights = subset_iterable(formula_terms.weight,~terms_with_nan_observables)
+                # # if np.any(terms_with_nan_observables):
+                # #     logging.warning("AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),', '.join(observables_with_partial_data)))
+                
+                # # mask = (~terms_with_nan_observables) & (formula_terms.weight_estimation!=0)
+                # formula_strings = subset_iterable(formula_terms.string,mask)
+                # formula_weights = subset_iterable(formula_terms.weight_estimation,mask)
             
                 observables_for_mapping = np.all(match_string_lists(observable_names,observables_with_partial_data)==-1,axis=1)
                 
@@ -1646,7 +1689,7 @@ class CoreProcessingAGB(Task):
                     
 
                 (space_variant_parameters_3d, space_variant_parameters_3d_names,) = map_space_variant_parameters(
-                    formula_strings,
+                    formula,
                     formula_weights,
                     forest_class_3d,
                     subset_iterable(observables_3d,observables_for_mapping),
@@ -1658,6 +1701,7 @@ class CoreProcessingAGB(Task):
                     subset_iterable(formula_parameters.name, parameters_for_mapping, False),
                     subset_iterable(formula_parameters.parameter_variabilities, parameters_for_mapping, False),
                     subset_iterable(formula_parameters.limits, parameters_for_mapping, False),
+                    algorithm_setup.transfer_function_name,
                 )
 
                 # skipping to next if all parameters and/or forest class data are missing

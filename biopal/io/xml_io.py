@@ -124,6 +124,7 @@ agb_est_params = namedtuple(
     "residual_function \
                                  number_of_tests \
                                  forest_class_observable_name \
+                                 transfer_function_name \
                                  fraction_of_roi_per_test \
                                  fraction_of_cal_per_test \
                                  add_variability_on_cal_data \
@@ -144,7 +145,13 @@ residual_function = namedtuple("residual_function", "formula_terms formula_param
 formula_terms = namedtuple(
     "formula_terms",
     "string \
-     weight")
+     formula_weights")
+     
+formula_weights = namedtuple(
+    "formula_weights",
+    "fitting \
+     estimation1 \
+     estimation2")
 # agb "formula_parameters" sub-fields:
 formula_parameters = namedtuple(
     "formula_parameters",
@@ -763,6 +770,10 @@ def write_estimateagb_core(Estimate_elem, configuration_params):
     forest_class_observable_name = SubElement(Estimate_elem, "forest_class_observable_name")
     forest_class_observable_name.text = str(params_curr.forest_class_observable_name)
     
+
+    transfer_function_name = SubElement(Estimate_elem, "transfer_function_name")
+    transfer_function_name.text = str(params_curr.transfer_function_name)
+    
     fraction_of_roi_per_test = SubElement(Estimate_elem, "fraction_of_roi_per_test")
     fraction_of_roi_per_test.text = str(params_curr.fraction_of_roi_per_test)
 
@@ -828,8 +839,14 @@ def write_residual_function_core(Estimate_elem, configuration_params):
         formula_string = SubElement(term, "string")
         formula_string.text = term_struct.string[index]
 
-        formula_weight = SubElement(term, "weight")
-        formula_weight.text = str(term_struct.weight[index])
+        formula_weights = SubElement(term, "weight")
+        
+        formula_weight_fitting = SubElement(formula_weights, "fitting")
+        formula_weight_fitting.text = str(term_struct.formula_weights.fitting[index])
+        formula_weight_estimation1 = SubElement(formula_weights, "estimation1")
+        formula_weight_estimation1.text = str(term_struct.formula_weights.estimation1[index])
+        formula_weight_estimation2 = SubElement(formula_weights, "estimation2")
+        formula_weight_estimation2.text = str(term_struct.formula_weights.estimation2[index])
 
     formula_parameters = SubElement(residual_function, "formula_parameters")
     number_of_parameters = len(configuration_params.AGB.residual_function.formula_parameters.name)
@@ -1635,8 +1652,10 @@ def parse_estimateagb_core(chain_field_Item, output_folder=""):
 
     number_of_tests = int(chain_field_Item.find("number_of_tests").text)
     forest_class_observable_name = str(chain_field_Item.find("forest_class_observable_name").text)
+    transfer_function_name = str(chain_field_Item.find("transfer_function_name").text)
     intermediate_ground_averaging = float(chain_field_Item.find("intermediate_ground_averaging").text)
 
+    
     distance_sampling_area = float(chain_field_Item.find("distance_sampling_area").text)
     fraction_of_roi_per_test = float(chain_field_Item.find("fraction_of_roi_per_test").text)
     fraction_of_cal_per_test = float(chain_field_Item.find("fraction_of_cal_per_test").text)
@@ -1660,6 +1679,7 @@ def parse_estimateagb_core(chain_field_Item, output_folder=""):
         residual_function_struct,
         number_of_tests,
         forest_class_observable_name,
+        transfer_function_name,
         fraction_of_roi_per_test,
         fraction_of_cal_per_test,
         add_variability_on_cal_data,
@@ -1684,13 +1704,18 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
     formula_observables_Item = residual_function_Item.find("formula_observables")
 
     formula_string = []
-    formula_weight = []
+    formula_weight_fitting = []
+    formula_weight_estimation1 = []
+    formula_weight_estimation2 = []
     for term_item in formula_Item.findall("term"):
         formula_string.append(term_item.find("string").text)
-        formula_weight.append(float(term_item.find("weight").text))
+        formula_weight_fitting.append(float(term_item.find("weight").find("fitting").text))
+        formula_weight_estimation1.append(float(term_item.find("weight").find("estimation1").text))
+        formula_weight_estimation2.append(float(term_item.find("weight").find("estimation2").text))
+    formula_weight_struct = formula_weights(formula_weight_fitting,formula_weight_estimation1,formula_weight_estimation2)
     formula_terms_struct = formula_terms(
         formula_string,
-        formula_weight,
+        formula_weight_struct,
     )
 
 
