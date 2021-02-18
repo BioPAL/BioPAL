@@ -796,7 +796,7 @@ def fit_formula_to_table_data(
     )
 
     # iterate a few times with different initial values in case some initial value set fails
-    max_count = 10
+    max_count = 30
     for counter in range(max_count):
 
         # creating initial values by randomising
