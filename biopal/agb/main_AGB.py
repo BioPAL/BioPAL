@@ -867,6 +867,11 @@ class StackBasedProcessingAGB(Task):
                             layer_list = [sigma0_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
+                        
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
+                    
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
@@ -882,6 +887,11 @@ class StackBasedProcessingAGB(Task):
                             layer_list = [sigma0_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
+                        
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
+                    
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
@@ -896,6 +906,11 @@ class StackBasedProcessingAGB(Task):
                             layer_list = [sigma0_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
+                        
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
+                    
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
@@ -909,6 +924,12 @@ class StackBasedProcessingAGB(Task):
                             layer_list = [theta_file_name, 0]
                             file_list.append(layer_list)
                         stack_list.append(file_list)
+                        
+                        
+                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif', 0]
+                    file_list = [layer_list]
+                    stack_list = [file_list]
+                    
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'rad'
@@ -923,10 +944,10 @@ class StackBasedProcessingAGB(Task):
 
         
                 elif name == "agb_1_cal_db":
-                    stack_list = []
                     layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif', 0]
                     file_list = [layer_list]
                     stack_list = [file_list]
+                    # stack_list = []
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 50
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
