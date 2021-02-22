@@ -16,7 +16,6 @@ import gdal
 from shapely.geometry import Polygon
 
 from biopal.agb.processing_AGB import (
-    mean_on_rois,
     check_intersection,
     interp2d_wrapper,
     merge_agb_intermediate,
@@ -37,6 +36,66 @@ def sample_and_tabulate_data(
     formula_parameters,
     number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
 ):
+    
+    
+    """
+    (
+        observable_table,
+        observable_names
+        identifier_table,
+        identifier_names,
+        parameter_position_table,
+        parameter_position_names,
+        parameter_tables,
+        parameter_table_columns,
+        sample_info_table,
+        sample_info_table_columns,
+    ) = sample_and_tabulate_data(
+                                    block_extents,  # extent of the current area for which the table is created
+                                    pixel_axis_east,  # east north axes onto which data are interpolated
+                                    pixel_axis_north,
+                                    sampling_polygons,  # additional arbitrarily shaped polygons
+                                    stack_in_block,  # flags whether each stack is in current block
+                                    stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
+                                    stack_info_table_column_names,  # column names for the abovementioned table
+                                    formula_observables,
+                                    observable_for_forest_class,
+                                    formula_parameters,
+                                    number_of_subsets,  # number of subsets to use (used to allocate columns in parameter tables)
+                                )
+        
+    Reads input data images, averages over polygons, and tabulates
+
+
+    INPUT:
+        block_extents contains the extents of the current block
+        pixel_axis_east, pixel_axis_north are vectors defining the grid to which the read data has to be interpolated
+        sampling_polygons is a list of Polygon objects over which the sampling is to be done
+        stack_in_block is a vector of bools with the same length as the number of stacks, indicating whether each stack exists within the current block
+        stack_info_table is a 2D array linking stack IDs to selected identifiers
+        stack_info_table_column_names is the corresponding list of column names
+        formula_observables is a named tuple with information about formula observables
+        observale_for_forest_class is the name of the observable that acts as a forest_class observable
+        formula_parameters is a named tuple with information about formula parameters
+        number_of_subsets is the number subsets (independent tests) to be run
+        
+    OUTPUT:
+        observable_table is a 2D table with observable data averaged over the polygons
+        observable_names is a corresponding list of observables (column names for the table above)
+        identifier_table is a 2D table with identifiers matching the observable_table
+        identifier_names is a corresponding list of identifier names (column names for the table above)
+        parameter_position_table is a 2D table with columnwise unique indices for each parameter
+        parameter_position_names is the corresponding list of column names for the table above
+        parameter_tables is a list of minimal-sized 2D arrays within which the estimated parameter values for each parameter will be saved (one list element for each unknown parameter)
+        parameter_table_columns is a corresponding list of lists with table column names
+        sample_info_table is a 2D table with information about each sample
+        sample_info_table_columns is the corresponding list with names for the columns of the table above
+        
+        
+        
+        
+        
+    """
 
     # derived parameters
     number_of_stacks = stack_info_table.shape[0]
@@ -47,10 +106,6 @@ def sample_and_tabulate_data(
     pixel_mesh_east, pixel_mesh_north = np.meshgrid(pixel_axis_east, pixel_axis_north)
 
 
-    # # find all unique source data resolutions (within entire metres)
-    # all_resolutions = np.unique(np.array([np.round(file_source[2]) for file_source in forest_class_sources]+[np.round(file_source[2]) for stack_sources in formula_observables.source_paths for file_sources in stack_sources for file_source in file_sources]))
-    # number_of_resolutions = len(all_resolutions)
-    
     # defining names for identifiers (sampleID & forest class ID and then all columns from stack info table)
     identifier_names = ["sample_id", "forest_class_id"] + stack_info_table_column_names #+ ["resolution_m"]
     number_of_identifiers = len(identifier_names)
@@ -66,12 +121,7 @@ def sample_and_tabulate_data(
             stack_id_vector, stack_info_table[:, 1 + id_idx], kind="nearest"
         )(identifier_table[:, 2])
         
-    # identifier_table = np.kron(np.ones((number_of_resolutions,1)),identifier_table)
     
-    # identifier_table = np.column_stack((identifier_table,np.kron(np.array([all_resolutions]).transpose(),np.ones((number_of_samples*number_of_stacks,1)))))
-
-    
-
     # allocate observable table
     observable_table = np.nan * np.zeros((number_of_samples * number_of_stacks , number_of_observables))
     sample_info_table_columns = ['easting','northing','area','east_range','north_range']
@@ -80,9 +130,7 @@ def sample_and_tabulate_data(
     
     ## get info about samples (coordinates, area, shape factor)
     # calculating sample area and coordinates
-    
     sample_info_table = []
-    
     for current_map,current_stat,current_name in zip(
             [pixel_mesh_east,
              pixel_mesh_north,
@@ -294,6 +342,65 @@ def fit_formula_to_random_subsets(
 ):
 
     
+    """
+    (
+        parameter_tables,
+        space_invariant_parameter_table,
+        space_invariant_parameter_names,
+        space_variant_parameter_table,
+        space_variant_parameter_names,
+    ) = fit_formula_to_random_subsets(
+            formula_terms,
+            number_of_subsets,
+            observable_table,
+            observable_names,
+            identifier_table,
+            identifier_names,
+            parameter_position_table,
+            parameter_names,
+            parameter_tables,
+            parameter_table_columns,
+            parameter_variabilities,
+            calibration_fraction,
+            estimation_fraction,
+            calibration_areas_per_test, 
+            estimation_areas_per_test, 
+            transfer_function_name,
+        )
+    
+    
+    Fits space invariant and space variant parameters to the data by minimising the residuals defined in the formulas
+    
+    
+    INPUT: 
+        formula_terms is a named tuple with formula strings and associated formula weights
+        number_of_subsets is the number of random subsets to be created
+        observable_table is a 2D numpy array with observable data
+        observable_names is a corresponding list of observable names
+        identifier_table is a 2D numpy array with identifiers
+        identifier_names is a corresponding list of identifier names
+        parameter_position_table is a 2D numpy array with indices indicating how the parameters to be estimated vary across samples
+        parameter_names is a corresonding list of parameter names
+        parameter_tables is a list of parameter tables, each containing the minimal number of rows and columns for each parameter, where the rows contain individual parameter values and columns contain estimates from each subset and required identifiers
+        parameter_columns is a list of lists with parameter column names
+        parameter_variabilities contains the variabilities of each parameter across the predefined dimensions
+        calibration_fraction is the fraction of samples with all required and non-requried data to be used in each subset
+        estimation_fraction is the fraction of all samples with all required, but with some missing non-required data to be used in each subset
+        calibration_areas_per_test is the minimal number of calibration areas required for this function to be run
+        estimation_areas_per_test is the minimal number of esti9mation areas required for this function to be run
+        transfer_function_name is the name of the transfer function used in this function
+        
+    OUTPUT:
+        parameter_tables is the updated list of parameter tables
+        space_invariant_parameter_table is a 2D numpy array on the same format as observable_table (same number of rows), with the estimated space invariant parameter values replicated as parameter_position_table
+        space_invariant_parameter_names is a corresponding list of space invariant parameter names
+        space_variant_parameter_table is a 2D numpy array on the same format as observable_table (same number of rows), with the estimated space variant parameter values replicated as parameter_position_table
+        space_variant_parameter_names is a corresponding list of space variant parameter names
+ 
+    
+    
+    """
+    
     
     ### CREATE CALIBRATION AND ESTIMATION SUBSETS
     logging.info("AGB: creating {} subsets".format(number_of_subsets))
@@ -306,8 +413,6 @@ def fit_formula_to_random_subsets(
     estimation_sample_ids = np.unique(identifier_table[estimation_rows, 0])
 
     # calculate subset sizes
-    # estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids)/100*proc_conf.AGB.fraction_of_roi_per_test))
-    # calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids)/100*proc_conf.AGB.fraction_of_cal_per_test))
     estimation_subset_size = np.int32(np.ceil(len(estimation_sample_ids) * estimation_fraction))
     calibration_subset_size = np.int32(np.ceil(len(calibration_sample_ids) * calibration_fraction))
 
@@ -426,8 +531,6 @@ def fit_formula_to_random_subsets(
         space_invariant_parameters = False == np.column_stack(parameter_variabilities)[0, :]
         # some more flag vectors
         space_invariant_parameters_in_formula_fitting = space_invariant_parameters & parameters_in_formula_fitting
-        # space_variant_parameters_in_formula_fitting = ~space_invariant_parameters & parameters_in_formula_fitting
-        # observables_in_formula_fitting_not_in_parameters = observables_in_formula_fitting & ~observables_in_parameters
         
         # loop through calibration subsets
         for subset_idx, current_subset in enumerate(subset_indexing_vectors):
@@ -661,6 +764,29 @@ def fit_formula_to_random_subsets(
 def swap_names_and_merge_formula(
     original_formulas, observable_names, parameter_names, new_table_name, use_observable_if_repeated_and_available=True
 ):
+    
+    """
+    
+    new_formulas = swap_names_and_merge_formula(
+                                    original_formulas, observable_names, parameter_names, new_table_name, use_observable_if_repeated_and_available=True
+                                )
+    
+    Swaps observable names and parameter names in the original formulas for slices of a table. Column names are determined by position of parameter/observable names in the combined list
+    of observable and parameter names
+    
+    
+    
+    INPUT:
+        original_formulas is a list with formula strings
+        observable_names is a list of observable names
+        parameter_names is a list of parameter names
+        new_table_name is the name for the new table
+        use_observable_if_repeated_and_available indicates whether observables should be prioritised if the same name occurs both in the parameter_names and observable_names lists
+    
+    OUTPUT:
+        new_formulas is a list of formula strings where the observable/parameter names have been replaced with slices of the new table
+    
+    """
     original_variable_names = observable_names + parameter_names
     unique_variable_names, name_counts = np.unique(np.array(original_variable_names), return_counts=True)
     new_formula = []
@@ -680,11 +806,27 @@ def swap_names_and_merge_formula(
         new_formula.append(current_formula)
     return new_formula
 
-
+# %%
 # function for converting columnwise indices (which are repeated within the same column if they represent identical values,
 # but which may be repeated across different columns without meaning that they represent identical values)
 # to unique indices (which are only repeated within the same table if they are to have identical values)
 def regularise_indices(columnwise_index_table):
+    
+    """
+    
+    regularised_index_table = regularise_indices(columnwise_index_table)
+    
+    Converts columnwise indices to global indices. 
+    
+    INPUT:
+        columnwise_index_table is a 2D numpy array with different numbers indicating different parameter values within each column
+        
+    OUTPUT:
+        regularised_index_table is a 2D numpy array with different numbers indicating different parameter values within the entire table
+        
+    
+    
+    """
 
     offset = 0
     unique_index_table = []  # position in a single x-vector
@@ -718,10 +860,41 @@ def regularise_indices(columnwise_index_table):
     # length_of_p_vector = columnwise_to_unique_index_lut.shape[0]
     return unique_index_table, columnwise_to_unique_index_lut
 
-
+# %%
 def cost_function(
     x_vector, converted_formulas, formula_weights, observable_table, index_table, name_of_table_in_converted_formula, transfer_function, return_one_value=True
 ):
+    """
+    cost_function_value = cost_function(
+                                x_vector, converted_formulas, formula_weights, observable_table, index_table, name_of_table_in_converted_formula, transfer_function, return_one_value=True
+                            )
+    
+    
+    
+    Calculates the cost function value from a one-dimensional vector
+    
+    
+    INPUT:
+        
+        x_vector is a one-dimensional vector as required by the sp.optimize.minimize function
+        converted_formulas is a list of formula strings converted to use columns of one single table
+        formula_weights is a list of formula weights
+        observable_table is a 2D numpy array with observables
+        index_table is a 2D numpy array with parameter indices in x_vector
+        name_of_table_in_converted_formula is a string with the name that is used in the converted formulas for the combined table
+        transfer_function is a string with the transfer function type
+        return_one_value is a bool indicating if one value should be returned (default: True), or if the function should return one value for each formula term (False)
+        
+    OUTPUT:
+        
+        cost_function_value  is either a scalar or an array of the same length as the list of formula strings
+    
+    
+    
+    
+    """
+    
+    
     
     
     p_vector = transfer_function(x_vector)
@@ -737,6 +910,8 @@ def cost_function(
         return total_cost
 
 
+# %%
+
 def fit_formula_to_table_data(
     original_formula,
     formula_weights,
@@ -749,6 +924,41 @@ def fit_formula_to_table_data(
 ):
    
 
+    """
+    
+    
+    estimated_parameter_lut, estimated_parameter_table, cost_function_values = fit_formula_to_table_data(
+                                                                                            original_formula,
+                                                                                            formula_weights,
+                                                                                            observable_table,
+                                                                                            observable_table_column_names,
+                                                                                            parameter_position_table,
+                                                                                            parameter_position_table_column_names,
+                                                                                            individual_parameter_min_max_tables,
+                                                                                            transfer_function_name,
+                                                                                        )
+    
+    Performs minimisation of the cost function defined by a formula and weights and returns a look-up-table with the estimated parameters, an estimated parameter table, and cost function values
+    
+    
+    INPUT:
+        
+        original_formula is a list of formula strings
+        formula_weights is a nested list of formula weights
+        observable_table is a numpy array with the observables
+        observable_table_column_names is a list of strings with names for each of the observables in the observable table
+        parameter_position_table is a numpy array matching observable_table in number of rows with the positions of each unknown parameter in its unique table
+        parameter_position_table_column_names is a list of strings with the names for each column in parameter_position_table
+        individual_parameter_min_max_tables is a list of numpy arrays for each parameter, with min and max values for each parameter
+        transfer_function_name is a string with the transfer function to be used
+    
+    OUTPUT:
+        
+        estimated_parameters_lut is a minimal-size look-up-table with the estimated parameter values
+        estimated_parameter_table is a table matching parameter_position_table in size, where the parameters have been distributed across rows and columns using the estimated_parameters_lut
+        cost_function_values is a list of values for each cost function, including the weights
+    
+    """
     # convert the columnwise indices in "parameter_position_table" to unique indices
     unique_index_table, columnwise_to_unique_index_lut = regularise_indices(parameter_position_table)
 
@@ -858,6 +1068,80 @@ def read_and_organise_3d_data(
     mask_out_area_outside_block=False,
 ):
 
+    '''
+    (
+        forest_class_3d,
+        observables_3d,
+        observable_names,
+        space_invariant_parameters_3d,
+        space_invariant_parameter_names,
+        identifiers_3d,
+        identifiers_3d_names,
+    ) = read_and_organise_3d_data(
+                                current_block_extents,
+                                block_has_data,
+                                pixel_axis_north,
+                                pixel_axis_east,
+                                stack_info_table,
+                                stack_info_table_column_names,
+                                observable_names,
+                                observable_sources,
+                                observable_transforms,
+                                observable_averaging_methods,
+                                observable_ranges,
+                                observable_is_required,
+                                forest_class_sources,
+                                forest_class_boundaries,
+                                stack_id_vector,
+                                forest_class_id_vector,
+                                space_invariant_parameter_table,
+                                space_invariant_parameter_names,
+                                mask_out_area_outside_block=False,
+                            )
+                                    
+    
+    
+    Uses a newton-based method to fit space variant parameters to observable data and space invariant parameters based on the formula that has to be minimised
+        
+    INPUT:
+        
+        current_block_extents contains the east and north boundaries of the current block
+        block_has_data contains a bool for each stack indicating whether this stack has any data within the block
+        pixel_axis_north, pixel_axis_east are the two axes onto which the read data should be interpolated
+        stack_info_table is a table with identifier values for each stack, each stack is represented by a new row
+        stack_info_table_column_names is a list of strings with column names for the stack_info_table
+        observable_names is a list of strings with names for the observables (quantities to be read)
+        observable_sources is a nested list with source data (paths & band_ids) for each stack
+        observable_transforms is a list of strings with transforms to be applied to each observable
+        observable_averaging_methods is a list of strings with methods of averaging to be applied to each observable
+        observable_ranges is a list of accepted ranges for each observable (prior to transformation)
+        observable_is_required is a list of bools telling the algorithm if the observable is required for AGB estimation or just optional
+        forest_class_sources is a nested list with source data for forest class
+        forest_class_boundaries is a list of min and max coordinates for the forest class images
+        stack_id_vector is a vector of stack ids matching the space_invariant_parameter_table (below)
+        forest_class_id_vector is a vector with forest class ids matching the space_invariant_parameter_table (below)
+        space_invariant_parameter_table is a table with the estimated space invariant parameters (which will be rasterised)
+        space_invariant_parameter_names is a list of names for the columns of the table above
+        mask_out_area_outside_block is a bool indicating whether the area outside block should be set to nan for the rasterised parameter images
+        
+    OUTPUT:
+        
+        forest_class_3d is a numpy array with forest class
+        observables_3d is a list of numpy_arrays with the observables
+        observable_names is a corresponding list of observable names
+        space_invariant_parameters_3d is a list of numpy arrays with space invariant parameters (rasterised from the table)
+        space_invariant_parameter_names is a corresponding list of parameter names
+        identifiers_3d is a numpy array with the identifiers
+        identifiers_3d_names is a corresponding list of identifier names
+                            
+        
+    
+    
+    
+    
+    
+    '''
+    
     # create mask for current block
     current_block_mask = np.zeros((len(pixel_axis_north), len(pixel_axis_east)), dtype="bool")
     # set areas within block to true
@@ -1059,6 +1343,60 @@ def map_space_variant_parameters(
     space_variant_parameters_3d_limits,
     transfer_function_name,
 ):
+    
+    
+    '''
+    space_variant_parameters_3d, space_variant_parameters_3d_names = map_space_variant_parameters(
+                                                                                formula,
+                                                                                formula_weights,
+                                                                                forest_class_3d,
+                                                                                observables_3d,
+                                                                                observables_3d_names,
+                                                                                space_invariant_parameters_3d,
+                                                                                space_invariant_parameters_3d_names,
+                                                                                identifiers_3d,
+                                                                                identifiers_3d_names,
+                                                                                space_variant_parameters_3d_names,
+                                                                                space_variant_parameters_3d_variabilities,
+                                                                                space_variant_parameters_3d_limits,
+                                                                                transfer_function_name,
+                                                                            )
+                                                                                
+    
+    
+    Uses a newton-based method to fit space variant parameters to observable data and space invariant parameters based on the formula that has to be minimised
+        
+    INPUT:
+        
+        formula is a list of strings with the original formulas
+        formula_weights is a list or array of floats representing weights for each formula
+        forest_class_3d is a numpy array with the forest class data
+        observables_3d is a list of numpy arrays with the observable data rasters
+        observables_3d_names is a list of strings with names for each observable
+        space_invariant_parameters_3d is a list of numpy arrays with the space invariant parameter rasters
+        space_invariant_parameters_3d_names is a corresponding list of space invariant parameter names
+        identifiers_3d is a list of numpy arrays with identifiers for stacks
+        identifiers_3d_names is a corresponding list of identifier names
+        space_variant_parameters_3d_names is a list of names for the space variant parameters
+        space_variant_parameters_3d_variabilities is a corresponding list of variabilities accross the eight dimesnions
+        space_variant_parameters_3d_limits is a corresponding list of 2 element vectors with lower and upper limits for each space variant parameter,
+        transfer_function_name is the name of the transfer function to be used for constraining parameters to their limits
+        
+    OUTPUT:
+        
+        space_variant_parameters_3d is a list of numpy arrays with the estimated space variant parameter maps
+        space_variant_parameters_3d_names is a corresponding list of parameter names
+                            
+        
+    
+    
+    
+    
+    
+    '''
+    
+    
+    
     def small_change_in_intermediate_parameters_3d(intermediate_parameter, additional_arguments, small_step):
         def cost_function_3d(intermediate_parameter, additional_arguments):
             # print(np.nanmean(intermediate_parameter))
@@ -1167,10 +1505,46 @@ def map_space_variant_parameters(
         )
 
 
-#% swap variable names in formulas to slices of an array
+# %% swap variable names in formulas to elements of a list
+
+  
 def swap_names_and_merge_formula_3d(
     original_formulas, weights, observable_names, parameter_names, new_table_name, use_observable_if_repeated_and_available=True
-):
+):  
+    
+    
+    '''
+    new_formula = swap_names_and_merge_formula_3d(
+                    original_formulas, weights, observable_names, parameter_names, new_table_name, use_observable_if_repeated_and_available=True
+                )
+    
+    
+    
+    Merges individual formula strings and weights to one formula strings and replaces observable and parameter names with elements of a list with pre-defined name.
+        
+    INPUT:
+        
+        original_formulas is a list of strings with the original formulas
+        weights is a list or array of floats representing weights for each formula
+        observable_names is a list of names to formula terms which are to be treated as observables (i.e., known values)
+        parameter_names is a list of names to formula terms which are to be treated as parameters (i.e., unknown values)
+        new_table_name is a string with the name for the list that contains both the observables and parameters
+        use_observable_if_repeated_and_available is a bool indicating whether a name that is observed both in the 
+                        observable_names and parameter_names should be treated as observable; by default this is True; 
+                        however, this function is going to be depraceted
+        
+        
+    OUTPUT:
+        
+        new_formula is the output formula as a single string, where each of the original formulas have been squared and summed using the weights
+                            
+        
+    
+    
+    
+    
+    
+    '''
     original_variable_names = observable_names + parameter_names
     unique_variable_names, name_counts = np.unique(np.array(original_variable_names), return_counts=True)
     new_formula = "0"
@@ -1193,6 +1567,35 @@ def swap_names_and_merge_formula_3d(
 
 # %%
 def match_string_lists(ref_string_list, test_string_list):
+    
+    
+    '''
+    match_array = match_string_lists(ref_string_list, test_string_list)
+    
+    
+    
+    
+    Matches a test string list to a refernece string list element-by-element and returns positions at which the test strings are found in the reference strings
+        
+    INPUT:
+        
+        ref_string_list is a list with reference strings
+        test_string_list is a list with test strings
+        
+    OUTPUT:
+        
+        match_array is a 2D numpy array containing the positions at which strings from test_string_list are found in ref_string_list, -1 is returned if the string is not found
+                            
+        
+    
+    
+    
+    
+    
+    '''
+    
+    
+    
     is_in = np.zeros((len(ref_string_list), len(test_string_list)))
     for ref_idx, current_ref_string in enumerate(ref_string_list):
         for test_idx, current_test_string in enumerate(test_string_list):
@@ -1203,6 +1606,37 @@ def match_string_lists(ref_string_list, test_string_list):
 
 # %% define parameter transfer functions
 def parameter_transfer_function(in_vector, p_lower, p_upper, in_vector_is_p=False,transfer_function_name='sin2'):
+    
+    '''
+    out_vector = parameter_transfer_function(in_vector, p_lower, p_upper, in_vector_is_p=False,transfer_function_name='sin2')
+    
+    
+    
+    
+    Transforms an unconstrained parameter onto a constrained parameter or vice versa.
+        
+    INPUT:
+        
+        in_vector is a numpy array with data to be transformed
+        p_lower, p_upper are the lower and upper limits for the constrained parameter, they can be either scalars of numpy arrays of the same size as in_vector
+        in_vector_is_p determines if the in_vector is the constrained or the unconstrained parameter, if False, then in_vector is unconstrained and out_vector is constrained to [p_lower,p_upper],
+                            otherwise, the in_vector is constrained to [p_lower,p_upper] and this function performs the inverted transform
+        transfer_function_name is a string defining the transfer function, currently the only allowed transform is "sin2", any other string will return in_vector as out_vector
+        
+    OUTPUT:
+        
+        out_vector is the transformed version of in_vector
+                            
+        
+    
+    
+    
+    
+    
+    '''
+     
+    
+    
     # note: no check of x_vector, p_upper, p_lower is done here,
     # it is assumed that the inputs are correct
     if transfer_function_name == 'sin2':
@@ -1217,6 +1651,35 @@ def parameter_transfer_function(in_vector, p_lower, p_upper, in_vector_is_p=Fals
 def save_human_readable_table(
     path, table, column_names, data_type_lut, table_delimiter, table_precision, table_column_width
 ):
+    
+    
+    
+    '''
+    
+    save_human_readable_table(
+                                path, table, column_names, data_type_lut, table_delimiter, table_precision, table_column_width
+                            )
+    
+    Saves a text file with the table on a nice, human-readable, fixed_width format.
+    
+    INPUT:
+        
+        path is a string with the table path
+        table is a n x m numpy array with the data
+        column_names is a list of length m with the names for each column
+        data_type_lut is a list of length 2, where the first contains all possible column names and the second contains associated data types ("f" or "d")
+        table_delimiter is the delimiter
+        table_precision is the precision for data of type "f"
+        table_column_width is the column width
+        
+    OUTPUT:
+        
+        no output returned 
+        
+    
+    
+    
+    '''
 
     table_format, table_header = get_fmt_and_header(
         column_names, data_type_lut[0], data_type_lut[1], table_delimiter, table_precision, table_column_width
@@ -1227,8 +1690,34 @@ def save_human_readable_table(
     np.save(path_npy, table)
 
 
-# function for creating list of format strings and a header for subsequent saving of tables into text files
+# %% function for creating list of format strings and a header for subsequent saving of tables into text files
 def get_fmt_and_header(column_names, all_column_groups, all_data_types, delimiter="\t", precision=2, column_width=10):
+    
+    '''
+    
+    out_format, out_header = get_fmt_and_header(column_names, all_column_groups, all_data_types, delimiter="\t", precision=2, column_width=10)
+    
+    Prepares an fmt string and a header string for saving in a nice, human-readable table of fixed column width using np.savetxt
+    
+    INPUT:
+        
+        column_names is a list of strings for the current table columns
+        all_column_groups is a list of strings for all possible table columns
+        all_data_types is a list of strings for each of the columns in all_column_groups (two strings are currently allowed: "d" indicating integer and "f" indicating float)
+        delimiter is the delimiter to be used (default is tab)
+        precision is the precision to be used for data with type "f" (default is 2)
+        column_width is the width of each column (default is 10)
+        
+        
+    OUTPUT:
+        
+        out_format is the fmt string required by np.savetxt
+        out_header is the header required by np.savetxt
+        
+    
+    
+    
+    '''
     out_format = []
     out_header = []
     for curr_column in column_names:
@@ -1247,6 +1736,27 @@ def get_fmt_and_header(column_names, all_column_groups, all_data_types, delimite
 
 
 def subset_iterable(iterable_to_subset, validity_mask, return_array=False):
+    '''
+    
+    out_iterable = subset_iterable(in_iterable,validity_mask, return_array=False)
+    
+    Applies validity mask to an interable, where the iterable can be numpy vector, a list, or a tuple
+    
+    INPUT:
+        
+        in_iterable is any iterable of length N (numpy vector, list, tuple)
+        validity_mask is a boolean vector of length with True marking that this particular item has to be taken out
+        return_array is a boolean indicating if the returned iterable should be a numpy vector
+        
+        
+    OUTPUT:
+        
+        out_iterable is an iterable of length=sum(validity_mask) containing a subset of the in_iterable matching the validity_mask, if return_array=True then out_iterable is a numpy array
+        
+    
+    
+    
+    '''
     out = [value for value, flag in zip(iterable_to_subset, validity_mask) if flag]
     if return_array:
         return np.array(out)
@@ -1259,6 +1769,27 @@ def subset_iterable(iterable_to_subset, validity_mask, return_array=False):
 
 ## in the future, improve this so it can handle polygons etc
 def check_block_for_data_and_cal(block_extents, stack_boundaries, calibration_boundaries):
+    '''
+    
+    block_has_data, block_has_cal = check_block_for_data_and_cal(block_extents, stack_boundaries, calibration_boundaries)
+    
+    Checks if the current block has any stack data and calibration data
+    
+    INPUT:
+        
+        block_extents is a list with min and max easting and northing coordinates
+        stack_boundaries is an array with min and max easting and northing coordinates for each stack
+        calibration_boundaries is an array with min and max easting and northing coordinates for each calibration dataset
+        
+    OUTPUT:
+        
+        block_has_data is a vector of bools with length equal to the number of stacks, indicating if the block contains each stack
+        block_has_cal is a vector of bools with length equal to the number of calibration datasets, indicating if the block contains the calibration dataset
+    
+    
+    
+    
+    '''
 
     # cycle through stacks and check that there are some data within current block
     block_has_data = np.zeros(stack_boundaries.shape[0], dtype="bool")
@@ -1304,6 +1835,34 @@ def compute_block_processing_order(
     calibration_area_coordinates,
     stack_data_coordinates,
 ):
+    
+    '''
+    
+    block_order = compute_block_processing_order(
+                                                    block_corner_coordinates_east,
+                                                    block_corner_coordinates_north,
+                                                    block_size_east,
+                                                    block_size_north,
+                                                    calibration_area_coordinates,
+                                                    stack_data_coordinates,
+                                                )
+    
+    Calculates the order in which blocks are to be processed, based on the available calibration area coordinates and stack data coordinates
+    
+    INPUT:
+        
+        block_corner_coordinates_east,block_corner_coordinates_north are vectors of matching size specifying the corner coordinates of each block (in metres)
+        block_size_east,block_size_north are scalars specifying the block size in each direction (in metres)
+        calibration_area_coordinates, stack_data_coordiantes are arrays with coordinates for calibration and stack data, respectively, with one row for each calibration dataset/stack
+        
+    OUTPUT:
+        
+        block_order is a vector of the same length as the number of blocks containing block IDs in the order in which they should be run
+    
+    
+    
+    
+    '''
     # in the future, this should be capable of reading polygons for both calibration areas and stack data
     # now, it's just a wrapper around an old function
     (current_block_index, block_order) = compute_processing_blocs_order(
@@ -1318,6 +1877,32 @@ def compute_block_processing_order(
 
 # %% transform functions
 def transform_function(in_data, interval, kind, do_forward=True):
+    
+    
+    '''
+    
+    out_data = transform_function(in_data,interval,kind,do_forward=True)
+    
+    
+    Transforms data within a certain interval using a transformation
+    
+    
+    INPUT:
+    in_data is a scalar or a numpy array with the data to be transformed
+    interval is a list/vector/tuple of length 2 with the lower and upper interval bounds (prior to transformation); outside this interval, the transformed values are nan
+    kind is a string with the type of transformation
+    do_forward is a bool determining the direction of the transformation (True means forward transformation, False means inverse transformation)
+    
+    OUTPUT:
+    out_data is the transformed dataset with the same shape as in_data and with nans for values outside the interval
+    
+    
+    
+    
+    
+    
+    
+    '''
     out_data = np.copy(in_data)
     out_data[(out_data < interval[0]) | (out_data > interval[1])] = np.nan
     # note: no check of data and kind is done here,
@@ -1357,7 +1942,31 @@ def transform_function(in_data, interval, kind, do_forward=True):
 
 # %% function for calculating a given statistic for polygons of arbitrary shape
 def stats_on_polygons(data, pixel_axis_east, pixel_axis_north, reference_polygons, method):
-    # calculates statistic in method on CAL data polygons
+    
+    '''
+    
+    stats = stats_on_polygons(data_image,pixel_axis_east,pixel_axis_north,polygons,method)
+    
+    
+    Calculates a statistic from an image over all polygons 
+    
+    
+    INPUT:
+    data_image is a 2D array
+    pixel_axis_east, pixel_axis_north are two 1D arrays defining the east and north axes for the data_image
+    polygons is a list of N Polygon objects over which the statistic is calculated
+    method is a string with the statistic to be calculated (see "stats_on_polygons" to see the statistics that can be calculated)
+    
+    OUTPUT:
+    stats isa 1D array with length N containing the statistic calculated for each polygon
+    
+    
+    
+    
+    
+    
+    
+    '''
 
     # initialize inputs:
     Nx, Ny = data.shape
@@ -1434,14 +2043,39 @@ def stats_on_polygons(data, pixel_axis_east, pixel_axis_north, reference_polygon
 
 # %% function for calculating a given statistic on all samples on a grid and all polygons
 def stats_on_all_samples(
-    data,
+    data_image,
     data_resolution,
     pixel_axis_east,
     pixel_axis_north,
     polygons,
     method,
 ):
-    stats_polygons = stats_on_polygons(data, pixel_axis_east, pixel_axis_north, polygons, method)
+    '''
+    
+    stats = stats_on_all_samples(data_image,data_resolution,pixel_axis_east,pixel_axis_north,polygons,method)
+    
+    
+    Calculates a statistic from an image over all polygons with size larger or equal to the resolution
+    
+    
+    INPUT:
+    data_image is a 2D array
+    data_resolution is resolution in metres
+    pixel_axis_east, pixel_axis_north are two 1D arrays defining the east and north axes for the data_image
+    polygons is a list of N Polygon objects over which the statistic is calculated
+    method is a string with the statistic to be calculated (see "stats_on_polygons" to see the statistics that can be calculated)
+    
+    OUTPUT:
+    stats isa 1D array with length N containing the statistic calculated for each polygon (nan is returned if polygon.area < data_resolution**2)
+    
+    
+    
+    
+    
+    
+    
+    '''
+    stats_polygons = stats_on_polygons(data_image, pixel_axis_east, pixel_axis_north, polygons, method)
     
     def get_polygon_areas(polygons):
         return np.array([polygon.area for polygon in polygons])
