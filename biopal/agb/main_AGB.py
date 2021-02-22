@@ -22,16 +22,6 @@ from scipy.signal import convolve2d
 # biomassL2 processor imports
 from biopal.agb.processing_AGB import (
     LookupTableAGB,
-    tableLookupInt,
-    compute_processing_blocs_order,
-    forward,
-    inverse,
-    regularizeIndices,
-    tableLookupFloat,
-    interp2d_wrapper,
-    check_intersection,
-    merge_agb_intermediate,
-    mean_on_rois,
     initialize_inversion_parameters,
     get_projection_from_path,
 )
@@ -868,9 +858,9 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
-                    file_list = [layer_list]
-                    stack_list = [file_list]
+                    # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
+                    # file_list = [layer_list]
+                    # stack_list = [file_list]
                     
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
@@ -888,9 +878,9 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
-                    file_list = [layer_list]
-                    stack_list = [file_list]
+                    # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
+                    # file_list = [layer_list]
+                    # stack_list = [file_list]
                     
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
@@ -907,9 +897,9 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
-                    file_list = [layer_list]
-                    stack_list = [file_list]
+                    # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
+                    # file_list = [layer_list]
+                    # stack_list = [file_list]
                     
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
@@ -926,9 +916,9 @@ class StackBasedProcessingAGB(Task):
                         stack_list.append(file_list)
                         
                         
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif', 0]
-                    file_list = [layer_list]
-                    stack_list = [file_list]
+                    # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif', 0]
+                    # file_list = [layer_list]
+                    # stack_list = [file_list]
                     
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
@@ -947,7 +937,7 @@ class StackBasedProcessingAGB(Task):
                     layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif', 0]
                     file_list = [layer_list]
                     stack_list = [file_list]
-                    # stack_list = []
+                    stack_list = []
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 50
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
@@ -1234,20 +1224,29 @@ class CoreProcessingAGB(Task):
                     )
 
 
-        ### read additional polygons (e.q., cals not on a grid)
-        # (read from xml file or external shapefiles?)
+        ### PREPARE EQUI7 GRID
+        # output equi7 projection info
+        #   here, we assume that the output tile and subtile will be that of the first observable source
+        #   that is covered by the current block
+        equi7_info_source_path = [x[0] for z in formula_observables.source_paths for y in z for x in y if x[0].find('EQUI7')>=0][0]
+        equi7_subtile_name, equi7_tile_name = [x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]]
+        equi7_subgrid_code = equi7_subtile_name[:2]
+        equi7_projection_string = get_projection_from_path(equi7_info_source_path)
+        equi7_product = Equi7Grid(geographic_grid_sampling)
+        
+        
+        ### PREPARE ADDITIONAL SAMPLING POLYGONS
+        # (e.g., GEDI pixels or 3rd party reference data)
         additional_sampling_polygons = []
-        # this path is temporary:
+        # this is temporary; this should be read from an xml-file or something
         test_additional_polygons = True
         if test_additional_polygons:
-            # additional_sampling_polygons.append(Polygon([(4515000, 5036000), (4516000, 5036000), (4516000, 5037000)]))
-            
-            
-            # prepare 1 km resolution cells
-            ee,nn = [x.flatten() for x in np.meshgrid(np.arange(first_pixel_east,last_pixel_east+1000,1000),np.arange(last_pixel_north,first_pixel_north+1000,1000))]
-            for e,n in zip(ee,nn):
-                additional_sampling_polygons.append(Polygon([(e,n),(e,n+1000),(e+1000,n+1000),(e+1000,n)]))
-        # cal_additional_data = gdal.rasterize( additional_sampling_polygons )
+            # as an example, use 1km resolution cells (e.g., to calibrate with GEDI pixels)
+            dd = 1000 # dimension
+            east_mesh_flattened,north_mesh_flattened = [x.flatten() for x in np.meshgrid(np.arange(first_pixel_east,last_pixel_east+1000,1000),np.arange(last_pixel_north,first_pixel_north+1000,1000))]
+            for e,n in zip(east_mesh_flattened,north_mesh_flattened):
+                additional_sampling_polygons.append(Polygon([(e,n),(e,n+dd),(e+dd,n+dd),(e+dd,n)]))
+        
 
         
 
@@ -1275,7 +1274,7 @@ class CoreProcessingAGB(Task):
         # count the blocks and set up a "finished" flag vector
         number_of_blocks = len(block_corner_coordinates_east.flatten())
 
-        # Compute the starting block and the block processing order
+        # Compute the block processing order
         block_order = compute_block_processing_order(
             block_corner_coordinates_east,
             block_corner_coordinates_north,
@@ -1289,11 +1288,9 @@ class CoreProcessingAGB(Task):
         # block status vector
         block_status = np.zeros(number_of_blocks)
         # flag explanation
-        # -1: error (see log for more details)
-        # 0: block not run
-        # 1: block skipped due to insufficient data
-        # 2: block skipped due to lack of sufficient subsets
-        # 3: block successfully finished
+        # -1: critical error
+        # 0: block run but skipped for some detected, data-related reason
+        # 1: block successfully finished
 
         for counter_blocks_run, current_block_index in enumerate(block_order):
 
@@ -1309,8 +1306,9 @@ class CoreProcessingAGB(Task):
             
             # %% ### CREATING SAMPLING GRID AND TESTING FOR DATA
             try:
-            #     logging.info("AGB: Creating sampling grid and checking for data.")
 
+                logging.info("AGB: preparing sampling grid and tabulating data...")
+                
                 # extent of current block # [min_east, max_east, min_north, max_north]
                 current_block_extents = np.array(
                     [
@@ -1325,71 +1323,19 @@ class CoreProcessingAGB(Task):
                 sampling_axis_north = np.arange(
                     current_block_extents[2], current_block_extents[3], sample_spacing_north
                 )
-                sampling_mesh_east, sampling_mesh_north = np.meshgrid(sampling_axis_east, sampling_axis_north)
+                east_mesh_flattened, north_mesh_flattened = [x.flatten() for x in np.meshgrid(sampling_axis_east, sampling_axis_north)]
     
                 # prepare main sampling polygons
-                main_sampling_areas = []
-                for e,n in zip(sampling_mesh_east.flatten(),sampling_mesh_north.flatten()):
-                    main_sampling_areas.append(Polygon([(e,n),(e,n+sample_size_east),(e+sample_size_east,n+sample_size_north),(e+sample_size_north,n)]))
+                main_sampling_polygons = []
+                for e,n in zip(east_mesh_flattened.flatten(),north_mesh_flattened.flatten()):
+                    main_sampling_polygons.append(Polygon([(e,n),(e,n+sample_size_east),(e+sample_size_east,n+sample_size_north),(e+sample_size_north,n)]))
                     
-                block_has_data = np.ones(len(self.lut_stacks_boundaries))==1
-                block_has_cal = np.ones(len(self.lut_cal))==1
-                
-            #     # sampling axes and meshes for current block
-            
-            #     number_of_samples_on_grid = len(sampling_mesh_east.flatten())
-
-            #     # calculate the total number of samples
-            #     number_of_samples = number_of_samples_on_grid + len(additional_sampling_polygons)
-
-            #     # checking the number of samples
-            #     if number_of_samples < algorithm_setup.min_number_of_rois:
-            #         logging.info(
-            #             "... skipping block #{} because the number of samples #{} cannot be less than #{}".format(
-            #                 current_block_index, number_of_samples_on_grid, algorithm_setup.min_number_of_rois
-            #             )
-            #         )
-            #         skip_current_block = True
-            #         block_status[counter_blocks_run] = 1
-
-            #     else:
-            #         # examine stack and calibration data
-            #         (block_has_data, block_has_cal) = check_block_for_data_and_cal(
-            #             current_block_extents, self.lut_stacks_boundaries, self.lut_cal
-            #         )
-
-            #         # checking availability of calibration and stack data
-            #         if ~np.any(block_has_data) or ~np.any(block_has_cal):
-            #             logging.info(
-            #                 "... skipping block #{} due to lack of valid data or calibration points".format(
-            #                     current_block_index
-            #                 )
-            #             )
-            #             skip_current_block = True
-            #             block_status[counter_blocks_run] = 1
-
-            except Exception as e:
-                logging.error("AGB: error during sampling grid preparation." + str(e), exc_info=True)
-                block_status[counter_blocks_run] = -1
-                raise
-
-            # if skip_current_block:
-            #     continue
-            # %% ### TABULATING DATA
-            try:
-                logging.info("AGB: tabulating data...")
 
                 # pixel axes for current block
                 pixel_axis_east = np.arange(current_block_extents[0], current_block_extents[1], pixel_size_east)
                 pixel_axis_north = np.arange(current_block_extents[2], current_block_extents[3], pixel_size_north)
 
-                # output equi7 projection info
-                #   here, we assume that the output tile and subtile will be that of the first observable source
-                #   that is covered by the current block
-                equi7_info_source_path = [x[0] for z in formula_observables.source_paths for y in z for x in y if x[0].find('EQUI7')>=0][0]
-                equi7_subtile_name, equi7_tile_name = [x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]]
-                equi7_subgrid_code = equi7_subtile_name[:2]
-                equi7_projection_string = get_projection_from_path(equi7_info_source_path)
+                # geo transform info
                 current_geotransform = [
                     pixel_axis_east[0],
                     pixel_size_east,
@@ -1398,7 +1344,12 @@ class CoreProcessingAGB(Task):
                     0,
                     pixel_size_north,
                 ]
-                equi7_product = Equi7Grid(geographic_grid_sampling)
+                
+                
+                # this should be updated to a more generalised approach based on polygons defining the extent of each image
+                (block_has_data, _) = check_block_for_data_and_cal(
+                    current_block_extents, self.lut_stacks_boundaries, self.lut_cal
+                )
 
 
                 # tabulation
@@ -1417,7 +1368,7 @@ class CoreProcessingAGB(Task):
                     current_block_extents,
                     pixel_axis_east,  # east north axes onto which data are interpolated
                     pixel_axis_north,
-                    main_sampling_areas + additional_sampling_polygons,  # sampling polygons
+                    main_sampling_polygons + additional_sampling_polygons,  # sampling polygons
                     block_has_data,  # flags whether each stack is in current block
                     stack_info_table,  # info table with stack properties (stack id, headings, etc., defining the acquisition parameters)
                     stack_info_table_columns,  # column names for the abovementioned table
@@ -1431,7 +1382,7 @@ class CoreProcessingAGB(Task):
                 if observable_table.shape[0] == 0:
                     logging.info("... skipping block #{} due to lack of valid data points".format(current_block_index))
                     skip_current_block = True
-                    block_status[counter_blocks_run] = 1
+                    block_status[counter_blocks_run] = 0
 
             except Exception as e:
                 logging.error("AGB: error during data sampling and tabulation." + str(e), exc_info=True)
@@ -1444,27 +1395,6 @@ class CoreProcessingAGB(Task):
             # %% ### FITTING MODEL TO TABULATED DATA  AND SAVNG
 
             try:
-                # # clean up the formula to only include terms that will not produce nans
-                # observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
-                # terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_without_data)>=0,axis=1)
-                
-                # if np.any(terms_with_nan_observables):
-                #     logging.warning(
-                #         "AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(
-                #             ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),
-                #             ', '.join(observables_without_data)))
-                
-                # terms_with_zero_weight = np.array(formula_terms.weight_fitting) == 0
-                # if np.any(terms_with_zero_weight):
-                #     logging.warning(
-                #         "AGB: skipping formula terms: {} due to zero weights.".format(
-                #             ', '.join(['%d' % (ii+1) for ii in np.where(terms_with_zero_weight)[0]])))
-                
-                # terms_to_take = ~(terms_with_nan_observables | terms_with_zero_weight)
-                    
-                # formula_strings = subset_iterable(formula_terms.string,terms_to_take)
-                # formula_weights = subset_iterable(formula_terms.weight_fitting,terms_to_take)
-            
                 
                 logging.info("AGB: fitting model to data...")
 
@@ -1497,7 +1427,7 @@ class CoreProcessingAGB(Task):
                 if len(space_invariant_parameter_table) == 0:
                     logging.info("... skipping block #{} due to no subsets found.".format(current_block_index))
                     skip_current_block = True
-                    block_status[counter_blocks_run] = 2
+                    block_status[counter_blocks_run] = 0
                 else:
                     logging.info("AGB: saving data to tables.")
                     # save data
@@ -1592,11 +1522,8 @@ class CoreProcessingAGB(Task):
 
                 logging.info("AGB: reading data images.")
 
-                # take out the observables that are in formula and not among space variant parameters
-                # observables_for_mapping = np.any(match_string_lists(formula_terms.string, observable_names) >= 0, axis=0) & ~np.any(
-                #     match_string_lists(space_variant_parameter_names, observable_names) >= 0, axis=0
-                # )
-
+                
+                # this needs to be updated in line with the tabulation function
                 (
                     forest_class_3d,
                     observables_3d,
@@ -1638,7 +1565,7 @@ class CoreProcessingAGB(Task):
                 ):
                     logging.info("... skipping block #{} due to no image data read.".format(current_block_index))
                     skip_current_block = True
-                    block_status[counter_blocks_run] = 1
+                    block_status[counter_blocks_run] = 0
 
             except Exception as e:
                 logging.error("AGB: error during image reading." + str(e), exc_info=True)
@@ -1684,24 +1611,6 @@ class CoreProcessingAGB(Task):
                 )
                 
                 
-                
-                # # clean up the formula to only include terms that will not produce nans
-                # # observables_without_data = [observable_name for is_nan,observable_name in zip(np.all(np.isnan(observable_table),axis=0),observable_names) if is_nan]
-                # terms_with_nan_observables = np.any(match_string_lists(formula_terms.string,observables_with_partial_data)>=0,axis=1)
-                # mask = (~terms_with_nan_observables) & (formula_terms.weight_estimation!=0)
-                # if np.any(~mask):
-                #     logging.warning(
-                #         "AGB: skipping formula terms: {} due to lack of useful data for observables or weights set to zero: {}.".format(
-                #             ', '.join(['%d' % (ii+1) for ii in np.where(~mask)[0]]),
-                #             ', '.join([observable_name for observable_name,is_nan in zip(observable_names,mask) if ~mask])))
-                    
-                # # if np.any(terms_with_nan_observables):
-                # #     logging.warning("AGB: skipping formula terms: {} due to lack of useful data for observables: {}.".format(', '.join(['%d' % (ii+1) for ii in np.where(terms_with_nan_observables)[0]]),', '.join(observables_with_partial_data)))
-                
-                # # mask = (~terms_with_nan_observables) & (formula_terms.weight_estimation!=0)
-                # formula_strings = subset_iterable(formula_terms.string,mask)
-                # formula_weights = subset_iterable(formula_terms.weight_estimation,mask)
-            
                 observables_for_mapping = np.all(match_string_lists(observable_names,observables_with_partial_data)==-1,axis=1)
                 
                 
@@ -1740,7 +1649,7 @@ class CoreProcessingAGB(Task):
                         )
                     )
                     skip_current_block = True
-                    block_status[counter_blocks_run] = 1
+                    block_status[counter_blocks_run] = 0
 
             except Exception as e:
                 logging.error("AGB: error during space variant parameter mapping." + str(e), exc_info=True)
@@ -1851,17 +1760,6 @@ class CoreProcessingAGB(Task):
                             accurate_boundary=False,
                             tile_nodata=np.nan,
                         )
-
-                        # # if the parameter is associated with an observable
-                        # current_position_in_observable_vector = 
-                        # 
-                        # current_image_to_write = transform_function(
-                        #     current_image_to_write,
-                        #     observable_limits[current_position_in_observable_vector],
-                        #     observable_transforms[current_position_in_observable_vector],
-                        #     do_forward=False,
-                        # )
-                        # current_file_path += "_backtransf"
                         
                         if (formula_parameters.associated_observable_name[parameter_idx]!='none' ):
                             current_position_in_observable_vector = np.where(match_string_lists(observable_names,[formula_parameters.associated_observable_name[parameter_idx]]).flatten()>=0)[0][0]
@@ -1879,7 +1777,7 @@ class CoreProcessingAGB(Task):
                 )
 
                 skip_current_block = False
-                block_status[counter_blocks_run] = 3
+                block_status[counter_blocks_run] = 1
 
             except Exception as e:
                 logging.error("AGB: error during saving of maps." + str(e), exc_info=True)
