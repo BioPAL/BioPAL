@@ -12,18 +12,22 @@ from biopal.statistics.utility_statistics import (
     main_correlation_estimation_SSF_SR,
 )
 
-
-def estimate_height_core(PI, kz, model_parameters):
-    # This function returns forest height, extinction, ground to volume ratio,
-    #    temporal decorrelations.
-
-    num_baselines = PI.shape[2]
-
+def volume_decorrelation_lut(num_baselines, vertical_wavenumber, model_parameters):
+    """
+    Generation of a look-up table containing, for each value of height, extintion 
+    and baseline, the possible values of volume decorrelation (the decorrelation caused
+    by the different projection of the vertical component of the scatterer reflectivity 
+    spectrum into the interferometric baselines images) [1][2]
+    
+    [1] A. Moreira, P. Prats-Iraola, M. Younis, G. Krieger, I. Hajnsek and K. P. Papathanassiou,"A tutorial on synthetic aperture radar," in IEEE Geoscience and Remote Sensing Magazine, vol. 1, no. 1, pp. 6-43, March 2013, doi: 10.1109/MGRS.2013.2248301.
+    [2] K. P. Papathanassiou and S. R. Cloude, "Single-baseline polarimetric SAR interferometry," in IEEE Transactions on Geoscience and Remote Sensing, vol. 39, no. 11, pp. 2352-2363, Nov. 2001, doi: 10.1109/36.964971.
+    
+    """
+    
     # LUT
     Nh = model_parameters.maximum_height  # 61
     Ns = model_parameters.number_of_extinction_value  # 51
     heights = np.arange(Nh)  # heights    [m]
-    heights[0] = 0.1  # to avoid dividing by zero in zero extinction
     extinctions = np.concatenate(
         (np.tan(np.arange(Ns - 1) / (Ns - 1) * np.pi / 2.0) / 30.0, np.array([np.inf])), axis=0
     )  # extinctions    [m^(-1)]
@@ -31,10 +35,10 @@ def estimate_height_core(PI, kz, model_parameters):
     LUT = np.zeros((Nh, Ns, num_baselines), dtype=np.complex64)
 
     p = 2.0 * extinctions.reshape((Ns, 1)) * np.ones((1, num_baselines))
-    q = np.ones((Ns, 1)) * (1j * kz).reshape((1, num_baselines))
+    q = np.ones((Ns, 1)) * (1j * vertical_wavenumber).reshape((1, num_baselines))
     q0 = q[0, :]
     p1 = p + q
-    for hi in np.arange(Nh):
+    for hi in np.arange(Nh-1)+1: # do not cycle hi = 0
         LU = np.zeros((Ns, num_baselines), dtype=np.complex64)
         LU[1:-1, :] = (
             p[1:-1, :]
@@ -47,7 +51,21 @@ def estimate_height_core(PI, kz, model_parameters):
         LUT[hi, :, :] = LU
 
     LUT[0, :, :] = np.ones((Ns, num_baselines))  # zero height
+    
+    return LUT, extinctions
 
+    
+
+def estimate_height_core(PI, model_parameters, LUT, extinctions):
+    """This function returns forest height, extinction, ground to volume ratio,
+       temporal decorrelations.
+    """
+    num_baselines = PI.shape[2]
+    Nh = model_parameters.maximum_height  # 61
+    Ns = model_parameters.number_of_extinction_value  # 51
+    heights = np.arange(Nh)  # heights    [m]
+    heights[0] = 0.1  # to avoid dividing by zero in zero extinction
+    
     if num_baselines == 1:
         # single baseline processing
 
@@ -184,7 +202,7 @@ def estimate_height(
     pixel_spacing_slant_rg,
     pixel_spacing_az,
     incidence_angle_rad,
-    kz_stack,
+    vertical_wavenumber_stack,
     fh_proc_conf,
     R=None,
     look_angles=None,
@@ -241,7 +259,7 @@ def estimate_height(
     gammaT1map = np.zeros((Nrg_subs, Naz_subs))
     gammaT2map = np.zeros((Nrg_subs, Naz_subs))
     gammaT3map = np.zeros((Nrg_subs, Naz_subs))
-    kz = np.zeros((Nrg_subs, Naz_subs, num_baselines))
+    vertical_wavenumber = np.zeros((Nrg_subs, Naz_subs, num_baselines))
 
     Nrg_subs_string = str(Nrg_subs)
     for rg_sub_idx in np.arange(Nrg_subs):
@@ -250,11 +268,11 @@ def estimate_height(
         for az_sub_idx in np.arange(Naz_subs):
 
             # for az_sub_idx in np.arange(Naz_subs):
-            current_kz = np.zeros((num_acq, 1))
-            for b_idx, stack_curr in enumerate(kz_stack.values()):
-                current_kz[b_idx] = stack_curr[rg_vec_subs[rg_sub_idx], az_vec_subs[az_sub_idx]]
+            current_vertical_wavenumber = np.zeros((num_acq, 1))
+            for b_idx, stack_curr in enumerate(vertical_wavenumber_stack.values()):
+                current_vertical_wavenumber[b_idx] = stack_curr[rg_vec_subs[rg_sub_idx], az_vec_subs[az_sub_idx]]
 
-            current_kz = current_kz - current_kz.T
+            current_vertical_wavenumber = current_vertical_wavenumber - current_vertical_wavenumber.T
             current_correlation = MBMP_correlation[:, :, rg_sub_idx, az_sub_idx]
             current_correlation[np.abs(current_correlation) > 1] = np.exp(
                 1j * np.angle(current_correlation[np.abs(current_correlation) > 1])
@@ -268,10 +286,10 @@ def estimate_height(
                     PI[:, :, n] = current_correlation[
                         i * num_pols : num_pols + i * num_pols, j * num_pols : num_pols + j * num_pols,
                     ]
-                    kz[rg_sub_idx, az_sub_idx, n] = current_kz[i, j]
+                    vertical_wavenumber[rg_sub_idx, az_sub_idx, n] = current_vertical_wavenumber[i, j]
                     n += 1
 
-            if np.any(np.isnan(current_kz)) + np.any(np.isnan(current_correlation)):
+            if np.any(np.isnan(current_vertical_wavenumber)) + np.any(np.isnan(current_correlation)):
                 heightmap[rg_sub_idx, az_sub_idx] = np.NaN
                 extinctionmap[rg_sub_idx, az_sub_idx] = np.NaN
                 ratiomap[rg_sub_idx, az_sub_idx] = np.NaN
@@ -280,7 +298,9 @@ def estimate_height(
                 gammaT3map[rg_sub_idx, az_sub_idx] = np.NaN
                 continue
 
-            output = estimate_height_core(PI, kz[rg_sub_idx, az_sub_idx, :], fh_proc_conf.model_parameters)
+            LUT, extinctions = volume_decorrelation_lut(PI.shape[2], vertical_wavenumber[rg_sub_idx, az_sub_idx, :], fh_proc_conf.model_parameters)
+            
+            output = estimate_height_core(PI, fh_proc_conf.model_parameters, LUT, extinctions)
 
             heightmap[rg_sub_idx, az_sub_idx] = output[0]
             extinctionmap[rg_sub_idx, az_sub_idx] = output[1]
@@ -305,7 +325,7 @@ def estimate_height(
         gammaT1map,
         gammaT2map,
         gammaT3map,
-        kz,
+        vertical_wavenumber,
         rg_vec_subs,
         az_vec_subs,
         subs_F_r,
