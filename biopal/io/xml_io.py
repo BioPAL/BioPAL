@@ -144,14 +144,15 @@ residual_function = namedtuple("residual_function", "formula_terms formula_param
 # agb "formula_terms" sub-fields:
 formula_terms = namedtuple(
     "formula_terms",
-    "string \
+    "name \
+     string \
      formula_weights")
      
 formula_weights = namedtuple(
     "formula_weights",
-    "fitting \
-     estimation1 \
-     estimation2")
+    "step1 \
+     step2 \
+     step3")
 # agb "formula_parameters" sub-fields:
 formula_parameters = namedtuple(
     "formula_parameters",
@@ -836,17 +837,20 @@ def write_residual_function_core(Estimate_elem, configuration_params):
 
         term = SubElement(formula_terms, "term")
 
+        formula_name = SubElement(term, "name")
+        formula_name.text = term_struct.name[index]
+
         formula_string = SubElement(term, "string")
         formula_string.text = term_struct.string[index]
-
+        
         formula_weights = SubElement(term, "weight")
         
-        formula_weight_fitting = SubElement(formula_weights, "fitting")
-        formula_weight_fitting.text = str(term_struct.formula_weights.fitting[index])
-        formula_weight_estimation1 = SubElement(formula_weights, "estimation1")
-        formula_weight_estimation1.text = str(term_struct.formula_weights.estimation1[index])
-        formula_weight_estimation2 = SubElement(formula_weights, "estimation2")
-        formula_weight_estimation2.text = str(term_struct.formula_weights.estimation2[index])
+        formula_weight_step1 = SubElement(formula_weights, "step1")
+        formula_weight_step1.text = str(term_struct.formula_weights.step1[index])
+        formula_weight_step2 = SubElement(formula_weights, "step2")
+        formula_weight_step2.text = str(term_struct.formula_weights.step2[index])
+        formula_weight_step3 = SubElement(formula_weights, "step3")
+        formula_weight_step3.text = str(term_struct.formula_weights.step3[index])
 
     formula_parameters = SubElement(residual_function, "formula_parameters")
     number_of_parameters = len(configuration_params.AGB.residual_function.formula_parameters.name)
@@ -1704,16 +1708,19 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
     formula_observables_Item = residual_function_Item.find("formula_observables")
 
     formula_string = []
-    formula_weight_fitting = []
-    formula_weight_estimation1 = []
-    formula_weight_estimation2 = []
+    formula_name = []
+    formula_weight_step1 = []
+    formula_weight_step2 = []
+    formula_weight_step3 = []
     for term_item in formula_Item.findall("term"):
+        formula_name.append(term_item.find("name").text)
         formula_string.append(term_item.find("string").text)
-        formula_weight_fitting.append(float(term_item.find("weight").find("fitting").text))
-        formula_weight_estimation1.append(float(term_item.find("weight").find("estimation1").text))
-        formula_weight_estimation2.append(float(term_item.find("weight").find("estimation2").text))
-    formula_weight_struct = formula_weights(formula_weight_fitting,formula_weight_estimation1,formula_weight_estimation2)
+        formula_weight_step1.append(float(term_item.find("weight").find("step1").text))
+        formula_weight_step2.append(float(term_item.find("weight").find("step2").text))
+        formula_weight_step3.append(float(term_item.find("weight").find("step3").text))
+    formula_weight_struct = formula_weights(formula_weight_step1,formula_weight_step2,formula_weight_step3)
     formula_terms_struct = formula_terms(
+        formula_name,
         formula_string,
         formula_weight_struct,
     )

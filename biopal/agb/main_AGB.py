@@ -858,6 +858,7 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
+                    ## temporary (for tests with tomographic data)
                     # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
                     # file_list = [layer_list]
                     # stack_list = [file_list]
@@ -878,6 +879,8 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
+                        
+                    ## temporary (for tests with tomographic data)
                     # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vh_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
                     # file_list = [layer_list]
                     # stack_list = [file_list]
@@ -897,6 +900,7 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
+                    ## temporary (for tests with tomographic data)
                     # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\slice_30_m\EQUI7_AF050M\E045N048T3\cov_vv_30_m_EQUI7_AF050M_E045N048T3.tif', 0]
                     # file_list = [layer_list]
                     # stack_list = [file_list]
@@ -915,7 +919,7 @@ class StackBasedProcessingAGB(Task):
                             file_list.append(layer_list)
                         stack_list.append(file_list)
                         
-                        
+                    ## temporary (for tests with tomographic data) 
                     # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_GGS_50m_RES_100m\theta\EQUI7_AF050M\E045N048T3\theta_AF050M_E045N048T3.tif', 0]
                     # file_list = [layer_list]
                     # stack_list = [file_list]
@@ -924,38 +928,54 @@ class StackBasedProcessingAGB(Task):
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = sigma_ground_res_m
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'rad'
 
-                elif name == "agb_1_cal_1km_db":
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_1km_AF050M_E045N048T3.tif', 0]
-                    file_list = [layer_list]
-                    stack_list = [file_list]
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 1000
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
+                ## temporary (for tests with gedi-like data for calibration)
+                # elif name == "agb_1_cal_1km_db":
+                #     # layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\lope_lidar\lidar_agb\EQUI7_AF050M\E045N048T3\lidar_AGB_1km_AF050M_E045N048T3.tif', 0]
+                #     # file_list = [layer_list]
+                #     # stack_list = [file_list]
+                #     stack_list = []
+                #     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                #     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 1000
+                #     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
 
         
                 elif name == "agb_1_cal_db":
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ReferenceAGB\cal_05_no_errors.tif', 0]
-                    file_list = [layer_list]
+                      
+                    file_list = []
+                    for index_file, cal_file_name in enumerate(lut_cal_paths):
+                        layer_list = [cal_file_name, 0]
+                        file_list.append(layer_list)
                     stack_list = [file_list]
-                    stack_list = []
+                    
+                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
+                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
+                    
+                    
+                    ## uncomment if testing with gedi-like data
+                    # stack_list = []
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 50
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 't/ha'
                     
                     
-        
-                elif (name == "th_db") or (name == "tomo_h_db"):
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif', 0]
-                    file_list = [layer_list]
-                    stack_list = [file_list]
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'm'
+                ## temporary (for tests with height data)
+                # elif (name == "tomo_h_db"):
+                #     layer_list = [r'C:\Users\macie\Documents\bio_input\aux_for_agb_dev\out_tomo_fh\BIOMASS_L2_20201118T123101\TOMO_FH\Products\global_FH\EQUI7_AF050M\E045N048T3\FH_EQUI7_AF050M_E045N048T3.tif', 0]
+                #     file_list = [layer_list]
+                #     stack_list = [file_list]
+                #     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
+                #     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
+                #     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'm'
                     
                 elif name == "forest_class":
-                    layer_list = [r'C:\Users\macie\Documents\bio_input\demo_lope_two\auxiliary_data_pf\ForestMask\EQUI7_AF080M\E042N048T6\fnf_mask_AF080M_E042N048T6.tif', 0]
-                    file_list = [layer_list]
+                    
+                    file_list = []
+                    for index_file, fnf_file_name in enumerate(lut_fnf_paths):
+                        layer_list = [fnf_file_name, 0]
+                        file_list.append(layer_list)
                     stack_list = [file_list]
+                    
                     conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
                     conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
                     conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = 'none'
