@@ -1,315 +1,341 @@
 <ConfigurationL2CoreProcessingAGB version="1.0">
 	<EstimateAGB>
 		<residual_function>
-			<formula>
-				<row>l_hh + a_hh * agb_1_db + n_hh * cos_local_db + neg_sigma0_hh_db</row>
-				<row>l_hv + a_hv * agb_1_db + n_hv * cos_local_db + neg_sigma0_hv_db</row>
-				<row>l_vv + a_vv * agb_1_db + n_vv * cos_local_db + neg_sigma0_vv_db</row>
-			</formula>
+			      <formula_terms>
+        <term>
+		<name>cal_hh</name>
+          <string>l_hh + a_hh * agb_1_cal_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
+		<weight>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
+	    </weight>
+        </term>
+        <term>
+		<name>cal_hv</name>
+          <string>l_hv + a_hv * agb_1_cal_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
+		<weight>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
+	    </weight>
+        </term>
+        <term>
+		<name>cal_vv</name>
+          <string>l_vv + a_vv * agb_1_cal_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
+		<weight>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
+	    </weight>
+        </term>
+        <term>
+		<name>est_hh</name>
+          <string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
+		<weight>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
+	    </weight>
+        </term>
+        <term>
+		<name>est_hv</name>
+          <string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
+		<weight>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
+	    </weight>
+        </term>
+        <term>
+		<name>est_vv</name>
+          <string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
+		<weight>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
+	    </weight>
+        </term>
+      </formula_terms>
+
 			<formula_parameters>
 				<par>
 					<name>l_hh</name><!-- "l" = agb model scaling-->
 					<save_as_map>False</save_as_map>
-					<limits  unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="dB"><!-- these are the limits after transformation -->
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>l_hv</name>
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="dB"><!-- these are the limits after transformation -->
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>l_vv</name>
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="dB"><!-- these are the limits after transformation -->
 						<min>-60</min>
 						<max>0</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>a_hh</name><!-- "a" = agb model exponent-->
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="none"><!-- these are the limits after transformation -->
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>a_hv</name>
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="none"><!-- these are the limits after transformation -->
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>a_vv</name>
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="none"><!-- these are the limits after transformation -->
 						<min>0.1</min>
 						<max>1.9</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>n_hh</name><!-- "n" = agb cosine exponent-->
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="none"><!-- these are the limits after transformation -->
 						<min>0</min>
 						<max>3</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>n_hv</name>
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="none"><!-- these are the limits after transformation -->
 						<min>0</min>
 						<max>3</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
 					<name>n_vv</name>
 					<save_as_map>False</save_as_map>
-					<limits unit="dB">
+					<transform>none</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="none"><!-- these are the limits after transformation -->
 						<min>0</min>
 						<max>3</max>
 					</limits>
-					<ChangesAcrossSamples>False</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>none</associated_observable_name>
+					<variability>
+						<samples>False</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
 				</par>
 				<par>
-					<name>agb_1_db</name><!-- AGB estimation -->
+					<name>agb_1_est_db</name><!-- AGB estimation -->
 					<save_as_map>True</save_as_map>
-					<limits unit='t/ha'>
+					<transform>db</transform><!-- inverse of this transform is applied to the final estimates prior to saving-->
+					<limits unit="t/ha"><!-- these are the limits after transformation -->
 						<min>1</min>
 						<max>600</max>
 					</limits>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
-				</par>
-				<par>
-					<name>agb_2_db</name><!-- AGB estimation error -->
-					<save_as_map>True</save_as_map>
-					<limits unit="dB">
-						<min>0</min>
-						<max>10</max>
-					</limits>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
-				</par>
-				<par>
-					<name>agb_3_db</name>
-					<save_as_map>True</save_as_map>
-					<limits unit="dB">
-						<min>0</min>
-						<max>10</max>
-					</limits>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
-				</par>
-				<par>
-					<name>agb_4_db</name>
-					<save_as_map>True</save_as_map>
-					<limits unit="dB">
-						<min>0</min>
-						<max>10</max>
-					</limits>
-					<ChangesAcrossSamples>True</ChangesAcrossSamples>
-					<ChangesAcrossForestClass>False</ChangesAcrossForestClass>
-					<ChangesAcrossStack>False</ChangesAcrossStack>
-					<ChangesAcrossGlobalCycle>False</ChangesAcrossGlobalCycle>
-					<ChangesAcrossHeading>False</ChangesAcrossHeading>
-					<ChangesAcrossSwath>False</ChangesAcrossSwath>
-					<ChangesAcrossSubswath>False</ChangesAcrossSubswath>
-					<ChangesAcrossAzimuth>False</ChangesAcrossAzimuth>
+					<associated_observable_name>agb_1_cal_db</associated_observable_name>
+					<variability>
+						<samples>True</samples>
+						<forest_classes>False</forest_classes>
+						<stacks>False</stacks>
+						<global_cycles>False</global_cycles>
+						<headings>False</headings>
+						<swaths>False</swaths>
+						<subswaths>False</subswaths>
+						<azimuth_images>False</azimuth_images>
+					</variability>
+
 				</par>
 			</formula_parameters>
-			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
+			<formula_observables><!-- <transform> tags: transformation to go from linear input (i.e. sigma0_hh) to formula_terms setting (i.e. "-db": neg_sigma0_hh_db = -10*log10(sigma0_hh) -->
+				<obs>
+					<name>forest_class</name>
+					<is_required>True</is_required>
+					<sources />
+					<limits unit="none"><!-- these are the limits before transformation -->
+						<min>0</min>
+						<max>1000</max>
+					</limits>
+					<transform>round</transform>
+					<averaging_method>mode_knp</averaging_method>
+				</obs>
 				<obs>
 					<name>neg_sigma0_hh_db</name>
-					<is_required>True</is_required><!-- is it needed?-->
-					<source_paths />
-					<ranges>
+					<is_required>True</is_required>
+					<sources />
+					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>1e-8</min>
 						<max>20</max>
-					</ranges>
-					<transform>-db</transform><!-- add inverse transform in parameters too?-->
+					</limits>
+					<transform>-db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
 					<name>neg_sigma0_hv_db</name>
 					<is_required>True</is_required>
-					<source_paths />
-					<ranges>
+					<sources />
+					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>1e-8</min>
 						<max>20</max>
-					</ranges>
+					</limits>
 					<transform>-2db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
 					<name>neg_sigma0_vv_db</name>
 					<is_required>True</is_required>
-					<source_paths />
-					<ranges>
+					<sources />
+					<limits unit="none"><!-- these are the limits before transformation -->
 						<min>1e-8</min>
 						<max>20</max>
-					</ranges>
+					</limits>
 					<transform>-db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
 					<name>cos_local_db</name>
 					<is_required>True</is_required>
-					<source_paths />
-					<ranges unit='Deg'>
+					<sources />
+					<limits unit='Deg'><!-- these are the limits before transformation -->
 						<min>20</min>
 						<max>60</max>
-					</ranges>
+					</limits>
 					<transform>cosdb</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
 				<obs>
-					<name>agb_1_db</name>
+					<name>agb_1_cal_db</name>
 					<is_required>False</is_required>
-					<source_paths />
-					<ranges unit='t/ha'>
+					<sources />
+					<limits unit='t/ha'><!-- these are the limits before transformation -->
 						<min>1</min>
-						<max>700</max>
-					</ranges>
+						<max>600</max>
+					</limits>
 					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
-				<obs>
-					<name>agb_2_db</name>
-					<is_required>False</is_required>
-					<source_paths />
-					<ranges>
-						<min>0</min>
-						<max>10</max>
-					</ranges>
-					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>agb_3_db</name>
-					<is_required>False</is_required>
-					<source_paths />
-					<ranges>
-						<min>0</min>
-						<max>10</max>
-					</ranges>
-					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
-				<obs>
-					<name>agb_4_db</name>
-					<is_required>False</is_required>
-					<source_paths />
-					<ranges>
-						<min>0</min>
-						<max>10</max>
-					</ranges>
-					<transform>none</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
+
 			</formula_observables>
 		</residual_function>
+		<forest_class_observable_name>forest_class</forest_class_observable_name>
+		<transfer_function_name>sin2</transfer_function_name>
 		<number_of_tests>5</number_of_tests>
-		<fraction_of_roi_per_test>100</fraction_of_roi_per_test>
-		<fraction_of_cal_per_test>100</fraction_of_cal_per_test>
+		<fraction_of_roi_per_test>1</fraction_of_roi_per_test>
+		<fraction_of_cal_per_test>1</fraction_of_cal_per_test>
 		<add_variability_on_cal_data >False</add_variability_on_cal_data >
 		<intermediate_ground_averaging>100</intermediate_ground_averaging> <!-- intermediate_ground_averaging<=product_resolution/2 >-->
 		<product_resolution unit="m">200</product_resolution><!--(roi) sampling area size-->
@@ -320,7 +346,7 @@
 		<min_number_of_rois_per_stack>0</min_number_of_rois_per_stack>
 		<min_number_of_cals_per_test>2</min_number_of_cals_per_test>
 		<min_number_of_rois_per_test>1</min_number_of_rois_per_test>
-		<EstimationValidValuesLimits>
+		<EstimationValidValuesLimits><!-- necessary? -->
 			<min unit="t/ha">1</min>
 			<max unit="t/ha">1000</max>
 		</EstimationValidValuesLimits>
