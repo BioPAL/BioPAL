@@ -3,75 +3,57 @@
 		<residual_function>
 			      <formula_terms>
         <term>
-          <string>l_hh + a_hh * agb_1_cal_1km_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
+		<name>cal_hh</name>
+          <string>l_hh + a_hh * agb_1_cal_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
 		<weight>
-		  <fitting>1.0</fitting>
-		  <estimation1>0.0</estimation1>
-		  <estimation2>0.0</estimation2>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
 	    </weight>
         </term>
         <term>
-          <string>l_hv + a_hv * agb_1_cal_1km_db + n_hv * cos_local_db + neg_sigma0_hv_db</string>
+		<name>cal_hv</name>
+          <string>l_hv + a_hv * agb_1_cal_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
 		<weight>
-		  <fitting>1.0</fitting>
-		  <estimation1>0.0</estimation1>
-		  <estimation2>0.0</estimation2>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
 	    </weight>
         </term>
         <term>
-          <string>l_vv + a_vv * agb_1_cal_1km_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>          
+		<name>cal_vv</name>
+          <string>l_vv + a_vv * agb_1_cal_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
 		<weight>
-		  <fitting>1.0</fitting>
-		  <estimation1>0.0</estimation1>
-		  <estimation2>0.0</estimation2>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
 	    </weight>
         </term>
         <term>
-          <string>l_hh + a_hh * agb_1_cal_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
+		<name>est_hh</name>
+          <string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
 		<weight>
-		  <fitting>1.0</fitting>
-		  <estimation1>0.0</estimation1>
-		  <estimation2>0.0</estimation2>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
 	    </weight>
         </term>
         <term>
-          <string>l_hv + a_hv * agb_1_cal_db + n_hv * cos_local_db + neg_sigma0_hv_db</string>
+		<name>est_hv</name>
+          <string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
 		<weight>
-		  <fitting>1.0</fitting>
-		  <estimation1>0.0</estimation1>
-		  <estimation2>0.0</estimation2>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
 	    </weight>
         </term>
         <term>
-          <string>l_vv + a_vv * agb_1_cal_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>
+		<name>est_vv</name>
+          <string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
 		<weight>
-		  <fitting>1.0</fitting>
-		  <estimation1>0.0</estimation1>
-		  <estimation2>0.0</estimation2>
-	    </weight>
-        </term>
-        <term>
-          <string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db</string>
-		<weight>
-		  <fitting>0.0</fitting>
-		  <estimation1>1.0</estimation1>
-		  <estimation2>1.0</estimation2>
-	    </weight>
-        </term>
-        <term>
-          <string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db</string>
-		<weight>
-		  <fitting>0.0</fitting>
-		  <estimation1>1.0</estimation1>
-		  <estimation2>1.0</estimation2>
-	    </weight>
-        </term>
-        <term>
-          <string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db</string>
-		<weight>
-		  <fitting>0.0</fitting>
-		  <estimation1>1.0</estimation1>
-		  <estimation2>1.0</estimation2>
+		  <step1>1.0</step1>
+		  <step2>1.0</step2>
+		  <step3>1.0</step3>
 	    </weight>
         </term>
       </formula_terms>
@@ -346,22 +328,11 @@
 					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
-				<obs>
-					<name>agb_1_cal_1km_db</name>
-					<is_required>False</is_required>
-					<sources />
-					<limits unit='t/ha'><!-- these are the limits before transformation -->
-						<min>1</min>
-						<max>600</max>
-					</limits>
-					<transform>db</transform>
-					<averaging_method>mean</averaging_method>
-				</obs>
 
 			</formula_observables>
 		</residual_function>
 		<forest_class_observable_name>forest_class</forest_class_observable_name>
-		<transfer_function_name>none</transfer_function_name>
+		<transfer_function_name>sin2</transfer_function_name>
 		<number_of_tests>5</number_of_tests>
 		<fraction_of_roi_per_test>0.5</fraction_of_roi_per_test>
 		<fraction_of_cal_per_test>0.5</fraction_of_cal_per_test>

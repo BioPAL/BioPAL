@@ -6,7 +6,7 @@
 	</GroundCancellation>
 	<EstimateAGB>
 		<forest_class_observable_name>forest_class</forest_class_observable_name>
-		<transfer_function_name>none</transfer_function_name>
+		<transfer_function_name>sin2</transfer_function_name>
 		<number_of_tests>5</number_of_tests>
 		<fraction_of_roi_per_test>0.5</fraction_of_roi_per_test>
 		<fraction_of_cal_per_test>0.5</fraction_of_cal_per_test>
