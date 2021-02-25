@@ -12,7 +12,10 @@ from arepytools.io.productfolder import ProductFolder
 from arepytools.timing import precisedatetime
 from arepytools.geometry.generalsarorbit import create_general_sar_orbit
 from arepytools.geometry import conversions
-from arepytools.signal import signal_processing
+try:
+    from arepytools.signal import signal_processing
+except:
+    print('ArePyTools signal processing toolbox cannot be found: BioPAL geometric library will not work');print(' ')
 from arepytools import constants as cst
 
 from biopal.io.xml_io import XmlIO
@@ -33,6 +36,15 @@ class EProductType(enum.Enum):
     off_nadir = "OFFNADIR"
     slope = "SLOPE"
     wave_number = "WAVENUMBER"
+
+
+def shift_image(data, shift_x, shift_y):
+    x_frequency_axis = np.fft.fftfreq(data.shape[1])[np.newaxis, :]
+    y_frequency_axis = np.fft.fftfreq(data.shape[0])[:, np.newaxis]
+
+    data_shifted = np.fft.ifft(np.fft.fft(data, axis=1) * np.exp(-1j * 2 * np.pi * x_frequency_axis * shift_x), axis=1)
+    data_shifted = np.fft.ifft(np.fft.fft(data_shifted, axis=0) * np.exp(-1j * 2 * np.pi * y_frequency_axis * shift_y), axis=0)
+    return data_shifted.astype(data.dtype)
 
 
 def get_zero_doppler_plane(velocity_vector, position_vector):
@@ -670,7 +682,7 @@ class SARGeometry:
         self._terrain_slope = -np.arcsin(scalar_product)
         self._terrain_slope = np.append(self._terrain_slope, self._terrain_slope[:, -1][:, np.newaxis], axis=1)
         # Interpolate to the data grid
-        self._terrain_slope = signal_processing.shift_image(self._terrain_slope, 0, 1 / 2)
+        self._terrain_slope = shift_image(self._terrain_slope, 0, 1 / 2)
 
     def compute_xyz(self):
         # Get target coordinates
