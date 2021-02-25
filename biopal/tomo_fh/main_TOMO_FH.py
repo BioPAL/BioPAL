@@ -90,7 +90,7 @@ class StackBasedProcessingTOMOFH(Task):
             logging.info("TOMO FH: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
 
-        temp_output_folder = os.path.join(products_folder, "temporary_processing")
+        temp_output_folder = os.path.join(products_folder, "temp")
         logging.info("TOMO FH: Temporary data folder:" + temp_output_folder + "\n")
         os.makedirs(temp_output_folder)
 
@@ -108,8 +108,8 @@ class StackBasedProcessingTOMOFH(Task):
         for unique_stack_id, acquisitions_pf_names in proc_inputs.stack_composition.items():
 
             # make temporary sub-directories
-            temp_output_folder_gr = os.path.join(temp_output_folder, "ground_range_geometry", unique_stack_id)
-            temp_output_folder_e7 = os.path.join(temp_output_folder, "ground_equi7_geometry", unique_stack_id)
+            temp_output_folder_gr = os.path.join(temp_output_folder, "geocoded", unique_stack_id)
+            temp_output_folder_e7 = os.path.join(temp_output_folder, "equi7", unique_stack_id)
             os.makedirs(temp_output_folder_gr)
             os.makedirs(temp_output_folder_e7)
 
@@ -441,8 +441,8 @@ class StackBasedProcessingTOMOFH(Task):
             logging.info(unique_stack_id + ": formatting data to GEOTIFF...")
             try:
 
-                data_ground_fname = os.path.join(temp_output_folder_gr, "FH_" + unique_stack_id + ".tif")
-                valid_values_mask_ground_fname = os.path.join(temp_output_folder_gr, "mask_" + unique_stack_id + ".tif")
+                data_ground_fname = os.path.join(temp_output_folder_gr, "FH" + ".tif")
+                valid_values_mask_ground_fname = os.path.join(temp_output_folder_gr, "mask" + ".tif")
 
                 upper_left_easting_coord = lon_regular_vector[0]  # i.e. horizontal
                 sampling_step_east_west = used_lon_step
@@ -496,6 +496,7 @@ class StackBasedProcessingTOMOFH(Task):
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
+                    withtilenamesuffix=False,
                     resampling_type="bilinear",
                     tile_nodata=np.nan,
                 )
@@ -507,6 +508,7 @@ class StackBasedProcessingTOMOFH(Task):
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
+                    withtilenamesuffix=False,
                     resampling_type="bilinear",
                     tile_nodata=np.float(0),
                 )
@@ -545,7 +547,7 @@ class CoreProcessingTOMOFH(Task):
         proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
         proc_inputs = parse_chains_input_file(input_file_xml)
         products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        temp_output_folder = os.path.join(products_folder, "temporary_processing")
+        temp_output_folder = os.path.join(products_folder, "temp")
 
         try:
 

@@ -242,7 +242,7 @@ class StackBasedProcessingAGB(Task):
             logging.info("AGB: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
 
-        temp_output_folder = os.path.join(products_folder, "temporary_processing")
+        temp_output_folder = os.path.join(products_folder, "temp")
         logging.info("AGB: Temporary data folder:" + temp_output_folder + "\n")
 
         os.makedirs(temp_output_folder)
@@ -389,8 +389,8 @@ class StackBasedProcessingAGB(Task):
             ]
 
             # make temporary sub-directories
-            temp_output_folder_gr = os.path.join(temp_output_folder, "ground_range_geometry", unique_stack_id)
-            temp_output_folder_e7 = os.path.join(temp_output_folder, "ground_equi7_geometry", unique_stack_id)
+            temp_output_folder_gr = os.path.join(temp_output_folder, "geocoded", unique_stack_id)
+            temp_output_folder_e7 = os.path.join(temp_output_folder, "equi7", unique_stack_id)
             os.makedirs(temp_output_folder_gr)
             os.makedirs(temp_output_folder_e7)
 
@@ -736,7 +736,7 @@ class StackBasedProcessingAGB(Task):
                 sigma0_ground_fnames = {}
                 for pol_name in sigma0_gr.keys():
                     sigma0_ground_fnames[pol_name] = os.path.join(
-                        temp_output_folder_gr, "sigma0_" + pol_name + "_" + unique_stack_id + ".tif"
+                        temp_output_folder_gr, "sigma0_" + pol_name + ".tif"
                     )
 
                     tiff_formatter(
@@ -749,7 +749,7 @@ class StackBasedProcessingAGB(Task):
                 del sigma0_gr
 
                 # geotiff of the theta
-                theta_ground_fname = os.path.join(temp_output_folder_gr, "theta" + "_" + unique_stack_id + ".tif")
+                theta_ground_fname = os.path.join(temp_output_folder_gr, "theta_" + ".tif")
 
                 tiff_formatter(
                     theta_multi_looked_gr, theta_ground_fname, geotransform, gdal_data_format=gdal.GDT_Float32,
@@ -783,6 +783,7 @@ class StackBasedProcessingAGB(Task):
                         inband=None,
                         subgrid_ids=None,
                         accurate_boundary=False,
+                        withtilenamesuffix=False,
                         resampling_type="bilinear",
                         tile_nodata=np.nan,
                     )
@@ -799,6 +800,7 @@ class StackBasedProcessingAGB(Task):
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
+                    withtilenamesuffix=False,
                     resampling_type="bilinear",
                     tile_nodata=np.nan,
                 )
@@ -1092,9 +1094,9 @@ class CoreProcessingAGB(Task):
 
         # setting up directories and making sure that preprocessing has been run
         products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        temp_proc_folder = os.path.join(products_folder, "temporary_processing")
+        temp_proc_folder = os.path.join(products_folder, "temp")
         if not (os.path.exists(temp_proc_folder)):
-            error_message = '"temporary_processing" folder is not present in output: StackBasedProcessingAGB APP should be launched before CoreProcessingAGB '
+            error_message = '"temp" folder is not present in output: StackBasedProcessingAGB APP should be launched before CoreProcessingAGB '
             logging.error(error_message)
             raise RuntimeError(error_message)
         # check auxiliaries (equi7 initialization) and if not present, compute them
@@ -1814,6 +1816,7 @@ class CoreProcessingAGB(Task):
                             gdal_path=self.gdal_path,
                             ftiles=equi7_product.search_tiles_in_roi(bbox=[(lon_min, lat_min), (lon_max, lat_max)]),
                             accurate_boundary=False,
+                            withtilenamesuffix=False,
                             tile_nodata=np.nan,
                         )
 

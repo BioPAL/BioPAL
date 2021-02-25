@@ -500,6 +500,7 @@ def fnf_tandemx_load_filter_equi7format(
             inband=None,
             subgrid_ids=None,
             accurate_boundary=False,
+            withtilenamesuffix=False,
             resampling_type="bilinear",
             tile_nodata=np.float(0),
         )
@@ -531,11 +532,11 @@ def fnf_equi7_load_filter_equi7format(
         logging.error(error_str)
         raise ValueError(error_str)
 
-    # output folder of the mask that will be used in the current chainflow:
-    equi7_fnf_mask_parent_dir = os.path.join(output_folder, "initial_fnf_mask_equi7")
-
     # temporary folder for the input mask conversion
-    equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "temp_fnf_dir")
+    equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "input_fnf")
+    
+    # output folder of the mask that will be used in the current chainflow:
+    equi7_fnf_mask_parent_dir = os.path.join(equi7_fnf_mask_parent_tempdir, "equi7")
 
     if not os.path.exists(equi7_fnf_mask_parent_dir):
         os.makedirs(equi7_fnf_mask_parent_dir)
@@ -569,7 +570,7 @@ def fnf_equi7_load_filter_equi7format(
 
         # 2) intermediate saving to tiff
         intermediate_filtered_tiff_name = os.path.join(
-            equi7_fnf_mask_parent_tempdir, "initial_fnf_mask_equi7_{}.tif".format(idx)
+            equi7_fnf_mask_parent_tempdir, "fnf_{}.tif".format(idx)
         )
 
         intermediate_filtered_tiff_name = tiff_formatter(
@@ -612,6 +613,7 @@ def fnf_equi7_load_filter_equi7format(
             gdal_path=gdal_path,
             ftiles=ftiles,
             accurate_boundary=False,
+            withtilenamesuffix=False,
             tile_nodata=np.nan,
         )
 
