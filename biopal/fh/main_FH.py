@@ -99,7 +99,7 @@ class StackBasedProcessingFH(Task):
             logging.info("FH: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
 
-        temp_output_folder = os.path.join(products_folder, "temporary_processing")
+        temp_output_folder = os.path.join(products_folder, "temp")
         logging.info("FH: Temporary data folder:" + temp_output_folder + "\n")
         os.makedirs(temp_output_folder)
 
@@ -120,8 +120,8 @@ class StackBasedProcessingFH(Task):
         for stack_idx, (unique_stack_id, acquisitions_pf_names) in enumerate(proc_inputs.stack_composition.items()):
 
             # make temporary sub-directories
-            temp_output_folder_gr = os.path.join(temp_output_folder, "ground_range_geometry", unique_stack_id)
-            temp_output_folder_e7 = os.path.join(temp_output_folder, "ground_equi7_geometry", unique_stack_id)
+            temp_output_folder_gr = os.path.join(temp_output_folder, "geocoded", unique_stack_id)
+            temp_output_folder_e7 = os.path.join(temp_output_folder, "equi7", unique_stack_id)
             os.makedirs(temp_output_folder_gr)
             os.makedirs(temp_output_folder_e7)
 
@@ -540,9 +540,9 @@ class StackBasedProcessingFH(Task):
             logging.info(unique_stack_id + ": formatting data to GEOTIFF...")
             try:
 
-                data_ground_fname = os.path.join(temp_output_folder_gr, "FH_" + unique_stack_id + ".tif")
+                data_ground_fname = os.path.join(temp_output_folder_gr, "FH + ".tif")
                 kz_and_valid_values_mask_ground_fname = os.path.join(
-                    temp_output_folder_gr, "mask_" + unique_stack_id + ".tif"
+                    temp_output_folder_gr, "mask + ".tif"
                 )
                 #           fnf_mask_ground_fname                 = os.path.join( temp_output_folder, 'fnf_mask_ground_'                 +unique_stack_id)
 
@@ -604,6 +604,7 @@ class StackBasedProcessingFH(Task):
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
+                    withtilenamesuffix=False,
                     resampling_type="bilinear",
                     tile_nodata=np.nan,
                 )
@@ -615,6 +616,7 @@ class StackBasedProcessingFH(Task):
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
+                    withtilenamesuffix=False,
                     resampling_type="bilinear",
                     tile_nodata=np.float(0),
                 )
@@ -698,7 +700,7 @@ class CoreProcessingFH(Task):
 
         # managing folders
         products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        temp_output_folder = os.path.join(products_folder, "temporary_processing")
+        temp_output_folder = os.path.join(products_folder, "temp")
 
         ######################## NOT STACK BASED STEPS ############################
         try:

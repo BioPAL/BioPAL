@@ -356,8 +356,8 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
     quality_layer_index = 2
 
     temp_path = next(iter(data_equi7_fnames.values()))[0]
-    idx = temp_path.find("ground_equi7_geometry")
-    merging_folder = os.path.join(temp_path[: idx + len("ground_equi7_geometry")], "merged")
+    idx = temp_path.find("equi7")
+    merging_folder = os.path.join(temp_path[: idx + len("equi7")], "merged")
 
     merged_data_fnames = []
     for (current_merging_id, unique_stack_ids_to_merge_list) in stacks_to_merge_dict.items():
