@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-#%%
-"""
-Created on Tue Nov 10 14:48:46 2020
-
-@author: macie
-"""
 
 import numpy as np
 import scipy as sp
