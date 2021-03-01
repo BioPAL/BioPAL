@@ -540,9 +540,9 @@ class StackBasedProcessingFH(Task):
             logging.info(unique_stack_id + ": formatting data to GEOTIFF...")
             try:
 
-                data_ground_fname = os.path.join(temp_output_folder_gr, "FH + ".tif")
+                data_ground_fname = os.path.join(temp_output_folder_gr, "FH" + ".tif")
                 kz_and_valid_values_mask_ground_fname = os.path.join(
-                    temp_output_folder_gr, "mask + ".tif"
+                    temp_output_folder_gr, "mask" + ".tif"
                 )
                 #           fnf_mask_ground_fname                 = os.path.join( temp_output_folder, 'fnf_mask_ground_'                 +unique_stack_id)
 
