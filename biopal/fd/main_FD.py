@@ -625,7 +625,7 @@ class CoreProcessingFD(Task):
                 
                 equi7_tile_avg_cov_outdir     = os.path.join( equi7_zone_avg_cov_outdir     , equi7_tile_name )  # full path of equi7 tile output folder
 
-                equi7_cov_tiff_name_curr    = 'AverageCovariance_'+equi7_zone_name[6:]+'_'+equi7_tile_name+'.tif'  # current equi7 tiff file name inside the equi7 tile
+                equi7_cov_tiff_name_curr    = 'AverageCovariance.tif'  # current equi7 tiff file name inside the equi7 tile
 
                 equi7_avg_cov_out_tiff_name_prev = os.path.join    ( equi7_zone_avg_cov_outdir_prev, equi7_tile_name, equi7_cov_tiff_name_curr) # full path of equi7 tiff output file name at previous step (if present)       
                
