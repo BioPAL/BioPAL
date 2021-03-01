@@ -655,7 +655,7 @@ class StackBasedProcessingAGB(Task):
                 logging.info("AGB: saving breakpoints (in slant range geometry) on " + breakpoints_output_folder)
                 post_string = "_SR_" + unique_stack_id
 
-                breakpoint_names = ["ground_cancelled_data" + post_string]
+                breakpoint_names = ["ground_cancelled" + post_string]
 
                 save_breakpoints(breakpoints_output_folder, breakpoint_names, [DN_beta0_notched])
                 logging.info("...done.\n")
@@ -1406,7 +1406,8 @@ class CoreProcessingAGB(Task):
                 #   here, we assume that the output tile and subtile will be that of the first observable source
                 #   that is covered by the current block
                 equi7_info_source_path = observable_sources[0][np.where(block_has_data)[0][0]][0][0]
-                equi7_subtile_name, equi7_tile_name = [x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]]
+                equi7_subtile_name = equi7_info_source_path.split(os.path.sep)[-3:-1][0][6:]
+                equi7_tile_name = equi7_info_source_path.split(os.path.sep)[-3:-1][1]
                 equi7_subgrid_code = equi7_subtile_name[:2]
                 equi7_projection_string = get_projection_from_path(equi7_info_source_path)
                 current_geotransform = [
@@ -1844,8 +1845,8 @@ class CoreProcessingAGB(Task):
 
                     tiles_to_save = {}
                     for current_source in parameter_map_pathlists[parameter_idx]:
-                        subtile_name, tile_name = [x.split(".")[0] for x in current_source[0].split("_")[-2:]]
-
+                        subtile_name = current_source[0].split(os.path.sep)[-3:-1][0][6:]
+                        tile_name = current_source[0].split(os.path.sep)[-3:-1][1]
                         if tile_name in tiles_to_save.keys():
                             tiles_to_save[tile_name].append(current_source)
                         else:

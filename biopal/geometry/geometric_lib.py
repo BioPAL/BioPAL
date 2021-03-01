@@ -12,10 +12,6 @@ from arepytools.io.productfolder import ProductFolder
 from arepytools.timing import precisedatetime
 from arepytools.geometry.generalsarorbit import create_general_sar_orbit
 from arepytools.geometry import conversions
-try:
-    from arepytools.signal import signal_processing
-except:
-    print('ArePyTools signal processing toolbox cannot be found: BioPAL geometric library will not work');print(' ')
 from arepytools import constants as cst
 
 from biopal.io.xml_io import XmlIO
