@@ -427,7 +427,7 @@ class CoreProcessingFD(Task):
                 logging.info('FD: saving breakpoints (in slant range geometry) on '+breakpoints_output_folder)
                 post_string = '_SR_'+unique_stack_id
                 
-                breakpoint_names = [ 'ground_cancelled_data'+post_string ]
+                breakpoint_names = [ 'ground_cancelled'+post_string ]
                 
                 save_breakpoints( breakpoints_output_folder, breakpoint_names, [beta0_notched] )
                 logging.info('...done.\n')
@@ -516,8 +516,8 @@ class CoreProcessingFD(Task):
             
             try:
                             
-                cov_ground_fname         = os.path.join( temp_output_folder_gr, 'AverageCov.tif' )
-                inc_angle_ground_fname   = os.path.join( temp_output_folder_gr, 'inc_angle.tif')
+                cov_ground_fname         = os.path.join( temp_output_folder_gr, 'AverageCovariance.tif' )
+                inc_angle_ground_fname   = os.path.join( temp_output_folder_gr, 'IncidenceAngle.tif')
   
     
                 upper_left_easting_coord  = lon_regular_vector[0] # i.e. horizontal
@@ -541,12 +541,12 @@ class CoreProcessingFD(Task):
             logging.info(unique_stack_id+': formatting into EQUI7 grid...')
             try:
                 
-                equi7_COV_parent_tempdir = os.path.join( temp_output_folder_e7, 'AverageCov' )
+                equi7_COV_parent_tempdir = os.path.join( temp_output_folder_e7, 'AverageCovariance' )
                 
                 # in general from here the Equi7 can output multiple tiles, which file names are stored in the output list ( wrapped here in a dict for the stack )
-                equi7_cov_temp_fnames = image2equi7grid( e7g, cov_ground_fname, equi7_COV_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, withtilenamesuffix=False,, resampling_type='bilinear', tile_nodata=np.nan)
+                equi7_cov_temp_fnames = image2equi7grid( e7g, cov_ground_fname, equi7_COV_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, withtilenamesuffix=False, resampling_type='bilinear', tile_nodata=np.nan)
     			
-                equi7_inc_parent_tempdir = os.path.join( temp_output_folder_e7, 'inc_angle' )
+                equi7_inc_parent_tempdir = os.path.join( temp_output_folder_e7, 'IncidenceAngle' )
                 equi7_inc_temp_fnames    = image2equi7grid( e7g, inc_angle_ground_fname, equi7_inc_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, withtilenamesuffix=False, resampling_type='bilinear', tile_nodata=np.nan)
                   
                 
