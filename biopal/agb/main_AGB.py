@@ -749,7 +749,7 @@ class StackBasedProcessingAGB(Task):
                 del sigma0_gr
 
                 # geotiff of the theta
-                theta_ground_fname = os.path.join(temp_output_folder_gr, "theta_" + ".tif")
+                theta_ground_fname = os.path.join(temp_output_folder_gr, "theta.tif")
 
                 tiff_formatter(
                     theta_multi_looked_gr, theta_ground_fname, geotransform, gdal_data_format=gdal.GDT_Float32,
@@ -1886,7 +1886,7 @@ class CoreProcessingAGB(Task):
                         current_position_in_observable_vector = parameter_position_in_observable_vector[parameter_idx]
                         if current_position_in_observable_vector != -1:
                             current_merged_file_path += "_backtransf_"
-                        current_merged_file_path += tile_name + "_" + equi7_subtile_name + ".tif"
+                        current_merged_file_path += ".tif"
 
                         if not os.path.exists(os.path.dirname(current_merged_file_path)):
                             os.makedirs(os.path.dirname(current_merged_file_path))

@@ -476,7 +476,7 @@ def fnf_tandemx_load_filter_equi7format(
         raise ValueError(error_msg)
 
     # conversion step 2: fnf mask geotiff formatting: one single layer geotiff for each fnf "tamdem-x tile" (they will be merged togheter after equi7 conversion )
-    fnf_mask_ground_dir_name = os.path.join(output_folder, "fnf_mask_ground")
+    fnf_mask_ground_dir_name = os.path.join(output_folder, "fnf_ground")
     fnf_mask_ground_dir_names = tiff_formatter(
         fnf_mask_list,
         fnf_mask_ground_dir_name,
@@ -491,7 +491,7 @@ def fnf_tandemx_load_filter_equi7format(
         []
     )  # thos will contain all the fnf names in equi7: all fnf tiles, all equi7 tiles
     for idx, fnf_name_curr in enumerate(fnf_mask_ground_dir_names):
-        equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "fnf_mask_not_merged_tile_{}".format(idx))
+        equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "input_fnf_not_merged_T{}".format(idx))
         equi7_out_name_curr = image2equi7grid(
             e7g,
             fnf_name_curr,
@@ -507,7 +507,7 @@ def fnf_tandemx_load_filter_equi7format(
         equi7_fnf_mask_tempdir_tiles_not_merged.extend(equi7_out_name_curr)
 
     # conversion step 4: merging fnf tiles
-    equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "initial_fnf_mask_equi7")
+    equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "input_fnf")
     ### managing final mask creation:
     equi7_fnf_mask_fnames = fnf_equi7_masks_merging(
         equi7_fnf_mask_tempdir_tiles_not_merged, equi7_fnf_mask_parent_tempdir
@@ -570,7 +570,7 @@ def fnf_equi7_load_filter_equi7format(
 
         # 2) intermediate saving to tiff
         intermediate_filtered_tiff_name = os.path.join(
-            equi7_fnf_mask_parent_tempdir, "fnf_{}.tif".format(idx)
+            equi7_fnf_mask_parent_tempdir, "fnf_T{}.tif".format(idx)
         )
 
         intermediate_filtered_tiff_name = tiff_formatter(
@@ -662,10 +662,10 @@ def fnf_equi7_masks_merging(fnf_mask_equi7_fnames_whole, temp_output_folder):
         # search in all the fnf folders for same names
         out_fnf_equi7_name = os.path.join(
             temp_output_folder,
-            "equi7_fnf_mask_tiles_merged",
+            "equi7_fnf_tiles_merged",
             equi7_subgrid_name,
             equi7_tile_name,
-            "_fnf_mask_" + equi7_subgrid_name + "_" + equi7_tile_name + ".tif",
+            "fnf.tif",
         )
 
         # search all the equi7 tile name in each fnf tile and sum togheter
@@ -746,11 +746,11 @@ def fnf_and_validity_masks_merging(merged_fnf_equi7_names, validity_mask_equi7_f
             validity_mask_name = validity_mask_name[0]
             out_final_equi7_name = os.path.join(
                 temp_output_folder,
-                "equi7_global_mask",
+                "equi7_global_fnf",
                 stack_id,
                 equi7_subgrid_name,
                 equi7_tile_name,
-                stack_id + "_final_mask_" + equi7_subgrid_name + "_" + equi7_tile_name + ".tif",
+                "fnf.tif",
             )
 
             input_image_driver_fnf = gdal.Open(fnf_mask_name, GA_ReadOnly)
@@ -874,7 +874,7 @@ def mosaiking(equi7_main_full_folder, mosaiking_out_folder):
 
         # write the output final mosaiked tiff of the current equi7 tile:
         out_mosaiked_equi7_name = os.path.join(
-            out_tile_equi7_full_folder, "FH_" + equi7_subgrid_folder_name + "_" + equi7_tile_name + ".tif",
+            out_tile_equi7_full_folder, "FH.tif",
         )
 
         geotransform = input_image_driver.GetGeoTransform()

@@ -540,9 +540,9 @@ class StackBasedProcessingFH(Task):
             logging.info(unique_stack_id + ": formatting data to GEOTIFF...")
             try:
 
-                data_ground_fname = os.path.join(temp_output_folder_gr, "FH" + ".tif")
+                data_ground_fname = os.path.join(temp_output_folder_gr, "FH.tif")
                 kz_and_valid_values_mask_ground_fname = os.path.join(
-                    temp_output_folder_gr, "mask" + ".tif"
+                    temp_output_folder_gr, "fnf.tif"
                 )
                 #           fnf_mask_ground_fname                 = os.path.join( temp_output_folder, 'fnf_mask_ground_'                 +unique_stack_id)
 
@@ -593,7 +593,7 @@ class StackBasedProcessingFH(Task):
                 logging.info("    EQUI7 Grid sampling used: {}".format(equi7_sampling))
 
                 equi7_data_outdir = os.path.join(temp_output_folder_e7, "data",)
-                equi7_temp_mask_outdir = os.path.join(temp_output_folder_e7, "mask")
+                equi7_temp_mask_outdir = os.path.join(temp_output_folder_e7, "fnf")
 
                 # in general from here the Equi7 can output multiple tiles, which file names are stored in the output list ( wrapped here in a dict for the stack )
                 data_equi7_fnames[unique_stack_id] = image2equi7grid(

@@ -457,7 +457,7 @@ class CoreProcessingFD(Task):
                 cov_layers_num, Nrg, Naz = MPMB_covariance_sr.shape # cov_layers_num = 6
                 MPMB_sr_temp_npy_fnames = []
                 for layer_idx in np.arange( 6 ):
-                    MPMB_sr_temp_npy_fnames.append( os.path.join( temp_output_folder_sr, 'MPMB_cov_sr_layer_{}_6.npy'.format(layer_idx+1) ) )
+                    MPMB_sr_temp_npy_fnames.append( os.path.join( temp_output_folder_sr, 'MPMB_covariance_layer_{}_6.npy'.format(layer_idx+1) ) )
                     np.save( MPMB_sr_temp_npy_fnames[layer_idx], MPMB_covariance_sr[layer_idx, :, :] )
                 
                 #del MPMB_covariance_sr
@@ -488,7 +488,7 @@ class CoreProcessingFD(Task):
                 # geocode one layer at a time, loading from temporary numpy
                 MPMB_gr_temp_npy_fnames = []
                 for layer_idx in np.arange( cov_layers_num ):
-                    curr_geocoded_fname     = os.path.join( temp_output_folder_gr, 'MPMB_cov_gr_layer_{}_6.npy'.format(layer_idx+1) )
+                    curr_geocoded_fname     = os.path.join( temp_output_folder_gr, 'MPMB_covariance_layer_{}_6.npy'.format(layer_idx+1) )
                     
                     # load slant range MPMB from npy file geocode and save the geocoded on  a new npy file
                     MPMB_covariance_gr = geocoding( np.load(MPMB_sr_temp_npy_fnames[layer_idx]) , lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask )
@@ -782,8 +782,8 @@ class CoreProcessingFD(Task):
             equi7_tile_disturbance_outdir = os.path.join( equi7_zone_disturbance_outdir , equi7_tile_name )
             
             equi7_fnf_mask_tile_outdir  = os.path.join( equi7_zone_fnf_mask_outdir    , equi7_tile_name )
-            equi7_disturbance_tiff_name = 'disturbance_'       +equi7_zone_name+'_'+equi7_tile_name+'.tif'
-            equi7_fnf_mask_tiff_name    = 'fnf_mask_'          +equi7_zone_name+'_'+equi7_tile_name+'.tif' 
+            equi7_disturbance_tiff_name = 'disturbance.tif'
+            equi7_fnf_mask_tiff_name    = 'fnf.tif' 
             
             equi7_disturbance_out_fname = os.path.join( equi7_tile_disturbance_outdir, equi7_disturbance_tiff_name )
             equi7_fnf_mask_outfname     = os.path.join( equi7_fnf_mask_tile_outdir   , equi7_fnf_mask_tiff_name    )
