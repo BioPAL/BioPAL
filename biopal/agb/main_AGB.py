@@ -1504,9 +1504,6 @@ class CoreProcessingAGB(Task):
             for x in y
             if x[0].find("EQUI7") >= 0
         ][0]
-        #equi7_subtile_name, equi7_tile_name = [
-        #    x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]
-        #]
         equi7_subtile_name = equi7_info_source_path.split(os.path.sep)[-3:-1][0][6:]
         equi7_tile_name = equi7_info_source_path.split(os.path.sep)[-3:-1][1]
 
@@ -2231,9 +2228,6 @@ class CoreProcessingAGB(Task):
 
                     tiles_to_save = {}
                     for current_source in parameter_map_pathlists[parameter_idx]:
-                        # subtile_name, tile_name = [
-                        #     x.split(".")[0] for x in current_source[0].split("_")[-2:]
-                        # ]
                         subtile_name = current_source[0].split(os.path.sep)[-3:-1][0][6:]
                         tile_name = current_source[0].split(os.path.sep)[-3:-1][1]
                         
