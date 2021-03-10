@@ -36,15 +36,16 @@ from biopal.io.xml_io import (
 )
 from biopal.io.data_io import readBiomassHeader_core
 from arepytools.timing.precisedatetime import PreciseDateTime
-if not importlib.util.find_spec('biopal.agb.main_AGB') is None:
+
+if not importlib.util.find_spec("biopal.agb.main_AGB") is None:
     from biopal.agb.main_AGB import AboveGroundBiomass
-if not importlib.util.find_spec('biopal.fh.main_FH') is None:
+if not importlib.util.find_spec("biopal.fh.main_FH") is None:
     from biopal.fh.main_FH import ForestHeight
-if not importlib.util.find_spec('biopal.tomo_fh.main_TOMO_FH') is None:
+if not importlib.util.find_spec("biopal.tomo_fh.main_TOMO_FH") is None:
     from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
-if not importlib.util.find_spec('biopal.fd.main_FD') is None:
+if not importlib.util.find_spec("biopal.fd.main_FD") is None:
     from biopal.fd.main_FD import ForestDisturbance
-if not importlib.util.find_spec('biopal.tomo.main_TOMO_CUBE') is None:
+if not importlib.util.find_spec("biopal.tomo.main_TOMO_CUBE") is None:
     from biopal.tomo.main_TOMO_CUBE import main_TOMO_CUBE
 
 # main biopal:
@@ -68,7 +69,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         configuration_file_FH = os.path.join(default_configuration_folder, "ConfigurationFile_FH.xml")
         configuration_file_TOMO_FH = os.path.join(default_configuration_folder, "ConfigurationFile_TOMO_FH.xml")
         configuration_file_FD = os.path.join(default_configuration_folder, "ConfigurationFile_FD.xml")
-    
+
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
 
@@ -164,7 +165,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         fd_obj = ForestDisturbance(configuration_file_FD, geographic_boundaries, gdal_path,)
 
         fd_obj.run(FD_input_file_xml)
-        
+
     logging.info("All outputs have been saved into: " + output_folder + "\n")
     logging.info("BIOMASS L2 Processor ended: see the above log messages for more info.")
 
@@ -575,16 +576,16 @@ def data_select_by_date_and_boundaries(main_input_struct):
 
         # read the current header
         (
-            datestr, 
-            lon_min, 
-            lon_max, 
-            lat_min, 
-            lat_max, 
-            unique_acq_id, 
-            resolution_m_slant_rg, 
-            resolution_m_az, 
+            datestr,
+            lon_min,
+            lon_max,
+            lat_min,
+            lat_max,
+            unique_acq_id,
+            resolution_m_slant_rg,
+            resolution_m_az,
             sensor_velocity,
-            )= readBiomassHeader_core(raster_file)
+        ) = readBiomassHeader_core(raster_file)
 
         uniqie_stack_id = unique_acq_id[0:40]
 

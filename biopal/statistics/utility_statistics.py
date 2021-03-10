@@ -11,8 +11,8 @@ def main_covariance_estimation_SR(
     pixel_spacing_slant_rg,
     pixel_spacing_az,
     incidence_angle_rad,
-    carrier_frequency_hz, 
-    range_bandwidth_hz, 
+    carrier_frequency_hz,
+    range_bandwidth_hz,
 ):
     """Covariance estimation:  inputs are in Slant Range radar coordinates
     see also main_covariance_estimation_GR"""
@@ -23,19 +23,13 @@ def main_covariance_estimation_SR(
 
     slant_range_spacing_s = pixel_spacing_slant_rg / LIGHTSPEED
 
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     )= main_covariance_estimation_GR(
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_GR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_grd_x,
         pixel_spacing_grd_y,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         slant_range_spacing_s,
     )
 
@@ -51,8 +45,8 @@ def main_covariance_estimation_SSF_SR(
     R,
     look_angles,
     ground_slope,
-    carrier_frequency_hz, 
-    range_bandwidth_hz, 
+    carrier_frequency_hz,
+    range_bandwidth_hz,
 ):
     """Covariance estimation:  inputs are in Slant Range radar coordinates
     see also main_covariance_estimation_GR"""
@@ -63,13 +57,7 @@ def main_covariance_estimation_SSF_SR(
 
     slant_range_spacing_s = pixel_spacing_slant_rg / LIGHTSPEED
 
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     ) = main_covariance_estimation_SSF_GR(
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_SSF_GR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_grd_x,
@@ -77,8 +65,8 @@ def main_covariance_estimation_SSF_SR(
         R,
         look_angles,
         ground_slope,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         slant_range_spacing_s,
     )
 
@@ -90,8 +78,8 @@ def main_covariance_estimation_GR(
     cov_est_window_size,
     pixel_spacing_grd_x,
     pixel_spacing_grd_y,
-    carrier_frequency_hz, 
-    range_bandwidth_hz, 
+    carrier_frequency_hz,
+    range_bandwidth_hz,
     slant_range_spacing_s=None,
 ):
     """Covariance estimation:  inputs are in Ground Range coordinates
@@ -102,18 +90,12 @@ def main_covariance_estimation_GR(
         cov_est_window_size,
         pixel_spacing_grd_x,
         pixel_spacing_grd_y,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         slant_range_spacing_s,
     )
 
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     ) = MPMBCovarianceEstimation(
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = MPMBCovarianceEstimation(
         data_stack, cov_est_opt_str
     )
 
@@ -128,8 +110,8 @@ def main_covariance_estimation_SSF_GR(
     R,
     look_angles,
     ground_slope,
-    carrier_frequency_hz, 
-    range_bandwidth_hz, 
+    carrier_frequency_hz,
+    range_bandwidth_hz,
     slant_range_spacing_s=None,
 ):
     """Covariance estimation:  inputs are in Ground Range coordinates
@@ -140,18 +122,12 @@ def main_covariance_estimation_SSF_GR(
         cov_est_window_size,
         pixel_spacing_grd_x,
         pixel_spacing_grd_y,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         slant_range_spacing_s,
     )
 
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     )= MPMBCovarianceEstimationSSF(
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = MPMBCovarianceEstimationSSF(
         data_stack, cov_est_opt_str, R, look_angles, ground_slope
     )
 
@@ -159,12 +135,12 @@ def main_covariance_estimation_SSF_GR(
 
 
 def covariance_options_struct_filler(
-    data_stack, 
-    cov_est_window_size, 
-    pixel_spacing_grd_x, 
-    pixel_spacing_grd_y, 
-    carrier_frequency_hz, 
-    range_bandwidth_hz, 
+    data_stack,
+    cov_est_window_size,
+    pixel_spacing_grd_x,
+    pixel_spacing_grd_y,
+    carrier_frequency_hz,
+    range_bandwidth_hz,
     slant_range_spacing_s=None,
 ):
 
@@ -204,27 +180,22 @@ def covariance_options_struct_filler(
 
 
 def main_correlation_estimation_SR(
-    data_stack, cov_est_window_size, 
-    pixel_spacing_slant_rg, 
-    pixel_spacing_az, 
+    data_stack,
+    cov_est_window_size,
+    pixel_spacing_slant_rg,
+    pixel_spacing_az,
     incidence_angle_rad,
-    carrier_frequency_hz, 
+    carrier_frequency_hz,
     range_bandwidth_hz,
 ):
 
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     )= main_covariance_estimation_SR(
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_SR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_slant_rg,
         pixel_spacing_az,
         incidence_angle_rad,
-        carrier_frequency_hz, 
+        carrier_frequency_hz,
         range_bandwidth_hz,
     )
 
@@ -243,17 +214,11 @@ def main_correlation_estimation_SSF_SR(
     R,
     look_angles,
     ground_slope,
-    carrier_frequency_hz, 
+    carrier_frequency_hz,
     range_bandwidth_hz,
 ):
 
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     ) = main_covariance_estimation_SSF_SR(
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_SSF_SR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_slant_rg,
@@ -262,7 +227,7 @@ def main_correlation_estimation_SSF_SR(
         R,
         look_angles,
         ground_slope,
-        carrier_frequency_hz, 
+        carrier_frequency_hz,
         range_bandwidth_hz,
     )
 
@@ -273,27 +238,16 @@ def main_correlation_estimation_SSF_SR(
 
 
 def main_correlation_estimation_GR(
+    data_stack, cov_est_window_size, pixel_spacing_grd_x, pixel_spacing_grd_y, carrier_frequency_hz, range_bandwidth_hz,
+):
+
+    (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_GR(
         data_stack,
         cov_est_window_size,
         pixel_spacing_grd_x,
         pixel_spacing_grd_y,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
-        ):
-
-    (
-     MPMB_covariance,
-     rg_vec_subs,
-     az_vec_subs,
-     subs_F_r,
-     subs_F_a,
-     ) = main_covariance_estimation_GR(
-        data_stack, 
-        cov_est_window_size, 
-        pixel_spacing_grd_x, 
-        pixel_spacing_grd_y,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
+        carrier_frequency_hz,
+        range_bandwidth_hz,
     )
 
     # Normalizing covariance matrix
@@ -310,20 +264,20 @@ def main_correlation_estimation_SSF_GR(
     R,
     look_angles,
     ground_slope,
-    carrier_frequency_hz, 
-    range_bandwidth_hz, 
+    carrier_frequency_hz,
+    range_bandwidth_hz,
 ):
 
     (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_SSF_GR(
-        data_stack, 
-        cov_est_window_size, 
-        pixel_spacing_grd_x, 
-        pixel_spacing_grd_y, 
-        R, 
-        look_angles, 
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_grd_x,
+        pixel_spacing_grd_y,
+        R,
+        look_angles,
         ground_slope,
-        carrier_frequency_hz, 
-        range_bandwidth_hz, 
+        carrier_frequency_hz,
+        range_bandwidth_hz,
     )
 
     # Normalizing covariance matrix
