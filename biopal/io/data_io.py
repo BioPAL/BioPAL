@@ -23,8 +23,9 @@ _date_str_FORMAT = "{}s".format(_date_str_STR_LEN)
 _GEO_CORNERS_FORMAT = "ffff"  # lon_min, lon_max, lat_min, lat_max
 _UNIQUE_ACQ_ID_STR_LEN = 47
 _UNIQUE_ACQ_ID_FORMAT = "{}s".format(_UNIQUE_ACQ_ID_STR_LEN)
-_HEADING_FORMAT = "f"  # heading [deg]T
-_HEADER_FORMAT = _date_str_FORMAT + _GEO_CORNERS_FORMAT + _UNIQUE_ACQ_ID_FORMAT
+_RESOLUTIONS_FORMAT = "ff"  # resolution_m_slant_rg, resolution_m_az
+_SENSOR_VELOCITY_FORMAT= "f" # sensor_velocity
+_HEADER_FORMAT = _date_str_FORMAT + _GEO_CORNERS_FORMAT + _UNIQUE_ACQ_ID_FORMAT + _RESOLUTIONS_FORMAT + _SENSOR_VELOCITY_FORMAT
 _HEADER_FORMAT_SIZE = struct.calcsize(_HEADER_FORMAT)
 ###############################################################################
 
@@ -34,7 +35,7 @@ def getBiomassHeaderOffsetSize(stack_composition):
     return _HEADER_FORMAT_SIZE
 
 
-def writeBiomassHeader(product_folder, channel_idx, date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id):
+def writeBiomassHeader(product_folder, channel_idx, date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id, resolution_m_slant_rg, resolution_m_az, sensor_velocity):
 
     if not isinstance(date_str, str):
         error_message = "date_str should be an Utc string, not a PreciseDateTime object"
@@ -52,7 +53,7 @@ def writeBiomassHeader(product_folder, channel_idx, date_str, lon_min, lon_max, 
 
     # fill the struct with all data to write
     packed_data = struct.pack(
-        _HEADER_FORMAT, encoded_date_str, lon_min, lon_max, lat_min, lat_max, encoded_unique_acq_id
+        _HEADER_FORMAT, encoded_date_str, lon_min, lon_max, lat_min, lat_max, encoded_unique_acq_id, resolution_m_slant_rg, resolution_m_az, sensor_velocity,
     )
 
     raster_info_read = (
@@ -77,10 +78,9 @@ def readBiomassHeader(product_folder, channel_idx):
     ri = metadatachannel_obj.get_element("RasterInfo")
     raster_file = os.path.join(product_folder.pf_dir_path, ri.file_name)
 
-    date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(raster_file)
+    date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id, resolution_m_slant_rg, resolution_m_az, sensor_velocity = readBiomassHeader_core(raster_file)
 
-    return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
-
+    return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id, resolution_m_slant_rg, resolution_m_az, sensor_velocity
 
 def readBiomassHeader_core(raster_file):
 
@@ -90,14 +90,14 @@ def readBiomassHeader_core(raster_file):
     with open(raster_file, "br") as fid:
         packed_data = fid.read(_HEADER_FORMAT_SIZE)
 
-    encoded_date_str, lon_min, lon_max, lat_min, lat_max, encoded_unique_acq_id = struct.unpack(
+    encoded_date_str, lon_min, lon_max, lat_min, lat_max, encoded_unique_acq_id, resolution_m_slant_rg, resolution_m_az, sensor_velocity = struct.unpack(
         _HEADER_FORMAT, packed_data
     )
 
     date_str = encoded_date_str.decode(_STRING_ENCODING)
     unique_acq_id = encoded_unique_acq_id.decode(_STRING_ENCODING)
 
-    return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id
+    return date_str, lon_min, lon_max, lat_min, lat_max, unique_acq_id, resolution_m_slant_rg, resolution_m_az, sensor_velocity
 
 
 def read_data(folder, pf_name):
@@ -137,17 +137,20 @@ def read_data(folder, pf_name):
         pixel_spacing_az = ri.lines_step
         lines_start_utc = str(ri.lines_start)
 
+        # DataSet Info
+        di = metadatachannel_obj.get_element("DataSetInfo")
+        carrier_frequency_hz = di.fc_hz
+        
         # SwathInfo
         si = metadatachannel_obj.get_element("SwathInfo")
         if not si:
             raise ValueError("data product folder should contain the SwathInfo to retrive the polarization")
         pol_id = si.polarization.name
-
+    
         polid_found.append(pol_id)
         # Sampling constants
         sc = metadatachannel_obj.get_element("SamplingConstants")
-        resolution_m_slant_rg = sc.brg_hz
-        resolution_m_az = sc.baz_hz
+        range_bandwidth_hz = sc.brg_hz
 
         # hv and vh data are mean togheter, ew save only a vh polarization, that will be a "vh_used = (vh+hv)/2"
         if pol_id == "hv" or pol_id == "vh":
@@ -180,8 +183,8 @@ def read_data(folder, pf_name):
         num_lines,
         pixel_spacing_slant_rg,
         pixel_spacing_az,
-        resolution_m_slant_rg,
-        resolution_m_az,
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         master_id,
         lines_start_utc,
     )
@@ -246,7 +249,15 @@ def read_auxiliary_multi_channels(folder, pf_name, valid_acq_id_to_read=None, re
         pixel_spacing_az = ri.lines_step
 
         raster_info_obj = raster_info(
-            num_samples, num_lines, pixel_spacing_slant_rg, pixel_spacing_az, None, None, None
+            num_samples, 
+            num_lines, 
+            pixel_spacing_slant_rg, 
+            pixel_spacing_az, 
+            None,
+            None,
+            None, 
+            None, 
+            None,
         )
     else:
         data_read = None

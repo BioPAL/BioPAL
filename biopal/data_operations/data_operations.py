@@ -16,11 +16,12 @@ from biopal.io.data_io import (
     read_auxiliary_single_channel,
     tandemx_fnf_read,
     tiff_formatter,
+    readBiomassHeader,
 )
 from biopal.io.xml_io import raster_info
 from biopal.utility.constants import OVERSAMPLING_FACTOR
 from biopal.utility.utility_functions import get_equi7_fnf_tiff_names
-
+from arepytools.io.productfolder import ProductFolder
 
 def data_oversample(data, oversampling_factor, raster_info_obj):
 
@@ -156,31 +157,53 @@ def read_and_oversample_data(L1c_repository, acquisitions_pf_names, enable_resam
             num_lines,
             pixel_spacing_slant_rg,
             pixel_spacing_az,
-            resolution_m_slant_rg,
-            resolution_m_az,
+            carrier_frequency_hz,
+            range_bandwidth_hz,
             master_id,
             lines_start_utc,
         ) = read_data(L1c_repository, pf_name)
+        
+        
 
     ### ALL chains: oversampling data:
     # needed whenever computing covariance or detected data (as notch for AGB)
-    # check
-
+    (
+    _, 
+    _, 
+    _, 
+    _, 
+    _, 
+    _, 
+    resolution_m_slant_rg, 
+    resolution_m_az, 
+    sensor_velocity,
+    )= readBiomassHeader( ProductFolder(os.path.join(L1c_repository, acquisitions_pf_names[0]), 'r'), 0)
+    
     # backup needed for the resampling in auxiliary data
     raster_info_orig = raster_info(
         num_samples,
         num_lines,
         pixel_spacing_slant_rg,
         pixel_spacing_az,
-        resolution_m_slant_rg,
+        resolution_m_slant_rg, 
         resolution_m_az,
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         lines_start_utc,
     )
 
     if enable_resampling:
 
-        (beta0_calibrated, num_samples, pixel_spacing_slant_rg, num_lines, pixel_spacing_az,) = data_oversample(
-            beta0_calibrated, OVERSAMPLING_FACTOR, raster_info_orig
+        (
+            beta0_calibrated, 
+            num_samples, 
+            pixel_spacing_slant_rg, 
+            num_lines, 
+            pixel_spacing_az,
+            ) = data_oversample(
+                beta0_calibrated, 
+                OVERSAMPLING_FACTOR, 
+                raster_info_orig,
         )
 
         logging.info("all data loaded.\n")
@@ -191,8 +214,10 @@ def read_and_oversample_data(L1c_repository, acquisitions_pf_names, enable_resam
         num_lines,
         pixel_spacing_slant_rg,
         pixel_spacing_az,
-        resolution_m_slant_rg,
+        resolution_m_slant_rg, 
         resolution_m_az,
+        carrier_frequency_hz,
+        range_bandwidth_hz,
         lines_start_utc,
     )
 
@@ -441,7 +466,7 @@ def fnf_tandemx_load_filter_equi7format(
         len_x, len_y = fnf.shape
         # two longitide and latitude points in middle of the fnf mask:
 
-        # remember: geotransform = [ lon_start, lon_step, 0, lat_start, 0, lat_step]
+        # geotransform = [ lon_start, lon_step, 0, lat_start, 0, lat_step]
         lon0 = geotransform_list[idx_fnf][0] + geotransform_list[idx_fnf][1] * len_x / 2
         lon1 = lon0 + geotransform_list[idx_fnf][1]
         lat0 = geotransform_list[idx_fnf][3] + geotransform_list[idx_fnf][5] * len_x / 2
@@ -508,7 +533,7 @@ def fnf_tandemx_load_filter_equi7format(
 
     # conversion step 4: merging fnf tiles
     equi7_fnf_mask_parent_tempdir = os.path.join(output_folder, "input_fnf")
-    ### managing final mask creation:
+    # managing final mask creation:
     equi7_fnf_mask_fnames = fnf_equi7_masks_merging(
         equi7_fnf_mask_tempdir_tiles_not_merged, equi7_fnf_mask_parent_tempdir
     )
@@ -587,7 +612,7 @@ def fnf_equi7_load_filter_equi7format(
             e7g_in = Equi7Grid(equi7_sampling_mask_in)
         except Exception as e:
             logging.error(
-                "Input FNF Equi7 mask geotransform is not in the correct format :".format(subgrid_code) + str(e),
+                "Input FNF Equi7 mask geotransform is not in the correct format :{} ".format(subgrid_code) + str(e),
                 exc_info=True,
             )
             raise
@@ -706,7 +731,7 @@ def fnf_equi7_masks_merging(fnf_mask_equi7_fnames_whole, temp_output_folder):
         outdata.SetGeoTransform(geotransform)
         outdata.SetProjection(projection)
         outdata.GetRasterBand(1).WriteArray(data_sum)
-        outdata.FlushCache()  ##saves to disk!!
+        outdata.FlushCache()  # saves to disk
         outdata = None
 
         del data_sum
@@ -890,7 +915,7 @@ def mosaiking(equi7_main_full_folder, mosaiking_out_folder):
         outdata.SetProjection(projection)
         outdata.GetRasterBand(data_layer_index).WriteArray(out_mosaiked_data)
         outdata.GetRasterBand(quality_layer_index).WriteArray(out_mosaiked_quality)
-        outdata.FlushCache()  ##saves to disk!!
+        outdata.FlushCache()  # saves to disk
         outdata = None
 
         out_mosaiked_equi7_tiff_names.append(out_mosaiked_equi7_name)
