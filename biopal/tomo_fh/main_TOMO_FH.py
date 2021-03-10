@@ -343,24 +343,17 @@ class StackBasedProcessingTOMOFH(Task):
                     proc_conf.vertical_range.sampling,
                 )
 
-                (
-                    estimated_height, 
-                    power_peak, 
-                    rg_vec_subs, 
-                    az_vec_subs, 
-                    subs_F_r, 
-                    subs_F_a,
-                    ) = BiomassForestHeightSKPD(
-                        beta0_calibrated,
-                        cov_est_window_size,
-                        raster_info.pixel_spacing_slant_rg,
-                        raster_info.pixel_spacing_az,
-                        look_angle_rad,
-                        raster_info.carrier_frequency_hz, 
-                        raster_info.range_bandwidth_hz,
-                        kz,
-                        vertical_vector,
-                        proc_conf.TOMO_FH,
+                (estimated_height, power_peak, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = BiomassForestHeightSKPD(
+                    beta0_calibrated,
+                    cov_est_window_size,
+                    raster_info.pixel_spacing_slant_rg,
+                    raster_info.pixel_spacing_az,
+                    look_angle_rad,
+                    raster_info.carrier_frequency_hz,
+                    raster_info.range_bandwidth_hz,
+                    kz,
+                    vertical_vector,
+                    proc_conf.TOMO_FH,
                 )
 
                 estimated_height = estimated_height * (

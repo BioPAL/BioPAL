@@ -53,6 +53,7 @@ class ForestHeight(Task):
     two sub APPS: 
    
     """
+
     def __init__(
         self, configuration_file_xml, geographic_boundaries, stacks_to_merge_dict, gdal_path,
     ):
@@ -401,7 +402,7 @@ class StackBasedProcessingFH(Task):
                         raster_info.pixel_spacing_slant_rg,
                         raster_info.pixel_spacing_az,
                         look_angle_rad,
-                        raster_info.carrier_frequency_hz, 
+                        raster_info.carrier_frequency_hz,
                         raster_info.range_bandwidth_hz,
                         kz,
                         proc_conf.FH,
@@ -429,7 +430,7 @@ class StackBasedProcessingFH(Task):
                         raster_info.pixel_spacing_slant_rg,
                         raster_info.pixel_spacing_az,
                         look_angle_rad,
-                        raster_info.carrier_frequency_hz, 
+                        raster_info.carrier_frequency_hz,
                         raster_info.range_bandwidth_hz,
                         kz,
                         proc_conf.FH,
@@ -550,9 +551,7 @@ class StackBasedProcessingFH(Task):
             try:
 
                 data_ground_fname = os.path.join(temp_output_folder_gr, "FH.tif")
-                kz_and_valid_values_mask_ground_fname = os.path.join(
-                    temp_output_folder_gr, "fnf.tif"
-                )
+                kz_and_valid_values_mask_ground_fname = os.path.join(temp_output_folder_gr, "fnf.tif")
                 #           fnf_mask_ground_fname                 = os.path.join( temp_output_folder, 'fnf_mask_ground_'                 +unique_stack_id)
 
                 upper_left_easting_coord = lon_regular_vector[0]  # i.e. horizontal

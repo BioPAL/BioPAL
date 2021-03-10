@@ -78,18 +78,10 @@ def compute_and_oversample_geometry_auxiliaries(
     ch_master = pf_master.get_channel(0)
     ch_list.append(ch_master)
     ri_temp = ch_master.get_raster_info(0)
-    
-    (
-    _, 
-    _, 
-    _, 
-    _, 
-    _, 
-    _, 
-    _, 
-    _, 
-    sensor_velocity,
-    )= readBiomassHeader( ProductFolder( os.path.join(L1c_repository, master_id), 'r'), 0)
+
+    (_, _, _, _, _, _, _, _, sensor_velocity,) = readBiomassHeader(
+        ProductFolder(os.path.join(L1c_repository, master_id), "r"), 0
+    )
 
     if ri_temp.samples_step_unit == "m":
         ri_master = convert_rasterinfo_meters_to_seconds(ri_temp, sensor_velocity)
