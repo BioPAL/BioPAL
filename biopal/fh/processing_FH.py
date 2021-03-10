@@ -202,6 +202,8 @@ def estimate_height(
     pixel_spacing_slant_rg,
     pixel_spacing_az,
     incidence_angle_rad,
+    carrier_frequency_hz, 
+    range_bandwidth_hz,
     vertical_wavenumber_stack,
     fh_proc_conf,
     R=None,
@@ -227,15 +229,23 @@ def estimate_height(
             raise RuntimeError(
                 'FH: when spectral shift filtering is enabled, "R", "look_angles" and "ground_slope" inputs should be specified.'
             )
-        (MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_correlation_estimation_SSF_SR(
-            data_stack,
-            cov_est_window_size,
-            pixel_spacing_slant_rg,
-            pixel_spacing_az,
-            incidence_angle_rad,
-            R,
-            look_angles,
-            ground_slope,
+        (
+            MPMB_correlation, 
+            rg_vec_subs, 
+            az_vec_subs, 
+            subs_F_r, 
+            subs_F_a,
+            ) = main_correlation_estimation_SSF_SR(
+                data_stack,
+                cov_est_window_size,
+                pixel_spacing_slant_rg,
+                pixel_spacing_az,
+                incidence_angle_rad,
+                R,
+                look_angles,
+                ground_slope,
+                carrier_frequency_hz, 
+                range_bandwidth_hz,
         )
 
     else:
@@ -243,8 +253,20 @@ def estimate_height(
             logging.warning(
                 'FH: when spectral shift filtering is disabled, "R", "look_angles" and "ground_slope" inputs are not used.'
             )
-        (MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_correlation_estimation_SR(
-            data_stack, cov_est_window_size, pixel_spacing_slant_rg, pixel_spacing_az, incidence_angle_rad,
+        (
+            MPMB_correlation, 
+            rg_vec_subs, 
+            az_vec_subs, 
+            subs_F_r, 
+            subs_F_a,
+            ) = main_correlation_estimation_SR(
+                data_stack, 
+                cov_est_window_size, 
+                pixel_spacing_slant_rg, 
+                pixel_spacing_az, 
+                incidence_angle_rad,
+                carrier_frequency_hz, 
+                range_bandwidth_hz,
         )
 
     MBMP_correlation = MPMBshuffle(MPMB_correlation, rg_vec_subs, az_vec_subs, num_pols, num_acq)

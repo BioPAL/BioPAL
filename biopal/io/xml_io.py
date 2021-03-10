@@ -32,6 +32,8 @@ raster_info = namedtuple(
  pixel_spacing_az \
  resolution_m_slant_rg \
  resolution_m_az \
+ carrier_frequency_hz \
+ range_bandwidth_hz \
  lines_start_utc",
 )
 

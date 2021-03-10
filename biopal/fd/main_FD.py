@@ -1,4 +1,3 @@
-# import libraries
 import os
 import numpy as np
 import logging
@@ -58,17 +57,15 @@ from biopal.ground_cancellation.ground_cancellation import ground_cancellation
 
 class ForestDisturbance(Task):
     """
-    FD main APP "ForestDisturbance" (see README.md to launch) is composed by 
+    FD main APP "ForestDisturbance" (see BioPAL README.md to launch) is composed by 
     two sub APPS: 
         
-    the first APP (initializeAlgorithmFD)  organizes the input dataSet by 
+    the first APP "initializeAlgorithmFD"  organizes the input dataSet by 
     grouping all the different temporal global cycles of each stack with same 
     nominal geometry
     
-    the second APP (CoreProcessingFD) is called with a for-loop for each 
-    nominal geometry (each stack) and performs the FD detection algorithm 
-    through all the different temporal global cycless of the i-stack
-   
+    the second APP "CoreProcessingFD" is called with a for-loop for each 
+    nominal geometry (each stack) and performs the FD detection algorithm    
     """
 
     def __init__(
@@ -136,8 +133,9 @@ class ForestDisturbance(Task):
 
 class initializeAlgorithmFD(Task):
     """
-    organizes the input dataSet by grouping all the different temporal global 
-    cycles of each stack with same nominal geometry
+    Organizes the input dataSet by grouping all the different temporal global 
+    cycles of each stack with same nominal geometry, preparing the inputs for 
+    the "CoreProcessingFD" APP
     """
     
     def __init__( self, configuration_file_xml ):
@@ -195,11 +193,10 @@ class initializeAlgorithmFD(Task):
        
 class CoreProcessingFD(Task):
     """
-    "CoreProcessingFD" APP performs stack-based disturbance algorithm cycling over
+    Performs stack-based disturbance algorithm cycling over
     all the different temporal global cycles in the input stack.
     It is called externally from the ForestDisturbance Main APP, once for each
     nominal geometry (stack)
-    
     """
 
     def __init__(
@@ -447,7 +444,21 @@ class CoreProcessingFD(Task):
             
             try: 
                 logging.info('FD: disturbance covariance matrix computation...')
-                MPMB_covariance_sr, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_covariance_estimation_SR( deepcopy(beta0_notched), cov_est_window_size, raster_info.pixel_spacing_slant_rg, raster_info.pixel_spacing_az, look_angle_rad)
+                (
+                    MPMB_covariance_sr,
+                    rg_vec_subs,
+                    az_vec_subs,
+                    subs_F_r,
+                    subs_F_a,
+                    ) = main_covariance_estimation_SR( 
+                        deepcopy(beta0_notched),
+                        cov_est_window_size, 
+                        raster_info.pixel_spacing_slant_rg, 
+                        raster_info.pixel_spacing_az, 
+                        look_angle_rad,
+                        raster_info.carrier_frequency_hz, 
+                        raster_info.range_bandwidth_hz, 
+                        )
                 
                 del beta0_notched
                 
@@ -638,7 +649,7 @@ class CoreProcessingFD(Task):
                 mat_number_of_looks = np.floor ( (self.proc_conf.FD.product_resolution**2) / (raster_info.resolution_m_az * raster_info.resolution_m_slant_rg/np.sin( inc_angle_equi7_rad ) ) )         
                 np.save( os.path.join(temp_output_folder, 'mat_number_of_looks.npy'),  mat_number_of_looks )             
                 
-                	# at first iteration we should load the current covariance matrix (Yn)
+                # at first iteration we should load the current covariance matrix (Yn)
                 #if it is not present, use the first MPMB_covariance Xi as Yn = Xi and pass to next stack
                 if time_step_idx == 0:
                     prev_global_cycle_id       = global_cycle_idx - 1
@@ -667,7 +678,7 @@ class CoreProcessingFD(Task):
                     
                     logging.info('FD: first iteration, loading Average Covariance from of previous Global Cycle {}'.format(prev_global_cycle_id_str) )
                     
-                		# the starting Yn is an input:
+                	# the starting Yn is an input:
                     data_driver = gdal.Open( equi7_avg_cov_out_tiff_name_prev, GA_ReadOnly)
                     for layer_idx in np.arange(6):
                     # saved matrix is 6xNrgxNaz, instead Y_N_matrix is 3x3xNrgxNaz matrix
@@ -738,7 +749,7 @@ class CoreProcessingFD(Task):
             
                         Y_N, j_idx, disturbance_matrix[rg_idx, az_idx], disturbance_prob_matrix[rg_idx, az_idx], _ = alg_wishart_SU( X_i, Y_N, j_idx, number_of_pols, cov_number_of_looks, self.proc_conf.FD.confidence_level, False)
             			
-                        # uppdate the matrix for the next stack
+                        # update the matrix for the next stack
                         Y_N_6x_vec [:, rg_idx, az_idx] = covariance_matrix_mat2vec( Y_N )
                         
                 logging.info('...done.\n' ) 
