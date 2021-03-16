@@ -99,6 +99,8 @@ def BiomassForestHeightSKPD(
     pixel_spacing_slant_rg,
     pixel_spacing_az,
     incidence_angle_rad,
+    carrier_frequency_hz,
+    range_bandwidth_hz,
     kz_stack,
     vertical_vector,
     proc_conf,
@@ -118,8 +120,14 @@ def BiomassForestHeightSKPD(
     Nz = np.size(vertical_vector)
 
     # Covariance estimation
-    MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a = main_correlation_estimation_SR(
-        data_stack, cov_est_window_size, pixel_spacing_slant_rg, pixel_spacing_az, incidence_angle_rad,
+    (MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_correlation_estimation_SR(
+        data_stack,
+        cov_est_window_size,
+        pixel_spacing_slant_rg,
+        pixel_spacing_az,
+        incidence_angle_rad,
+        carrier_frequency_hz,
+        range_bandwidth_hz,
     )
 
     Nrg_subs = rg_vec_subs.size

@@ -17,6 +17,7 @@ from biopal.utility.constants import (
     OVERSAMPLING_FACTOR,
     LIGHTSPEED,
 )
+from biopal.io.data_io import readBiomassHeader
 
 
 def compute_and_oversample_geometry_auxiliaries(
@@ -77,8 +78,13 @@ def compute_and_oversample_geometry_auxiliaries(
     ch_master = pf_master.get_channel(0)
     ch_list.append(ch_master)
     ri_temp = ch_master.get_raster_info(0)
+
+    (_, _, _, _, _, _, _, _, sensor_velocity,) = readBiomassHeader(
+        ProductFolder(os.path.join(L1c_repository, master_id), "r"), 0
+    )
+
     if ri_temp.samples_step_unit == "m":
-        ri_master = convert_rasterinfo_meters_to_seconds(ri_temp)
+        ri_master = convert_rasterinfo_meters_to_seconds(ri_temp, sensor_velocity)
 
         # ri_list.append( ri_master )
         num_samples = ri_temp.samples
@@ -95,7 +101,7 @@ def compute_and_oversample_geometry_auxiliaries(
     else:
         ri_master = ri_temp
 
-        ri_meters = convert_rasterinfo_seconds_to_meters(ri_temp)
+        ri_meters = convert_rasterinfo_seconds_to_meters(ri_temp, sensor_velocity)
         # ri_list.append( ri_master )
         num_samples = ri_meters.samples
         num_lines = ri_meters.lines
@@ -135,7 +141,7 @@ def compute_and_oversample_geometry_auxiliaries(
 
             ri_temp = ch_slave.get_raster_info(0)
             if ri_temp.samples_step_unit == "m":
-                ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp)
+                ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp, sensor_velocity)
             else:
                 ri_slave = ri_temp
 
@@ -349,7 +355,7 @@ def compute_and_oversample_geometry_auxiliaries(
                 # distance between targets and slave orbit
                 ri_temp = channel_curr.get_raster_info(0)
                 if ri_temp.samples_step_unit == "m":
-                    ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp)
+                    ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp, sensor_velocity)
                 else:
                     ri_slave = ri_temp
 
@@ -428,7 +434,7 @@ def compute_and_oversample_geometry_auxiliaries(
             # slaves
             ri_temp = channel_curr.get_raster_info(0)
             if ri_temp.samples_step_unit == "m":
-                ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp)
+                ri_slave = convert_rasterinfo_meters_to_seconds(ri_temp, sensor_velocity)
             else:
                 ri_slave = ri_temp
 

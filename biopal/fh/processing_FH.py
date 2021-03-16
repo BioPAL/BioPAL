@@ -12,6 +12,7 @@ from biopal.statistics.utility_statistics import (
     main_correlation_estimation_SSF_SR,
 )
 
+
 def volume_decorrelation_lut(num_baselines, vertical_wavenumber, model_parameters):
     """
     Generation of a look-up table containing, for each value of height, extintion 
@@ -23,7 +24,7 @@ def volume_decorrelation_lut(num_baselines, vertical_wavenumber, model_parameter
     [2] K. P. Papathanassiou and S. R. Cloude, "Single-baseline polarimetric SAR interferometry," in IEEE Transactions on Geoscience and Remote Sensing, vol. 39, no. 11, pp. 2352-2363, Nov. 2001, doi: 10.1109/36.964971.
     
     """
-    
+
     # LUT
     Nh = model_parameters.maximum_height  # 61
     Ns = model_parameters.number_of_extinction_value  # 51
@@ -51,10 +52,9 @@ def volume_decorrelation_lut(num_baselines, vertical_wavenumber, model_parameter
         LUT[hi, :, :] = LU
 
     LUT[0, :, :] = np.ones((Ns, num_baselines))  # zero height
-    
+
     return LUT, extinctions
 
-    
 
 def estimate_height_core(PI, model_parameters, LUT, extinctions):
     """This function returns forest height, extinction, ground to volume ratio,
@@ -65,7 +65,7 @@ def estimate_height_core(PI, model_parameters, LUT, extinctions):
     Ns = model_parameters.number_of_extinction_value  # 51
     heights = np.arange(Nh)  # heights    [m]
     heights[0] = 0.1  # to avoid dividing by zero in zero extinction
-    
+
     if num_baselines == 1:
         # single baseline processing
 
@@ -202,6 +202,8 @@ def estimate_height(
     pixel_spacing_slant_rg,
     pixel_spacing_az,
     incidence_angle_rad,
+    carrier_frequency_hz,
+    range_bandwidth_hz,
     vertical_wavenumber_stack,
     fh_proc_conf,
     R=None,
@@ -236,6 +238,8 @@ def estimate_height(
             R,
             look_angles,
             ground_slope,
+            carrier_frequency_hz,
+            range_bandwidth_hz,
         )
 
     else:
@@ -244,7 +248,13 @@ def estimate_height(
                 'FH: when spectral shift filtering is disabled, "R", "look_angles" and "ground_slope" inputs are not used.'
             )
         (MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_correlation_estimation_SR(
-            data_stack, cov_est_window_size, pixel_spacing_slant_rg, pixel_spacing_az, incidence_angle_rad,
+            data_stack,
+            cov_est_window_size,
+            pixel_spacing_slant_rg,
+            pixel_spacing_az,
+            incidence_angle_rad,
+            carrier_frequency_hz,
+            range_bandwidth_hz,
         )
 
     MBMP_correlation = MPMBshuffle(MPMB_correlation, rg_vec_subs, az_vec_subs, num_pols, num_acq)
@@ -298,8 +308,10 @@ def estimate_height(
                 gammaT3map[rg_sub_idx, az_sub_idx] = np.NaN
                 continue
 
-            LUT, extinctions = volume_decorrelation_lut(PI.shape[2], vertical_wavenumber[rg_sub_idx, az_sub_idx, :], fh_proc_conf.model_parameters)
-            
+            LUT, extinctions = volume_decorrelation_lut(
+                PI.shape[2], vertical_wavenumber[rg_sub_idx, az_sub_idx, :], fh_proc_conf.model_parameters
+            )
+
             output = estimate_height_core(PI, fh_proc_conf.model_parameters, LUT, extinctions)
 
             heightmap[rg_sub_idx, az_sub_idx] = output[0]

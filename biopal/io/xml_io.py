@@ -32,6 +32,8 @@ raster_info = namedtuple(
  pixel_spacing_az \
  resolution_m_slant_rg \
  resolution_m_az \
+ carrier_frequency_hz \
+ range_bandwidth_hz \
  lines_start_utc",
 )
 
@@ -116,9 +118,7 @@ configuration_params = namedtuple(
 # configuration_params "interpolate_stack"  sub-fields:
 interpolate_params = namedtuple("interpolate_params", "regular_baseline_grid_flag")
 # configuration_params "ground_cancellation"  sub-fields:
-ground_canc_params = namedtuple(
-    "ground_canc_params", "multi_master_flag enhanced_forest_height equalization_flag"
-)
+ground_canc_params = namedtuple("ground_canc_params", "multi_master_flag enhanced_forest_height equalization_flag")
 
 # configuration_params "agb" sub-fields:
 agb_est_params = namedtuple(
@@ -142,9 +142,7 @@ agb_est_params = namedtuple(
                                  estimation_valid_values_limits",
 )
 # agb "residual_function" sub-fields:
-residual_function = namedtuple(
-    "residual_function", "formula_terms formula_parameters formula_observables"
-)
+residual_function = namedtuple("residual_function", "formula_terms formula_parameters formula_observables")
 # agb "formula_terms" sub-fields:
 formula_terms = namedtuple(
     "formula_terms",
@@ -204,9 +202,7 @@ min_max = namedlist(
 
 
 # model_parameters "triplet_params" sub-fields:
-triplet_params = namedtuple(
-    "triplet_params", "agb_model_scaling agb_model_exponent agb_cosine_exponent"
-)
+triplet_params = namedtuple("triplet_params", "agb_model_scaling agb_model_exponent agb_cosine_exponent")
 
 # configuration_params "FH" sub-fields:
 FH_est_params = namedtuple(
@@ -245,9 +241,7 @@ TOMO_FH_est_params = namedtuple(
 TOMO_est_params = namedtuple("TOMO_est_params", "product_resolution")
 
 # TOMO and TOMO_FH "vertical range" sub-fields:
-vertical_range_params = namedtuple(
-    "vertical_range_params", "maximum_height minimum_height sampling"
-)
+vertical_range_params = namedtuple("vertical_range_params", "maximum_height minimum_height sampling")
 ###############################################################################
 
 
@@ -284,9 +278,7 @@ def bool_from_string(in_string):
     return bool_value
 
 
-def write_boundaries_files(
-    geographic_boundaries_whole, geographic_boundaries_per_stack, output_folder
-):
+def write_boundaries_files(geographic_boundaries_whole, geographic_boundaries_per_stack, output_folder):
     """Write the two xmls containing boundaries"""
 
     # 1 of 2) boundaries file
@@ -295,18 +287,14 @@ def write_boundaries_files(
     boundaries_Item = Element("boundaries")
     boundaries_Item.set("version", _XML_VERSION)
 
-    boundaries_Item = write_boundaries_latlon_core(
-        boundaries_Item, geographic_boundaries_whole
-    )
+    boundaries_Item = write_boundaries_latlon_core(boundaries_Item, geographic_boundaries_whole)
 
     ElementTree_indent(boundaries_Item)
     tree = ElementTree(boundaries_Item)
     tree.write(open(boundaries_fname, "w"), encoding="unicode")
 
     # 2 of 2) boundaries per stack file
-    boundaries_per_stack_fname = os.path.join(
-        output_folder, "geographic_boundaries_per_stack.xml"
-    )
+    boundaries_per_stack_fname = os.path.join(output_folder, "geographic_boundaries_per_stack.xml")
 
     boundaries_per_stack_Item = Element("boundaries_per_stack")
     boundaries_per_stack_Item.set("version", _XML_VERSION)
@@ -314,9 +302,7 @@ def write_boundaries_files(
     for stack_id, geographic_boundaries_curr in geographic_boundaries_per_stack.items():
         stack_Item = SubElement(boundaries_per_stack_Item, "stack")
         stack_Item.set("stack_id", stack_id)
-        stack_Item = write_boundaries_latlon_core(
-            stack_Item, geographic_boundaries_curr
-        )
+        stack_Item = write_boundaries_latlon_core(stack_Item, geographic_boundaries_curr)
 
     ElementTree_indent(boundaries_per_stack_Item)
     tree = ElementTree(boundaries_per_stack_Item)
@@ -352,39 +338,21 @@ def parse_boundaries_files(boundaries_fname):
 
     if root.tag == "boundaries":
         geographic_boundaries_out = geographic_boundaries(None, None, None, None)
-        geographic_boundaries_out.lon_min = float(
-            root.find("longitude").find("min").text
-        )
-        geographic_boundaries_out.lon_max = float(
-            root.find("longitude").find("max").text
-        )
-        geographic_boundaries_out.lat_min = float(
-            root.find("latitude").find("min").text
-        )
-        geographic_boundaries_out.lat_max = float(
-            root.find("latitude").find("max").text
-        )
+        geographic_boundaries_out.lon_min = float(root.find("longitude").find("min").text)
+        geographic_boundaries_out.lon_max = float(root.find("longitude").find("max").text)
+        geographic_boundaries_out.lat_min = float(root.find("latitude").find("min").text)
+        geographic_boundaries_out.lat_max = float(root.find("latitude").find("max").text)
 
     elif root.tag == "boundaries_per_stack":
         geographic_boundaries_out = {}
         for stack_Item in root.findall("stack"):
             stack_id = stack_Item.attrib["stack_id"]
 
-            geographic_boundaries_out[stack_id] = geographic_boundaries(
-                None, None, None, None
-            )
-            geographic_boundaries_out[stack_id].lon_min = float(
-                stack_Item.find("longitude").find("min").text
-            )
-            geographic_boundaries_out[stack_id].lon_max = float(
-                stack_Item.find("longitude").find("max").text
-            )
-            geographic_boundaries_out[stack_id].lat_min = float(
-                stack_Item.find("latitude").find("min").text
-            )
-            geographic_boundaries_out[stack_id].lat_max = float(
-                stack_Item.find("latitude").find("max").text
-            )
+            geographic_boundaries_out[stack_id] = geographic_boundaries(None, None, None, None)
+            geographic_boundaries_out[stack_id].lon_min = float(stack_Item.find("longitude").find("min").text)
+            geographic_boundaries_out[stack_id].lon_max = float(stack_Item.find("longitude").find("max").text)
+            geographic_boundaries_out[stack_id].lat_min = float(stack_Item.find("latitude").find("min").text)
+            geographic_boundaries_out[stack_id].lat_max = float(stack_Item.find("latitude").find("max").text)
 
     return geographic_boundaries_out
 
@@ -429,26 +397,18 @@ def write_lut_files(lut, lut_type, output_folder):
         progressive_Item = SubElement(lut_Item, "progressive_stacks_indexes")
         for progressive_stack in lut.progressive:
             progressive_stack_elem = SubElement(progressive_Item, "progressive_stack")
-            stack_progressive_index = SubElement(
-                progressive_stack_elem, "stack_progressive_index"
-            )
+            stack_progressive_index = SubElement(progressive_stack_elem, "stack_progressive_index")
             stack_progressive_index.text = str(int(progressive_stack[0]))
-            global_cycle_index = SubElement(
-                progressive_stack_elem, "global_cycle_index"
-            )
+            global_cycle_index = SubElement(progressive_stack_elem, "global_cycle_index")
             global_cycle_index.text = str(int(progressive_stack[1]))
             heading = SubElement(progressive_stack_elem, "heading")
             heading.set("units", "Deg")
             heading.text = str(progressive_stack[2])
             range_swath_index = SubElement(progressive_stack_elem, "range_swath_index")
             range_swath_index.text = str(int(progressive_stack[3]))
-            range_sub_swath_index = SubElement(
-                progressive_stack_elem, "range_sub_swath_index"
-            )
+            range_sub_swath_index = SubElement(progressive_stack_elem, "range_sub_swath_index")
             range_sub_swath_index.text = str(int(progressive_stack[4]))
-            azimuth_swath_index = SubElement(
-                progressive_stack_elem, "azimuth_swath_index"
-            )
+            azimuth_swath_index = SubElement(progressive_stack_elem, "azimuth_swath_index")
             azimuth_swath_index.text = str(int(progressive_stack[5]))
 
     ElementTree_indent(lut_Item)
@@ -471,15 +431,11 @@ def parse_lut_files(lut_fname):
         lut_type = "cal"
 
     if lut_type == "cal":
-        lut_boundaries = np.zeros(
-            (number_of_stacks, 5)
-        )  # additional element (flag cal)
+        lut_boundaries = np.zeros((number_of_stacks, 5))  # additional element (flag cal)
     else:
         lut_boundaries = np.zeros((number_of_stacks, 4))
 
-    for stack_idx, coord_item in enumerate(
-        boundaries_Item.findall("boundary_coordinates")
-    ):
+    for stack_idx, coord_item in enumerate(boundaries_Item.findall("boundary_coordinates")):
         if lut_type == "cal":
             lut_boundaries[stack_idx, :] = [
                 float(coord_item.find("east_min").text),
@@ -504,9 +460,7 @@ def parse_lut_files(lut_fname):
     progressive_Item = root.find("progressive_stacks_indexes")
     if progressive_Item:
         lut_progressive = np.zeros((number_of_stacks, 6))
-        for stack_idx, progressive_stack_item in enumerate(
-            progressive_Item.findall("progressive_stack")
-        ):
+        for stack_idx, progressive_stack_item in enumerate(progressive_Item.findall("progressive_stack")):
             lut_progressive[stack_idx, :] = [
                 int(float(progressive_stack_item.find("stack_progressive_index").text)),
                 int(float(progressive_stack_item.find("global_cycle_index").text)),
@@ -562,9 +516,7 @@ def write_chains_input_file(input_params, input_file_xml):
             kz.text = input_params.kz_file_names[stack_id]
 
             RadarDistances = SubElement(Geometry, "RadarDistances")
-            RadarDistances.text = input_params.slant_range_distances_file_names[
-                stack_id
-            ]
+            RadarDistances.text = input_params.slant_range_distances_file_names[stack_id]
 
             OffNadirAngle = SubElement(Geometry, "OffNadirAngles")
             OffNadirAngle.text = input_params.off_nadir_angle_file_names[stack_id]
@@ -576,9 +528,7 @@ def write_chains_input_file(input_params, input_file_xml):
             ReferenceHeight.text = input_params.reference_height_file_names[stack_id]
 
             CalibrationScreens = SubElement(L1cStack, "CalibrationScreens")
-            CalibrationScreens.text = input_params.calibration_screens_file_names[
-                stack_id
-            ]
+            CalibrationScreens.text = input_params.calibration_screens_file_names[stack_id]
 
     if chain_id == "FD":
         AverageCovariance = SubElement(AuxiliaryProductList, "AverageCovarianceFolder")
@@ -595,9 +545,7 @@ def write_chains_input_file(input_params, input_file_xml):
         ForestHeight.text = input_params.forest_height_folder
 
     if chain_id == "FH":
-        SystemDecorrelationFunction = SubElement(
-            AuxiliaryProductList, "SystemDecorrelationFunction"
-        )
+        SystemDecorrelationFunction = SubElement(AuxiliaryProductList, "SystemDecorrelationFunction")
         SystemDecorrelationFunction.text = input_params.system_decorrelation_fun_folder
 
     if not "TOMO" in chain_id:
@@ -624,9 +572,7 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
 
     chain_id = configuration_params.chain_id
     if chain_id == "AGB":
-        error_str = (
-            "To write the AGB configuratin files, use its own specific functions"
-        )
+        error_str = "To write the AGB configuratin files, use its own specific functions"
         logging.error(error_str)
         raise ValueError(error_str)
 
@@ -636,17 +582,13 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
     if chain_id == "TOMO":
         InterpolateStack = SubElement(ConfigurationL2_Item, "InterpolateStack")
         RegularBaselineGrid = SubElement(InterpolateStack, "RegularBaselineGrid")
-        RegularBaselineGrid.text = str(
-            configuration_params.interpolate_stack.regular_baseline_grid_flag
-        )
+        RegularBaselineGrid.text = str(configuration_params.interpolate_stack.regular_baseline_grid_flag)
 
     # Ground Cancellation
     if chain_id == "FD":
 
         ground_canc_params = configuration_params.ground_cancellation
-        ConfigurationL2_Item = write_ground_cancellation_core(
-            ConfigurationL2_Item, ground_canc_params
-        )
+        ConfigurationL2_Item = write_ground_cancellation_core(ConfigurationL2_Item, ground_canc_params)
 
     params_curr = getattr(configuration_params, chain_id)
 
@@ -669,19 +611,11 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
         NumberOfExtinctionValue = SubElement(ModelParameters, "NumberOfExtinctionValue")
         NumberOfExtinctionValue.text = str(model_params.number_of_extinction_value)
 
-        NumberOfGroundVolumeRatioValue = SubElement(
-            ModelParameters, "NumberOfGroundVolumeRatioValue"
-        )
-        NumberOfGroundVolumeRatioValue.text = str(
-            model_params.number_of_ground_volume_ratio_value
-        )
+        NumberOfGroundVolumeRatioValue = SubElement(ModelParameters, "NumberOfGroundVolumeRatioValue")
+        NumberOfGroundVolumeRatioValue.text = str(model_params.number_of_ground_volume_ratio_value)
 
-        NumberOfTemporalDecorrelationValue = SubElement(
-            ModelParameters, "NumberOfTemporalDecorrelationValue"
-        )
-        NumberOfTemporalDecorrelationValue.text = str(
-            model_params.number_of_temporal_decorrelation_value
-        )
+        NumberOfTemporalDecorrelationValue = SubElement(ModelParameters, "NumberOfTemporalDecorrelationValue")
+        NumberOfTemporalDecorrelationValue.text = str(model_params.number_of_temporal_decorrelation_value)
 
         MedianFactor = SubElement(Estimate_elem, "MedianFactor")
         MedianFactor.text = str(params_curr.median_factor)
@@ -721,9 +655,7 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
         EnableSuperResolution = SubElement(Estimate_elem, "EnableSuperResolution")
         EnableSuperResolution.text = str(params_curr.enable_super_resolution)
 
-        RegularizationNoiseFactor = SubElement(
-            Estimate_elem, "RegularizationNoiseFactor"
-        )
+        RegularizationNoiseFactor = SubElement(Estimate_elem, "RegularizationNoiseFactor")
         RegularizationNoiseFactor.text = str(params_curr.regularization_noise_factor)
 
         PowerThreshold = SubElement(Estimate_elem, "PowerThreshold")
@@ -732,9 +664,7 @@ def write_chains_configuration_file(configuration_params, configuration_file_xml
         MedianFactor = SubElement(Estimate_elem, "MedianFactor")
         MedianFactor.text = str(params_curr.median_factor)
 
-    ConfigurationL2_Item = write_configuration_flags_core(
-        ConfigurationL2_Item, configuration_params
-    )
+    ConfigurationL2_Item = write_configuration_flags_core(ConfigurationL2_Item, configuration_params)
 
     # write to file
     ElementTree_indent(ConfigurationL2_Item)
@@ -755,16 +685,12 @@ def write_agb_configuration_file(configuration_params, configuration_file_xml):
     ConfigurationL2_Item.set("version", _XML_VERSION)
 
     ground_canc_params = configuration_params.ground_cancellation
-    ConfigurationL2_Item = write_ground_cancellation_core(
-        ConfigurationL2_Item, ground_canc_params
-    )
+    ConfigurationL2_Item = write_ground_cancellation_core(ConfigurationL2_Item, ground_canc_params)
 
     Estimate_elem = SubElement(ConfigurationL2_Item, "EstimateAGB")
     write_estimateagb_core(Estimate_elem, configuration_params)
 
-    ConfigurationL2_Item = write_configuration_flags_core(
-        ConfigurationL2_Item, configuration_params
-    )
+    ConfigurationL2_Item = write_configuration_flags_core(ConfigurationL2_Item, configuration_params)
 
     # write to file
     ElementTree_indent(ConfigurationL2_Item)
@@ -772,9 +698,7 @@ def write_agb_configuration_file(configuration_params, configuration_file_xml):
     tree.write(open(configuration_file_xml, "w"), encoding="unicode")
 
 
-def write_coreprocessing_agb_configuration_file(
-    configuration_params, configuration_file_xml
-):
+def write_coreprocessing_agb_configuration_file(configuration_params, configuration_file_xml):
     """Write the configuration file of the Core Processing AGB APP"""
 
     ConfigurationL2_Item = Element("ConfigurationL2CoreProcessingAGB")
@@ -797,18 +721,12 @@ def write_configuration_flags_core(ConfigurationL2_Item, configuration_params):
     enable_resampling.text = str(configuration_params.enable_resampling)
     compute_geometry = SubElement(ConfigurationL2_Item, "ComputeGeometry")
     compute_geometry.text = str(configuration_params.compute_geometry)
-    apply_calibration_screen = SubElement(
-        ConfigurationL2_Item, "ApplyCalibrationScreen"
-    )
+    apply_calibration_screen = SubElement(ConfigurationL2_Item, "ApplyCalibrationScreen")
     apply_calibration_screen.text = str(configuration_params.apply_calibration_screen)
     DEM_flattening = SubElement(ConfigurationL2_Item, "DEMflattening")
     DEM_flattening.text = str(configuration_params.DEM_flattening)
-    multilook_heading_correction = SubElement(
-        ConfigurationL2_Item, "MultilookHeadingCorrection"
-    )
-    multilook_heading_correction.text = str(
-        configuration_params.multilook_heading_correction
-    )
+    multilook_heading_correction = SubElement(ConfigurationL2_Item, "MultilookHeadingCorrection")
+    multilook_heading_correction.text = str(configuration_params.multilook_heading_correction)
     save_breakpoints = SubElement(ConfigurationL2_Item, "SaveBreakpoints")
     save_breakpoints.text = str(configuration_params.save_breakpoints)
     delete_temporary_files = SubElement(ConfigurationL2_Item, "DeleteTemporaryFiles")
@@ -849,16 +767,12 @@ def write_estimateagb_core(Estimate_elem, configuration_params):
     params_curr = getattr(configuration_params, "AGB")
 
     if params_curr.residual_function:
-        Estimate_elem = write_residual_function_core(
-            Estimate_elem, configuration_params
-        )
+        Estimate_elem = write_residual_function_core(Estimate_elem, configuration_params)
 
     number_of_tests = SubElement(Estimate_elem, "number_of_tests")
     number_of_tests.text = str(params_curr.number_of_tests)
 
-    forest_class_observable_name = SubElement(
-        Estimate_elem, "forest_class_observable_name"
-    )
+    forest_class_observable_name = SubElement(Estimate_elem, "forest_class_observable_name")
     forest_class_observable_name.text = str(params_curr.forest_class_observable_name)
 
     transfer_function_name = SubElement(Estimate_elem, "transfer_function_name")
@@ -870,14 +784,10 @@ def write_estimateagb_core(Estimate_elem, configuration_params):
     fraction_of_cal_per_test = SubElement(Estimate_elem, "fraction_of_cal_per_test")
     fraction_of_cal_per_test.text = str(params_curr.fraction_of_cal_per_test)
 
-    add_variability_on_cal_data = SubElement(
-        Estimate_elem, "add_variability_on_cal_data"
-    )
+    add_variability_on_cal_data = SubElement(Estimate_elem, "add_variability_on_cal_data")
     add_variability_on_cal_data.text = str(params_curr.add_variability_on_cal_data)
 
-    intermediate_ground_averaging = SubElement(
-        Estimate_elem, "intermediate_ground_averaging"
-    )
+    intermediate_ground_averaging = SubElement(Estimate_elem, "intermediate_ground_averaging")
     intermediate_ground_averaging.text = str(params_curr.intermediate_ground_averaging)
 
     product_resolution = SubElement(Estimate_elem, "product_resolution")
@@ -899,24 +809,16 @@ def write_estimateagb_core(Estimate_elem, configuration_params):
     min_number_of_rois = SubElement(Estimate_elem, "min_number_of_rois")
     min_number_of_rois.text = str(params_curr.min_number_of_rois)
 
-    min_number_of_rois_per_stack = SubElement(
-        Estimate_elem, "min_number_of_rois_per_stack"
-    )
+    min_number_of_rois_per_stack = SubElement(Estimate_elem, "min_number_of_rois_per_stack")
     min_number_of_rois_per_stack.text = str(params_curr.min_number_of_rois_per_stack)
 
-    min_number_of_cals_per_test = SubElement(
-        Estimate_elem, "min_number_of_cals_per_test"
-    )
+    min_number_of_cals_per_test = SubElement(Estimate_elem, "min_number_of_cals_per_test")
     min_number_of_cals_per_test.text = str(params_curr.min_number_of_cals_per_test)
 
-    min_number_of_rois_per_test = SubElement(
-        Estimate_elem, "min_number_of_rois_per_test"
-    )
+    min_number_of_rois_per_test = SubElement(Estimate_elem, "min_number_of_rois_per_test")
     min_number_of_rois_per_test.text = str(params_curr.min_number_of_rois_per_test)
 
-    estimation_valid_values_limits = SubElement(
-        Estimate_elem, "EstimationValidValuesLimits"
-    )
+    estimation_valid_values_limits = SubElement(Estimate_elem, "EstimationValidValuesLimits")
     min_item = SubElement(estimation_valid_values_limits, "min")
     min_item.text = str(params_curr.estimation_valid_values_limits.min)
     min_item.set("unit", "t/ha")
@@ -932,9 +834,7 @@ def write_residual_function_core(Estimate_elem, configuration_params):
     residual_function = SubElement(Estimate_elem, "residual_function")
 
     formula_terms = SubElement(residual_function, "formula_terms")
-    number_of_terms = len(
-        configuration_params.AGB.residual_function.formula_terms.string
-    )
+    number_of_terms = len(configuration_params.AGB.residual_function.formula_terms.string)
     term_struct = configuration_params.AGB.residual_function.formula_terms
     for index in np.arange(number_of_terms):
 
@@ -956,9 +856,7 @@ def write_residual_function_core(Estimate_elem, configuration_params):
         formula_weight_step3.text = str(term_struct.formula_weights.step3[index])
 
     formula_parameters = SubElement(residual_function, "formula_parameters")
-    number_of_parameters = len(
-        configuration_params.AGB.residual_function.formula_parameters.name
-    )
+    number_of_parameters = len(configuration_params.AGB.residual_function.formula_parameters.name)
     par_struct = configuration_params.AGB.residual_function.formula_parameters
     for index in np.arange(number_of_parameters):
 
@@ -1061,9 +959,7 @@ def write_fd_lookup_table(lookup_table_file_name_xml, table_type, lut_dict):
     # table_type: string 'fnf' or 'covariance'
     if not table_type == "fnf" and not table_type == "covariance":
         raise ValueError(
-            '#3th iinput should be a string of value "fnf" or "covariance": "'
-            + table_type
-            + '" is not recognized'
+            '#3th iinput should be a string of value "fnf" or "covariance": "' + table_type + '" is not recognized'
         )
 
     if table_type == "fnf":
@@ -1120,17 +1016,13 @@ def parse_biomassL2_main_input_file(input_file_xml):
 
     L1c_repository = root.find("L1cRepository").text
     if not os.path.exists(L1c_repository):
-        error_message = (
-            "Main input file: the specified L1c Repository folder does not exist "
-        )
+        error_message = "Main input file: the specified L1c Repository folder does not exist "
         logging.error(error_message)
         raise ValueError(error_message)
 
     L1c_aux_data_repository = root.find("AuxiliaryProductsFolder").text
     if not os.path.exists(L1c_aux_data_repository):
-        error_message = (
-            "Main input file: the specified AuxiliaryProductsFolder does not exist: "
-        )
+        error_message = "Main input file: the specified AuxiliaryProductsFolder does not exist: "
         logging.error(error_message)
         raise ValueError(error_message)
 
@@ -1140,7 +1032,9 @@ def parse_biomassL2_main_input_file(input_file_xml):
         if aux_name == "DEM":
             dem_folder_found = True
     if not dem_folder_found:
-        error_message = 'Main input file: the specified AuxiliaryProductsFolder should contain AT LEAST the sub-folder "DEM"'
+        error_message = (
+            'Main input file: the specified AuxiliaryProductsFolder should contain AT LEAST the sub-folder "DEM"'
+        )
         logging.error(error_message)
         raise ValueError(error_message)
 
@@ -1149,9 +1043,7 @@ def parse_biomassL2_main_input_file(input_file_xml):
     try:
         geographic_grid_sampling = float(root.find("GeographicGridSampling").text)
     except:
-        error_message = (
-            "Main input file: GeographicGridSampling should be a numeric value"
-        )
+        error_message = "Main input file: GeographicGridSampling should be a numeric value"
         logging.error(error_message)
         raise ValueError(error_message)
     if geographic_grid_sampling <= 0:
@@ -1166,13 +1058,7 @@ def parse_biomassL2_main_input_file(input_file_xml):
     proc_flags_TOMO = bool_from_string(L2Product_Item.find("TOMO").text)
     proc_flags_TOMO_FH = bool_from_string(L2Product_Item.find("TOMO_FH").text)
 
-    proc_flags_struct = proc_flags(
-        proc_flags_AGB,
-        proc_flags_FH,
-        proc_flags_TOMO_FH,
-        proc_flags_FD,
-        proc_flags_TOMO,
-    )
+    proc_flags_struct = proc_flags(proc_flags_AGB, proc_flags_FH, proc_flags_TOMO_FH, proc_flags_FD, proc_flags_TOMO,)
 
     L1cDates = root.findall("L1cDate")
     if len(L1cDates) != 2:
@@ -1197,9 +1083,7 @@ def parse_biomassL2_main_input_file(input_file_xml):
             )
 
     if L1cDate_stop < L1cDate_start:
-        error_message = (
-            'Main input file: L1cDate "start" value cannot be greater of "stop" value'
-        )
+        error_message = 'Main input file: L1cDate "start" value cannot be greater of "stop" value'
         logging.error(error_message)
         raise ValueError(error_message)
 
@@ -1220,15 +1104,11 @@ def parse_biomassL2_main_input_file(input_file_xml):
         Lat = float(Latitude_str)
         Lon = float(Longitude_str)
         if Lat < -90 or Lat > 90:
-            error_message = (
-                "Main input file: Latitude should be a number from -90 to +90 [deg] "
-            )
+            error_message = "Main input file: Latitude should be a number from -90 to +90 [deg] "
             logging.error(error_message)
             raise ValueError(error_message)
         if Lon < -180 or Lon > 180:
-            error_message = (
-                "Main input file: Longitude should be a number from -180 to +180 [deg] "
-            )
+            error_message = "Main input file: Longitude should be a number from -180 to +180 [deg] "
             logging.error(error_message)
             raise ValueError(error_message)
 
@@ -1271,13 +1151,7 @@ def parse_chains_input_file(input_file_xml):
     tree = ET.parse(input_file_xml)
     root = tree.getroot()
     chain_id = root.tag[8:]
-    if (
-        chain_id != "AGB"
-        and chain_id != "FH"
-        and chain_id != "FD"
-        and chain_id != "TOMO_FH"
-        and chain_id != "TOMO"
-    ):
+    if chain_id != "AGB" and chain_id != "FH" and chain_id != "FD" and chain_id != "TOMO_FH" and chain_id != "TOMO":
         error_message = "The provided input file is not an inner biomassL2 chain input (AGB, FH, FD, TOMO FH or TOMO)"
         logging.error(error_message)
         raise ValueError(error_message)
@@ -1341,26 +1215,15 @@ def parse_chains_input_file(input_file_xml):
 
         ECEF_grid_file_names[stack_id] = Geometry_Item.find("ECEFGrid").text
         kz_file_names[stack_id] = Geometry_Item.find("kz").text
-        slant_range_distances_file_names[stack_id] = Geometry_Item.find(
-            "RadarDistances"
-        ).text
+        slant_range_distances_file_names[stack_id] = Geometry_Item.find("RadarDistances").text
         off_nadir_angle_file_names[stack_id] = Geometry_Item.find("OffNadirAngles").text
         slope_file_names[stack_id] = Geometry_Item.find("Slope").text
-        reference_height_file_names[stack_id] = Geometry_Item.find(
-            "ReferenceHeight"
-        ).text
+        reference_height_file_names[stack_id] = Geometry_Item.find("ReferenceHeight").text
 
         if L1cStack_Item.find("CalibrationScreens") != None:
-            calibration_screens_file_names[stack_id] = L1cStack_Item.find(
-                "CalibrationScreens"
-            ).text
+            calibration_screens_file_names[stack_id] = L1cStack_Item.find("CalibrationScreens").text
         elif chain_id == "TOMO" or chain_id == "TOMO_FH":
-            error_message = (
-                chain_id
-                + " Input File: CalibrationScreens are mandatory for "
-                + chain_id
-                + " chain."
-            )
+            error_message = chain_id + " Input File: CalibrationScreens are mandatory for " + chain_id + " chain."
             logging.error(error_message)
             raise ValueError(error_message)
 
@@ -1375,9 +1238,7 @@ def parse_chains_input_file(input_file_xml):
         forest_height_folder = AuxiliaryProductList_Item.find("ForestHeight").text
     if chain_id == "FH":
         if AuxiliaryProductList_Item.find("SystemDecorrelationFunction"):
-            system_decorrelation_fun_folder = AuxiliaryProductList_Item.find(
-                "SystemDecorrelationFunction"
-            ).text
+            system_decorrelation_fun_folder = AuxiliaryProductList_Item.find("SystemDecorrelationFunction").text
         else:
             system_decorrelation_fun_folder = ""
 
@@ -1430,18 +1291,10 @@ def parse_fd_lookup_table(lookup_table_file_name_xml):
         geographic_boundaries_curr = geographic_boundaries(None, None, None, None)
 
         GeographicBoundaries_Item = L1cStack.find("GeographicBoundaries")
-        geographic_boundaries_curr.lat_min = GeographicBoundaries_Item.find(
-            "latMin"
-        ).text
-        geographic_boundaries_curr.lat_max = GeographicBoundaries_Item.find(
-            "latMax"
-        ).text
-        geographic_boundaries_curr.lon_min = GeographicBoundaries_Item.find(
-            "lonMin"
-        ).text
-        geographic_boundaries_curr.lon_max = GeographicBoundaries_Item.find(
-            "lonMax"
-        ).text
+        geographic_boundaries_curr.lat_min = GeographicBoundaries_Item.find("latMin").text
+        geographic_boundaries_curr.lat_max = GeographicBoundaries_Item.find("latMax").text
+        geographic_boundaries_curr.lon_min = GeographicBoundaries_Item.find("lonMin").text
+        geographic_boundaries_curr.lon_max = GeographicBoundaries_Item.find("lonMax").text
 
         # extract all the dates from current stack (one date for each step):
         dates_dict = {}
@@ -1455,9 +1308,7 @@ def parse_fd_lookup_table(lookup_table_file_name_xml):
             raise ImportError(" table xml is not valid")
 
         if not table_type == "fnf" and not table_type == "covariance":
-            raise ImportError(
-                ' table xml is not valid, element "' + table_type + '" not recognized'
-            )
+            raise ImportError(' table xml is not valid, element "' + table_type + '" not recognized')
 
         fd_steps = L1cStack.findall(table_type)
         for step_curr in fd_steps:
@@ -1500,16 +1351,12 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=""):
     chain_id = root.tag[15:]
 
     if chain_id == "AGB":
-        raise ValueError(
-            "Please, use the parse_agb_configuration_file and parse_coreprocessing_agb_configuration_file"
-        )
+        raise ValueError("Please, use the parse_agb_configuration_file and parse_coreprocessing_agb_configuration_file")
 
     # interpolate_stack
     if chain_id == "TOMO":
         InterpolateStack_Item = root.find("InterpolateStack")
-        regular_baseline_grid_flag = bool_from_string(
-            InterpolateStack_Item.find("RegularBaselineGrid").text
-        )
+        regular_baseline_grid_flag = bool_from_string(InterpolateStack_Item.find("RegularBaselineGrid").text)
         interpolate_stack = interpolate_params(regular_baseline_grid_flag)
     else:
         interpolate_stack = None
@@ -1566,17 +1413,11 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=""):
     elif chain_id == "FH":
 
         estimation_valid_values_limits = [
-            float(
-                chain_field_Item.find("EstimationValidValuesLimits").find("min").text
-            ),
-            float(
-                chain_field_Item.find("EstimationValidValuesLimits").find("max").text
-            ),
+            float(chain_field_Item.find("EstimationValidValuesLimits").find("min").text),
+            float(chain_field_Item.find("EstimationValidValuesLimits").find("max").text),
         ]
 
-        spectral_shift_filtering = bool_from_string(
-            chain_field_Item.find("SpectralShiftFiltering").text
-        )
+        spectral_shift_filtering = bool_from_string(chain_field_Item.find("SpectralShiftFiltering").text)
 
         kz_thresholds = [
             float(chain_field_Item.find("KZ_thresholds").find("min").text),
@@ -1594,12 +1435,8 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=""):
 
         model_parameters_Item = chain_field_Item.find("ModelParameters")
         maximum_height = int(model_parameters_Item.find("MaximumHeight").text)
-        number_of_extinction_value = int(
-            model_parameters_Item.find("NumberOfExtinctionValue").text
-        )
-        number_of_ground_volume_ratio_value = int(
-            model_parameters_Item.find("NumberOfGroundVolumeRatioValue").text
-        )
+        number_of_extinction_value = int(model_parameters_Item.find("NumberOfExtinctionValue").text)
+        number_of_ground_volume_ratio_value = int(model_parameters_Item.find("NumberOfGroundVolumeRatioValue").text)
         number_of_temporal_decorrelation_value = int(
             model_parameters_Item.find("NumberOfTemporalDecorrelationValue").text
         )
@@ -1621,30 +1458,18 @@ def parse_chains_configuration_file(configuration_file_xml, output_folder=""):
         )
 
         FH = FH_est_params(
-            spectral_shift_filtering,
-            product_resolution,
-            kz_thresholds,
-            model_parameters,
-            median_factor,
+            spectral_shift_filtering, product_resolution, kz_thresholds, model_parameters, median_factor,
         )
 
     elif chain_id == "TOMO_FH":
 
         estimation_valid_values_limits = [
-            float(
-                chain_field_Item.find("EstimationValidValuesLimits").find("min").text
-            ),
-            float(
-                chain_field_Item.find("EstimationValidValuesLimits").find("max").text
-            ),
+            float(chain_field_Item.find("EstimationValidValuesLimits").find("min").text),
+            float(chain_field_Item.find("EstimationValidValuesLimits").find("max").text),
         ]
 
-        enable_super_resolution = bool_from_string(
-            chain_field_Item.find("EnableSuperResolution").text
-        )
-        regularization_noise_factor = float(
-            chain_field_Item.find("RegularizationNoiseFactor").text
-        )
+        enable_super_resolution = bool_from_string(chain_field_Item.find("EnableSuperResolution").text)
+        regularization_noise_factor = float(chain_field_Item.find("RegularizationNoiseFactor").text)
         power_threshold = float(chain_field_Item.find("PowerThreshold").text)
         median_factor = int(chain_field_Item.find("MedianFactor").text)
         TOMO_FH = TOMO_FH_est_params(
@@ -1734,9 +1559,7 @@ def parse_agb_configuration_file(configuration_file_xml):
     return proc_config
 
 
-def parse_coreprocessing_agb_configuration_file(
-    configuration_file_xml, output_folder=""
-):
+def parse_coreprocessing_agb_configuration_file(configuration_file_xml, output_folder=""):
     "Parse the configuration files for CoreProcessingAGB APP"
 
     tree = ET.parse(configuration_file_xml)
@@ -1793,39 +1616,25 @@ def parse_ground_cancellation_core(root):
     ground_cancellation = None
     GroundCancellation_Item = root.find("GroundCancellation")
     if GroundCancellation_Item:
-        multi_master_flag = bool_from_string(
-            GroundCancellation_Item.find("MultiMaster").text
-        )
-        enhanced_forest_height = float(
-            GroundCancellation_Item.find("EnhancedForestHeight").text
-        )
+        multi_master_flag = bool_from_string(GroundCancellation_Item.find("MultiMaster").text)
+        enhanced_forest_height = float(GroundCancellation_Item.find("EnhancedForestHeight").text)
         equalization_flag = GroundCancellation_Item.find("ModelBasedEqualization").text
-        if (
-            not equalization_flag == "1"
-            and not equalization_flag == "2"
-            and not equalization_flag == "3"
-        ):
+        if not equalization_flag == "1" and not equalization_flag == "2" and not equalization_flag == "3":
             error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
                 equalization_flag
             )
             logging.error(error_str)
             raise ValueError(error_str)
-        ground_cancellation = ground_canc_params(
-            multi_master_flag, enhanced_forest_height, equalization_flag
-        )
+        ground_cancellation = ground_canc_params(multi_master_flag, enhanced_forest_height, equalization_flag)
     return ground_cancellation
 
 
 def parse_configuration_flags_core(root):
     enable_resampling = bool_from_string(root.find("EnableResampling").text)
     compute_geometry = bool_from_string(root.find("ComputeGeometry").text)
-    apply_calibration_screen = bool_from_string(
-        root.find("ApplyCalibrationScreen").text
-    )
+    apply_calibration_screen = bool_from_string(root.find("ApplyCalibrationScreen").text)
     DEM_flattening = bool_from_string(root.find("DEMflattening").text)
-    multilook_heading_correction = bool_from_string(
-        root.find("MultilookHeadingCorrection").text
-    )
+    multilook_heading_correction = bool_from_string(root.find("MultilookHeadingCorrection").text)
     save_breakpoints = bool_from_string(root.find("SaveBreakpoints").text)
     delete_temporary_files = bool_from_string(root.find("DeleteTemporaryFiles").text)
 
@@ -1844,55 +1653,29 @@ def parse_estimateagb_core(chain_field_Item, output_folder=""):
     residual_function_struct = None
     residual_function_Item = chain_field_Item.find("residual_function")
     if residual_function_Item:
-        residual_function_struct = parse_agb_residual_function_core(
-            residual_function_Item, output_folder
-        )
+        residual_function_struct = parse_agb_residual_function_core(residual_function_Item, output_folder)
 
     number_of_tests = int(chain_field_Item.find("number_of_tests").text)
-    forest_class_observable_name = str(
-        chain_field_Item.find("forest_class_observable_name").text
-    )
+    forest_class_observable_name = str(chain_field_Item.find("forest_class_observable_name").text)
     transfer_function_name = str(chain_field_Item.find("transfer_function_name").text)
-    intermediate_ground_averaging = float(
-        chain_field_Item.find("intermediate_ground_averaging").text
-    )
+    intermediate_ground_averaging = float(chain_field_Item.find("intermediate_ground_averaging").text)
 
     distance_sampling_area = float(chain_field_Item.find("distance_sampling_area").text)
-    fraction_of_roi_per_test = float(
-        chain_field_Item.find("fraction_of_roi_per_test").text
-    )
-    fraction_of_cal_per_test = float(
-        chain_field_Item.find("fraction_of_cal_per_test").text
-    )
+    fraction_of_roi_per_test = float(chain_field_Item.find("fraction_of_roi_per_test").text)
+    fraction_of_cal_per_test = float(chain_field_Item.find("fraction_of_cal_per_test").text)
 
-    add_variability_on_cal_data = bool_from_string(
-        chain_field_Item.find("add_variability_on_cal_data").text
-    )
+    add_variability_on_cal_data = bool_from_string(chain_field_Item.find("add_variability_on_cal_data").text)
 
     parameter_block_size = float(chain_field_Item.find("parameter_block_size").text)
-    distance_parameter_block = float(
-        chain_field_Item.find("distance_parameter_block").text
-    )
+    distance_parameter_block = float(chain_field_Item.find("distance_parameter_block").text)
     min_number_of_rois = int(chain_field_Item.find("min_number_of_rois").text)
-    min_number_of_rois_per_stack = int(
-        chain_field_Item.find("min_number_of_rois_per_stack").text
-    )
-    min_number_of_cals_per_test = int(
-        chain_field_Item.find("min_number_of_cals_per_test").text
-    )
-    min_number_of_rois_per_test = int(
-        chain_field_Item.find("min_number_of_rois_per_test").text
-    )
+    min_number_of_rois_per_stack = int(chain_field_Item.find("min_number_of_rois_per_stack").text)
+    min_number_of_cals_per_test = int(chain_field_Item.find("min_number_of_cals_per_test").text)
+    min_number_of_rois_per_test = int(chain_field_Item.find("min_number_of_rois_per_test").text)
 
-    estimation_min_value = float(
-        chain_field_Item.find("EstimationValidValuesLimits").find("min").text
-    )
-    estimation_max_value = float(
-        chain_field_Item.find("EstimationValidValuesLimits").find("max").text
-    )
-    estimation_valid_values_limits = min_max(
-        estimation_min_value, estimation_max_value,
-    )
+    estimation_min_value = float(chain_field_Item.find("EstimationValidValuesLimits").find("min").text)
+    estimation_max_value = float(chain_field_Item.find("EstimationValidValuesLimits").find("max").text)
+    estimation_valid_values_limits = min_max(estimation_min_value, estimation_max_value,)
 
     product_resolution = float(chain_field_Item.find("product_resolution").text)
 
@@ -1935,12 +1718,8 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
         formula_weight_step1.append(float(term_item.find("weight").find("step1").text))
         formula_weight_step2.append(float(term_item.find("weight").find("step2").text))
         formula_weight_step3.append(float(term_item.find("weight").find("step3").text))
-    formula_weight_struct = formula_weights(
-        formula_weight_step1, formula_weight_step2, formula_weight_step3
-    )
-    formula_terms_struct = formula_terms(
-        formula_name, formula_string, formula_weight_struct,
-    )
+    formula_weight_struct = formula_weights(formula_weight_step1, formula_weight_step2, formula_weight_step3)
+    formula_terms_struct = formula_terms(formula_name, formula_string, formula_weight_struct,)
 
     name = []
     save_as_map = []
@@ -1962,30 +1741,18 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
         variabilities.append(
             [
                 bool_from_string(par_item.find("variability").find("samples").text),
-                bool_from_string(
-                    par_item.find("variability").find("forest_classes").text
-                ),
+                bool_from_string(par_item.find("variability").find("forest_classes").text),
                 bool_from_string(par_item.find("variability").find("stacks").text),
-                bool_from_string(
-                    par_item.find("variability").find("global_cycles").text
-                ),
+                bool_from_string(par_item.find("variability").find("global_cycles").text),
                 bool_from_string(par_item.find("variability").find("headings").text),
                 bool_from_string(par_item.find("variability").find("swaths").text),
                 bool_from_string(par_item.find("variability").find("subswaths").text),
-                bool_from_string(
-                    par_item.find("variability").find("azimuth_images").text
-                ),
+                bool_from_string(par_item.find("variability").find("azimuth_images").text),
             ]
         )
 
     formula_parameters_struct = formula_parameters(
-        name,
-        save_as_map,
-        transform,
-        limits,
-        units_par,
-        associated_observable,
-        variabilities,
+        name, save_as_map, transform, limits, units_par, associated_observable, variabilities,
     )
 
     name = []
@@ -2018,9 +1785,7 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
             source_units.append("")
             source_resolutions.append(0)
         else:
-            source_resolutions.append(
-                float(obs_item.find("sources").attrib["resolution_m"])
-            )
+            source_resolutions.append(float(obs_item.find("sources").attrib["resolution_m"]))
             source_units.append(obs_item.find("sources").attrib["unit"])
 
         curr_obs_stacks = []
@@ -2032,9 +1797,7 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
                 curr_file_layers = []
                 for layer_item in file_item.findall("path"):
 
-                    layer_path = os.path.join(
-                        os.path.dirname(output_folder), layer_item.text
-                    )
+                    layer_path = os.path.join(os.path.dirname(output_folder), layer_item.text)
                     band_id = int(layer_item.attrib["band"])
                     curr_file_layers.append(layer_path)
                     curr_file_layers.append(band_id)
@@ -2064,9 +1827,7 @@ def parse_agb_residual_function_core(residual_function_Item, output_folder=""):
 def check_chains_input_file(proc_inputs):
 
     if not os.path.exists(proc_inputs.L1c_repository):
-        error_message = (
-            " Input file L1cRepository does not exist: " + proc_inputs.L1c_repository
-        )
+        error_message = " Input file L1cRepository does not exist: " + proc_inputs.L1c_repository
         logging.error(error_message)
         raise RuntimeError(error_message)
 
@@ -2074,54 +1835,36 @@ def check_chains_input_file(proc_inputs):
         for pf_name in proc_inputs.stack_composition[key]:
             fullPath = os.path.join(proc_inputs.L1c_repository, pf_name)
             if not os.path.exists(fullPath):
-                error_message = (
-                    " Input file Acquisition "
-                    + pf_name
-                    + " does not exist: "
-                    + fullPath
-                )
+                error_message = " Input file Acquisition " + pf_name + " does not exist: " + fullPath
                 logging.error(error_message)
                 raise RuntimeError(error_message)
 
     if not os.path.exists(proc_inputs.dem_folder):
-        error_message = (
-            " Input file AuxiliaryProductList DEM does not exist: "
-            + proc_inputs.dem_folder
-        )
+        error_message = " Input file AuxiliaryProductList DEM does not exist: " + proc_inputs.dem_folder
         logging.error(error_message)
         raise RuntimeError(error_message)
 
     for ecef_name in proc_inputs.ECEF_grid_file_names:
         if not os.path.exists(ecef_name):
-            error_message = (
-                " Input file AuxiliaryProductList ECEFgrid does not exist: " + ecef_name
-            )
+            error_message = " Input file AuxiliaryProductList ECEFgrid does not exist: " + ecef_name
             logging.error(error_message)
             raise RuntimeError(error_message)
 
     for kz_name in proc_inputs.kz_file_names:
         if not os.path.exists(kz_name):
-            error_message = (
-                " Input file AuxiliaryProductList KZ does not exist: " + kz_name
-            )
+            error_message = " Input file AuxiliaryProductList KZ does not exist: " + kz_name
             logging.error(error_message)
             raise RuntimeError(error_message)
 
     for inc_name in proc_inputs.off_nadir_angle_file_names:
         if not os.path.exists(inc_name):
-            error_message = (
-                " Input file AuxiliaryProductList OffNadirAngle does not exist: "
-                + inc_name
-            )
+            error_message = " Input file AuxiliaryProductList OffNadirAngle does not exist: " + inc_name
             logging.error(error_message)
             raise RuntimeError(error_message)
 
     for h_name in proc_inputs.reference_height_file_names:
         if not os.path.exists(h_name):
-            error_message = (
-                "Input file AuxiliaryProductList ReferenceHeight does not exist: "
-                + h_name
-            )
+            error_message = "Input file AuxiliaryProductList ReferenceHeight does not exist: " + h_name
             logging.error(error_message)
             raise RuntimeError(error_message)
 
@@ -2129,8 +1872,7 @@ def check_chains_input_file(proc_inputs):
     if chain_id == "AGB":
         if not os.path.exists(proc_inputs.reference_agb_folder):
             error_message = (
-                " Input file AuxiliaryProductList ReferenceAGB does not exist: "
-                + proc_inputs.reference_agb_folder
+                " Input file AuxiliaryProductList ReferenceAGB does not exist: " + proc_inputs.reference_agb_folder
             )
             logging.error(error_message)
             raise RuntimeError(error_message)
@@ -2159,21 +1901,16 @@ def check_chains_input_file(proc_inputs):
         logging.error(error_message)
         raise RuntimeError(error_message)
 
-    if (
-        len(proc_inputs.geographic_grid_sampling) == 0
-        or proc_inputs.geographic_grid_sampling <= 0
-    ):
+    if len(proc_inputs.geographic_grid_sampling) == 0 or proc_inputs.geographic_grid_sampling <= 0:
         error_message = (
-            " Input file GeographicGridSampling should be a positive number: "
-            + proc_inputs.geographic_grid_sampling
+            " Input file GeographicGridSampling should be a positive number: " + proc_inputs.geographic_grid_sampling
         )
         logging.error(error_message)
         raise RuntimeError(error_message)
 
     if not os.path.exists(proc_inputs.forest_mask_catalogue_folder):
         error_message = (
-            " Input file AuxiliaryProductList ForestMask does not exist: "
-            + proc_inputs.forest_mask_catalogue_folder
+            " Input file AuxiliaryProductList ForestMask does not exist: " + proc_inputs.forest_mask_catalogue_folder
         )
         logging.error(error_message)
         raise RuntimeError(error_message)
@@ -2218,10 +1955,7 @@ class XmlIO:
     def __getparam__(self, name):
         p = [p for p in self.__root__.iter("parameter") if p.attrib["name"] == name]
         if len(p) != 1:
-            raise AttributeError(
-                'Expected a unique match parameter name "%s", got %i matches.'
-                % (name, len(p))
-            )
+            raise AttributeError('Expected a unique match parameter name "%s", got %i matches.' % (name, len(p)))
 
         return [p[0].find(tag) for tag in ("remark", "datatype", "value", "unit")]
 
@@ -2250,16 +1984,11 @@ class XmlIO:
         }
         try:
             if size > 1:
-                val = np.asarray(
-                    [conv[type](v) for v in v.text.strip("[]").split(",")]
-                ).reshape(shape)
+                val = np.asarray([conv[type](v) for v in v.text.strip("[]").split(",")]).reshape(shape)
             else:
                 val = conv[type](v.text)
         except KeyError:
-            print(
-                'XmlIO WARNING: Unsupported data type "%s" encountered. Skipping!'
-                % (type)
-            )
+            print('XmlIO WARNING: Unsupported data type "%s" encountered. Skipping!' % (type))
             return None
 
         return val
@@ -2284,9 +2013,7 @@ class XmlIO:
 
         if t.text == "pointer":
             p = v.find("parameter")
-            return XmlIO.val2xml(
-                *([p.find(t) for t in ("value", "datatype")] + [value])
-            )
+            return XmlIO.val2xml(*([p.find(t) for t in ("value", "datatype")] + [value]))
 
         try:
             vsize = 1 if isinstance(value, str) else len(value)
@@ -2357,9 +2084,7 @@ class XmlIO:
         except AttributeError:
             d = obj
         if not isinstance(d, dict):
-            raise ValueError(
-                "Expected a dictionary or an object with a __dict__ attribute!"
-            )
+            raise ValueError("Expected a dictionary or an object with a __dict__ attribute!")
 
         for k in d:
             self.__setattr__(k, d[k])
@@ -2368,30 +2093,19 @@ class XmlIO:
         ste_root = xml_tools.Element("stexml")
         ste_root.text = "\n"
         ste_root.append(copy.deepcopy(self.__root__))
-        ste_root.addprevious(
-            xml_tools.PI("xml-stylesheet", 'type="text/xsl" href="stexml.xsl"')
-        )
+        ste_root.addprevious(xml_tools.PI("xml-stylesheet", 'type="text/xsl" href="stexml.xsl"'))
         tree = xml_tools.ElementTree(ste_root)
         return tree
 
     def write(self, filename):
-        self.__totree().write(
-            filename, pretty_print=True, encoding="UTF-8", xml_declaration=True
-        )
+        self.__totree().write(filename, pretty_print=True, encoding="UTF-8", xml_declaration=True)
 
     def tostring(self):
         return xml_tools.tostring(self.__totree().getroot(), encoding="UTF-8")
 
 
 def add_param(
-    root,
-    name,
-    unit_text,
-    datatype_text,
-    remark_text="none",
-    value_text=None,
-    length=1,
-    sub_flag=False,
+    root, name, unit_text, datatype_text, remark_text="none", value_text=None, length=1, sub_flag=False,
 ):
 
     # Sub flag is needed in order to correctly add parameters to a struct-type xml tree

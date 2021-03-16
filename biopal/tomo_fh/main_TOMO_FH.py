@@ -349,6 +349,8 @@ class StackBasedProcessingTOMOFH(Task):
                     raster_info.pixel_spacing_slant_rg,
                     raster_info.pixel_spacing_az,
                     look_angle_rad,
+                    raster_info.carrier_frequency_hz,
+                    raster_info.range_bandwidth_hz,
                     kz,
                     vertical_vector,
                     proc_conf.TOMO_FH,

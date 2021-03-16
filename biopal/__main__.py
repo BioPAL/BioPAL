@@ -16,7 +16,8 @@ import os
 import pkg_resources
 import logging
 import collections
-from shutil import copyfile, which
+import importlib
+from shutil import copyfile
 from shapely.geometry import MultiPoint
 from biopal.utility.utility_functions import (
     check_if_path_exists,
@@ -34,33 +35,18 @@ from biopal.io.xml_io import (
     write_boundaries_files,
 )
 from biopal.io.data_io import readBiomassHeader_core
-
 from arepytools.timing.precisedatetime import PreciseDateTime
 
-# following imports are tested with "try" because different modalities of
-# software releases may lack of some libraries, for example when chains are
-# delivered separately
-try:
+if not importlib.util.find_spec("biopal.agb.main_AGB") is None:
     from biopal.agb.main_AGB import AboveGroundBiomass
-except:
-    pass
-try:
+if not importlib.util.find_spec("biopal.fh.main_FH") is None:
     from biopal.fh.main_FH import ForestHeight
-except:
-    pass
-try:
+if not importlib.util.find_spec("biopal.tomo_fh.main_TOMO_FH") is None:
     from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
-except:
-    pass
-try:
+if not importlib.util.find_spec("biopal.fd.main_FD") is None:
     from biopal.fd.main_FD import ForestDisturbance
-except:
-    pass
-try:
+if not importlib.util.find_spec("biopal.tomo.main_TOMO_CUBE") is None:
     from biopal.tomo.main_TOMO_CUBE import main_TOMO_CUBE
-except:
-    pass
-
 
 # main biopal:
 # 1) Sets enviriment and logging, parses the main input
@@ -83,7 +69,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         configuration_file_FH = os.path.join(default_configuration_folder, "ConfigurationFile_FH.xml")
         configuration_file_TOMO_FH = os.path.join(default_configuration_folder, "ConfigurationFile_TOMO_FH.xml")
         configuration_file_FD = os.path.join(default_configuration_folder, "ConfigurationFile_FD.xml")
-    
+
     # read the main input file
     main_input_struct = parse_biomassL2_main_input_file(input_file_xml)
 
@@ -108,7 +94,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     logging.info("Results will be saved into output folder {}".format(output_folder))
 
     # get all the data that matches input datations and ground boundaries
-    # a dictionary with stack_id and scene oroduct folder names is retrived
+    # a dictionary with stack_id and scene product folder names is retrived
     logging.info("Searching data from data set : " + main_input_struct.L1c_repository)
     logging.info("Research will be done according to user dates and boundaries....\n")
     try:
@@ -147,7 +133,6 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     ) = write_chains_input_file_main(output_folder, main_input_struct, stack_composition)
 
     # Execute all the activated chains, separately
-
     if main_input_struct.proc_flags.FH or main_input_struct.proc_flags.TOMO_FH:
         stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition)
 
@@ -180,7 +165,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         fd_obj = ForestDisturbance(configuration_file_FD, geographic_boundaries, gdal_path,)
 
         fd_obj.run(FD_input_file_xml)
-        
+
     logging.info("All outputs have been saved into: " + output_folder + "\n")
     logging.info("BIOMASS L2 Processor ended: see the above log messages for more info.")
 
@@ -590,8 +575,17 @@ def data_select_by_date_and_boundaries(main_input_struct):
             continue
 
         # read the current header
-
-        datestr, lon_min, lon_max, lat_min, lat_max, unique_acq_id = readBiomassHeader_core(raster_file)
+        (
+            datestr,
+            lon_min,
+            lon_max,
+            lat_min,
+            lat_max,
+            unique_acq_id,
+            resolution_m_slant_rg,
+            resolution_m_az,
+            sensor_velocity,
+        ) = readBiomassHeader_core(raster_file)
 
         uniqie_stack_id = unique_acq_id[0:40]
 

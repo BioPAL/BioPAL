@@ -8,11 +8,7 @@ from arepytools.timing.precisedatetime import PreciseDateTime
 from arepytools.io.productfolder import ProductFolder
 from arepytools.io.metadata import RasterInfo
 from equi7grid.equi7grid import Equi7Grid
-from biopal.utility.constants import (
-    SATELLITE_VELOCITY,
-    LIGHTSPEED,
-)
-
+from biopal.utility.constants import LIGHTSPEED
 
 # The class Task is the template to be inherited for the creation of each BioPAL APP
 class Task:
@@ -229,7 +225,7 @@ def epsg_in_to_epsg_out(xx, yy, zz, epsg_code_in, epsg_code_out):
     return xx_transf, yy_transf, zz_transf
 
 
-def convert_rasterinfo_meters_to_seconds(ri_meters):
+def convert_rasterinfo_meters_to_seconds(ri_meters, sensor_velocity):
 
     ri_seconds = RasterInfo(
         ri_meters.lines,
@@ -241,7 +237,7 @@ def convert_rasterinfo_meters_to_seconds(ri_meters):
         ri_meters.byte_order,
     )
 
-    lines_step_s = ri_meters.lines_step / SATELLITE_VELOCITY
+    lines_step_s = ri_meters.lines_step / sensor_velocity
     lines_step_unit = "s"
     samples_start_s = ri_meters.samples_start / LIGHTSPEED * 2
     samples_start_unit = "s"
@@ -254,7 +250,7 @@ def convert_rasterinfo_meters_to_seconds(ri_meters):
     return ri_seconds
 
 
-def convert_rasterinfo_seconds_to_meters(ri_seconds):
+def convert_rasterinfo_seconds_to_meters(ri_seconds, sensor_velocity):
 
     ri_meters = RasterInfo(
         ri_seconds.lines,
@@ -266,7 +262,7 @@ def convert_rasterinfo_seconds_to_meters(ri_seconds):
         ri_seconds.byte_order,
     )
 
-    lines_step_m = ri_meters.lines_step * SATELLITE_VELOCITY
+    lines_step_m = ri_meters.lines_step * sensor_velocity
     lines_step_unit = "m"
     samples_start_m = ri_meters.samples_start * LIGHTSPEED / 2
     samples_start_unit = "m"
@@ -457,7 +453,7 @@ def get_raster_cal_names(reference_agb_folder):
 
     cal_names = []
     for tiff_name in tiff_names:
-        if '.tif' in tiff_name or '.tiff' in tiff_name:
+        if ".tif" in tiff_name or ".tiff" in tiff_name:
             cal_names.append(os.path.join(reference_agb_folder, tiff_name))
 
     return cal_names
@@ -469,7 +465,7 @@ def get_foss_cal_names(reference_agb_folder):
 
     cal_names = []
     for tiff_name in tiff_names:
-        if '.tif' in tiff_name or '.tiff' in tiff_name:
+        if ".tif" in tiff_name or ".tiff" in tiff_name:
             cal_names.append(os.path.join(reference_agb_folder, tiff_name))
 
     return cal_names
