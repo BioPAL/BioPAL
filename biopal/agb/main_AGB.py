@@ -246,7 +246,7 @@ class StackBasedProcessingAGB(Task):
             )
             os.makedirs(breakpoints_output_folder)
 
-        temp_output_folder = os.path.join(products_folder, "temporary_processing")
+        temp_output_folder = os.path.join(products_folder, "temp")
         logging.info("AGB: Temporary data folder:" + temp_output_folder + "\n")
 
         os.makedirs(temp_output_folder)
@@ -404,10 +404,10 @@ class StackBasedProcessingAGB(Task):
 
             # make temporary sub-directories
             temp_output_folder_gr = os.path.join(
-                temp_output_folder, "ground_range_geometry", unique_stack_id
+                temp_output_folder, "geocoded", unique_stack_id
             )
             temp_output_folder_e7 = os.path.join(
-                temp_output_folder, "ground_equi7_geometry", unique_stack_id
+                temp_output_folder, "equi7", unique_stack_id
             )
             os.makedirs(temp_output_folder_gr)
             os.makedirs(temp_output_folder_e7)
@@ -737,7 +737,7 @@ class StackBasedProcessingAGB(Task):
                 )
                 post_string = "_SR_" + unique_stack_id
 
-                breakpoint_names = ["ground_cancelled_data" + post_string]
+                breakpoint_names = ["ground_cancelled" + post_string]
 
                 save_breakpoints(
                     breakpoints_output_folder, breakpoint_names, [DN_beta0_notched]
@@ -836,7 +836,7 @@ class StackBasedProcessingAGB(Task):
                 for pol_name in sigma0_gr.keys():
                     sigma0_ground_fnames[pol_name] = os.path.join(
                         temp_output_folder_gr,
-                        "sigma0_" + pol_name + "_" + unique_stack_id + ".tif",
+                        "sigma0_" + pol_name + ".tif",
                     )
 
                     tiff_formatter(
@@ -850,7 +850,7 @@ class StackBasedProcessingAGB(Task):
 
                 # geotiff of the theta
                 theta_ground_fname = os.path.join(
-                    temp_output_folder_gr, "theta" + "_" + unique_stack_id + ".tif"
+                    temp_output_folder_gr, "theta.tif"
                 )
 
                 tiff_formatter(
@@ -895,6 +895,7 @@ class StackBasedProcessingAGB(Task):
                         inband=None,
                         subgrid_ids=None,
                         accurate_boundary=False,
+                        withtilenamesuffix=False,
                         resampling_type="bilinear",
                         tile_nodata=np.nan,
                     )
@@ -916,6 +917,7 @@ class StackBasedProcessingAGB(Task):
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
+                    withtilenamesuffix=False,
                     resampling_type="bilinear",
                     tile_nodata=np.nan,
                 )
@@ -1339,9 +1341,9 @@ class CoreProcessingAGB(Task):
 
         # setting up directories and making sure that preprocessing has been run
         products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        temp_proc_folder = os.path.join(products_folder, "temporary_processing")
+        temp_proc_folder = os.path.join(products_folder, "temp")
         if not (os.path.exists(temp_proc_folder)):
-            error_message = '"temporary_processing" folder is not present in output: StackBasedProcessingAGB APP should be launched before CoreProcessingAGB '
+            error_message = '"temp" folder is not present in output: StackBasedProcessingAGB APP should be launched before CoreProcessingAGB '
             logging.error(error_message)
             raise RuntimeError(error_message)
         # check auxiliaries (equi7 initialization) and if not present, compute them
@@ -1502,9 +1504,9 @@ class CoreProcessingAGB(Task):
             for x in y
             if x[0].find("EQUI7") >= 0
         ][0]
-        equi7_subtile_name, equi7_tile_name = [
-            x.split(".")[0] for x in equi7_info_source_path.split("_")[-2:]
-        ]
+        equi7_subtile_name = equi7_info_source_path.split(os.path.sep)[-3:-1][0][6:]
+        equi7_tile_name = equi7_info_source_path.split(os.path.sep)[-3:-1][1]
+
         equi7_subgrid_code = equi7_subtile_name[:2]
         equi7_projection_string = get_projection_from_path(equi7_info_source_path)
         equi7_product = Equi7Grid(geographic_grid_sampling)
@@ -2152,6 +2154,7 @@ class CoreProcessingAGB(Task):
                                 bbox=[(lon_min, lat_min), (lon_max, lat_max)]
                             ),
                             accurate_boundary=False,
+                            withtilenamesuffix=False,
                             tile_nodata=np.nan,
                         )
 
@@ -2225,10 +2228,9 @@ class CoreProcessingAGB(Task):
 
                     tiles_to_save = {}
                     for current_source in parameter_map_pathlists[parameter_idx]:
-                        subtile_name, tile_name = [
-                            x.split(".")[0] for x in current_source[0].split("_")[-2:]
-                        ]
-
+                        subtile_name = current_source[0].split(os.path.sep)[-3:-1][0][6:]
+                        tile_name = current_source[0].split(os.path.sep)[-3:-1][1]
+                        
                         if tile_name in tiles_to_save.keys():
                             tiles_to_save[tile_name].append(current_source)
                         else:
@@ -2281,9 +2283,7 @@ class CoreProcessingAGB(Task):
                             # current_position_in_observable_vector = parameter_position_in_observable_vector[parameter_idx]
                             # if current_position_in_observable_vector != -1:
                             current_merged_file_path += "_backtransf_"
-                        current_merged_file_path += (
-                            tile_name + "_" + equi7_subtile_name + ".tif"
-                        )
+                        current_merged_file_path += ".tif"
 
                         if not os.path.exists(
                             os.path.dirname(current_merged_file_path)

@@ -160,7 +160,7 @@ class initializeAlgorithmFD(Task):
             logging.info( 'FD: Breakpoints will be saved into: '+breakpoints_output_folder )
             os.makedirs( breakpoints_output_folder )
             
-        temp_output_folder = os.path.join( products_folder, 'temporary_processing')
+        temp_output_folder = os.path.join( products_folder, 'temp')
         logging.info( 'FD: Temporary data folder:'+temp_output_folder+'\n' )  
      
         os.makedirs(temp_output_folder)
@@ -261,7 +261,7 @@ class CoreProcessingFD(Task):
         number_of_pols = 3    
 
         products_folder = os.path.join( self.proc_inputs.output_folder, 'Products' )
-        temp_output_folder = os.path.join( products_folder, 'temporary_processing')
+        temp_output_folder = os.path.join( products_folder, 'temp')
         if not os.path.exists(temp_output_folder):
             os.makedirs(temp_output_folder)
         if self.proc_conf.save_breakpoints:
@@ -307,9 +307,9 @@ class CoreProcessingFD(Task):
             logging.info('FD: disturbance computation step #{} of #{}; current global cycle is '.format( time_step_idx+1, number_of_global_cycles)+'"GC_'+global_cycle_idx_str+'"'+' current geometry is '+self.nominal_geometry_stack_id )
             
             # make temporary sub-directories
-            temp_output_folder_sr = os.path.join( temp_output_folder, 'slant_range_geometry'  , unique_stack_id ) 
-            temp_output_folder_gr = os.path.join( temp_output_folder, 'ground_range_geometry' , unique_stack_id )
-            temp_output_folder_e7 = os.path.join( temp_output_folder, 'ground_equi7_geometry' , unique_stack_id ) 
+            temp_output_folder_sr = os.path.join( temp_output_folder, 'slantRange'  , unique_stack_id ) 
+            temp_output_folder_gr = os.path.join( temp_output_folder, 'geocoded' , unique_stack_id )
+            temp_output_folder_e7 = os.path.join( temp_output_folder, 'equi7' , unique_stack_id ) 
             os.makedirs( temp_output_folder_sr )
             os.makedirs( temp_output_folder_gr)
             os.makedirs( temp_output_folder_e7 )
@@ -427,7 +427,7 @@ class CoreProcessingFD(Task):
                 logging.info('FD: saving breakpoints (in slant range geometry) on '+breakpoints_output_folder)
                 post_string = '_SR_'+unique_stack_id
                 
-                breakpoint_names = [ 'ground_cancelled_data'+post_string ]
+                breakpoint_names = [ 'ground_cancelled'+post_string ]
                 
                 save_breakpoints( breakpoints_output_folder, breakpoint_names, [beta0_notched] )
                 logging.info('...done.\n')
@@ -457,7 +457,7 @@ class CoreProcessingFD(Task):
                 cov_layers_num, Nrg, Naz = MPMB_covariance_sr.shape # cov_layers_num = 6
                 MPMB_sr_temp_npy_fnames = []
                 for layer_idx in np.arange( 6 ):
-                    MPMB_sr_temp_npy_fnames.append( os.path.join( temp_output_folder_sr, 'MPMB_covariance_sr_layer_{}_of_6.npy'.format(layer_idx+1) ) )
+                    MPMB_sr_temp_npy_fnames.append( os.path.join( temp_output_folder_sr, 'MPMB_covariance_layer_{}_6.npy'.format(layer_idx+1) ) )
                     np.save( MPMB_sr_temp_npy_fnames[layer_idx], MPMB_covariance_sr[layer_idx, :, :] )
                 
                 #del MPMB_covariance_sr
@@ -488,7 +488,7 @@ class CoreProcessingFD(Task):
                 # geocode one layer at a time, loading from temporary numpy
                 MPMB_gr_temp_npy_fnames = []
                 for layer_idx in np.arange( cov_layers_num ):
-                    curr_geocoded_fname     = os.path.join( temp_output_folder_gr, 'MPMB_covariance_ground_layer_{}_of_6.npy'.format(layer_idx+1) )
+                    curr_geocoded_fname     = os.path.join( temp_output_folder_gr, 'MPMB_covariance_layer_{}_6.npy'.format(layer_idx+1) )
                     
                     # load slant range MPMB from npy file geocode and save the geocoded on  a new npy file
                     MPMB_covariance_gr = geocoding( np.load(MPMB_sr_temp_npy_fnames[layer_idx]) , lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask )
@@ -517,7 +517,7 @@ class CoreProcessingFD(Task):
             try:
                             
                 cov_ground_fname         = os.path.join( temp_output_folder_gr, 'AverageCovariance.tif' )
-                inc_angle_ground_fname   = os.path.join( temp_output_folder_gr, 'incidence_angle_rad_ground.tif')
+                inc_angle_ground_fname   = os.path.join( temp_output_folder_gr, 'IncidenceAngle.tif')
   
     
                 upper_left_easting_coord  = lon_regular_vector[0] # i.e. horizontal
@@ -544,10 +544,10 @@ class CoreProcessingFD(Task):
                 equi7_COV_parent_tempdir = os.path.join( temp_output_folder_e7, 'AverageCovariance' )
                 
                 # in general from here the Equi7 can output multiple tiles, which file names are stored in the output list ( wrapped here in a dict for the stack )
-                equi7_cov_temp_fnames = image2equi7grid( e7g, cov_ground_fname, equi7_COV_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, resampling_type='bilinear', tile_nodata=np.nan)
+                equi7_cov_temp_fnames = image2equi7grid( e7g, cov_ground_fname, equi7_COV_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, withtilenamesuffix=False, resampling_type='bilinear', tile_nodata=np.nan)
     			
-                equi7_inc_parent_tempdir = os.path.join( temp_output_folder_e7, 'incidence_angle_rad' )
-                equi7_inc_temp_fnames    = image2equi7grid( e7g, inc_angle_ground_fname, equi7_inc_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, resampling_type='bilinear', tile_nodata=np.nan)
+                equi7_inc_parent_tempdir = os.path.join( temp_output_folder_e7, 'IncidenceAngle' )
+                equi7_inc_temp_fnames    = image2equi7grid( e7g, inc_angle_ground_fname, equi7_inc_parent_tempdir, gdal_path=self.gdal_path, inband=None, subgrid_ids=None, accurate_boundary=False, withtilenamesuffix=False, resampling_type='bilinear', tile_nodata=np.nan)
                   
                 
             except Exception as e:
@@ -625,7 +625,7 @@ class CoreProcessingFD(Task):
                 
                 equi7_tile_avg_cov_outdir     = os.path.join( equi7_zone_avg_cov_outdir     , equi7_tile_name )  # full path of equi7 tile output folder
 
-                equi7_cov_tiff_name_curr    = 'AverageCovariance_'+equi7_zone_name[6:]+'_'+equi7_tile_name+'.tif'  # current equi7 tiff file name inside the equi7 tile
+                equi7_cov_tiff_name_curr    = 'AverageCovariance.tif'  # current equi7 tiff file name inside the equi7 tile
 
                 equi7_avg_cov_out_tiff_name_prev = os.path.join    ( equi7_zone_avg_cov_outdir_prev, equi7_tile_name, equi7_cov_tiff_name_curr) # full path of equi7 tiff output file name at previous step (if present)       
                
@@ -782,8 +782,8 @@ class CoreProcessingFD(Task):
             equi7_tile_disturbance_outdir = os.path.join( equi7_zone_disturbance_outdir , equi7_tile_name )
             
             equi7_fnf_mask_tile_outdir  = os.path.join( equi7_zone_fnf_mask_outdir    , equi7_tile_name )
-            equi7_disturbance_tiff_name = 'disturbance_'       +equi7_zone_name+'_'+equi7_tile_name+'.tif'
-            equi7_fnf_mask_tiff_name    = 'fnf_mask_'          +equi7_zone_name+'_'+equi7_tile_name+'.tif' 
+            equi7_disturbance_tiff_name = 'disturbance.tif'
+            equi7_fnf_mask_tiff_name    = 'fnf.tif' 
             
             equi7_disturbance_out_fname = os.path.join( equi7_tile_disturbance_outdir, equi7_disturbance_tiff_name )
             equi7_fnf_mask_outfname     = os.path.join( equi7_fnf_mask_tile_outdir   , equi7_fnf_mask_tiff_name    )

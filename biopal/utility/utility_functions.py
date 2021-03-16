@@ -28,7 +28,7 @@ class Task:
 
     def run(self, input_file_xml):
 
-        #try:
+        try:
 
             logging.info("Starting {}".format(self.name()))
             output = self._run(input_file_xml)
@@ -36,10 +36,10 @@ class Task:
 
             return output
 
-        # except Exception as e:
-        #     error_msg = "biopal error inside {}: {}".format(self.name(), e)
-        #     logging.error(error_msg, exc_info=True)
-        #     raise RuntimeError(error_msg)
+        except Exception as e:
+            error_msg = "biopal error inside {}: {}".format(self.name(), e)
+            logging.error(error_msg, exc_info=True)
+            raise RuntimeError(error_msg)
 
 
 def set_gdal_paths(gdal_path, gdal_environment_path=None):
