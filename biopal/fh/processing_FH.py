@@ -39,7 +39,7 @@ def volume_decorrelation_lut(num_baselines, vertical_wavenumber, model_parameter
     q = np.ones((Ns, 1)) * (1j * vertical_wavenumber).reshape((1, num_baselines))
     q0 = q[0, :]
     p1 = p + q
-    for hi in np.arange(Nh - 1) + 1:  # do not cycle hi = 0
+    for hi in np.arange(1, Nh): # do not cycle hi = 0
         LU = np.zeros((Ns, num_baselines), dtype=np.complex64)
         LU[1:-1, :] = (
             p[1:-1, :]
