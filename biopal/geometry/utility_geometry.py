@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import logging
 import shutil

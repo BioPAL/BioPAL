@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 from scipy.interpolate import interp1d
 from biopal.io.xml_io import raster_info

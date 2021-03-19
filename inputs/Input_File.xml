@@ -1,34 +1,31 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<BIOMASSL2>
-	<L1cRepository>dataSet</L1cRepository>
-	<L2Product>
-		<AGB>true</AGB>
-		<FH>false</FH>
-		<TOMO_FH>false</TOMO_FH>
-		<FD>false</FD>
-		<TOMO>false</TOMO>
-	</L2Product>
-	<L1cDate value="start" unit="Utc">01-FEB-2016 00:00:00.000000000000</L1cDate>
-	<L1cDate value="stop" unit="Utc">20-FEB-2016 12:00:00.000000000000</L1cDate>
-	<AuxiliaryProductsFolder>auxiliary_data_pf</AuxiliaryProductsFolder>
-	<GeographicBoundary unit="deg">
-		<Point>
-			<Latitude>-2</Latitude>
-			<Longitude>9</Longitude>
-		</Point>
-		<Point>
-			<Latitude>-2</Latitude>
-			<Longitude>15</Longitude>
-		</Point>
-		<Point>
-			<Latitude>2</Latitude>
-			<Longitude>9</Longitude>
-		</Point>
-		<Point>
-			<Latitude>2</Latitude>
-			<Longitude>15</Longitude>
-		</Point>
-	</GeographicBoundary>
-	<OutputFolder>output</OutputFolder>
-	<GeographicGridSampling unit="m">80</GeographicGridSampling>
-</BIOMASSL2>
+<BioPALInput version="0.1">
+	<L2_product options="AGB, FH, FD, TOMO_FH">AGB</L2_product>
+	<output_specification>
+		<output_folder>output_folder_full_path</output_folder>
+		<geographic_grid_sampling unit="m">80</geographic_grid_sampling>
+	</output_specification>
+	<dataset_query>
+		<L1C_repository>dataSet_full_path</L1C_repository>
+		<L1C_date value="start" unit="Utc">01-FEB-2016 00:00:00.000000000000</L1C_date>
+		<L1C_date value="stop" unit="Utc">20-FEB-2016 12:00:00.000000000000</L1C_date>
+		<auxiliary_products_folder>auxiliary_data_pf_full_path</auxiliary_products_folder>
+		<geographic_boundaries_polygon unit="deg">
+			<point>
+				<latitude>-2</latitude>
+				<longitude>9</longitude>
+			</point>
+			<point>
+				<latitude>-2</latitude>
+				<longitude>15</longitude>
+			</point>
+			<point>
+				<latitude>2</latitude>
+				<longitude>9</longitude>
+			</point>
+			<point>
+				<latitude>2</latitude>
+				<longitude>15</longitude>
+			</point>
+		</geographic_boundaries_polygon>
+	</dataset_query>
+</BioPALInput>

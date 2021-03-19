@@ -24,11 +24,7 @@ This repository is organized as follows:
 
 -   **biopal**: contains the BioPAL source code in particular:
 
-    -   the `biopal/conf/biopal_configuration.xml` contains the configuration for the BioPAL module environment;
-    -   the`biopal/conf/ConfigurationFile_AGB.xml`contains the configuration for the Above Ground Biomass algorithm;
-    -   the `biopal/conf/ConfigurationFile_FH.xml` contains the configuration for the interferometric phase Forest Heigth algorithm;
-    -   the `biopal/conf/ConfigurationFile_TOMO_FH.xml` contains the configuration for the tomographic phase Forest Heigth algorithm.
-
+    -   the`biopal/conf/Configuration_File.xml`contains the configuration for the BioPAL environment and all the parameters to configure each processing chain (AGB, FH, FD, TOMO_FH);
 -   **doc**: contains the documentation.
 
 -   **inputs**: contains the XML Input File, to be set by the user before running an instance of the processing.
@@ -100,15 +96,15 @@ then type the following instruction:
         pip install biopal
 
 ## Setup Configuration
-Open the `inputs/Input_File.xml` and update directory locations with absolute paths for:
+Open the `inputs/Input_File.xml` and update following sections withj absolute paths:
 
--   `L1cRepository`: this folder contains the data stacks to be processed
--   `AuxiliaryProductsFolder`: this folder contains auxiliary parameters related to the data stacks of the L1cRepository
--   `OutputFolder`: this is the folder where the output will be saved (each run corresponds to a sub-folder formatted with the current date time)
+-   `dataset_query->L1C_repository`: this folder contains the data stacks to be processed
+-   `dataset_query->auxiliary_products_folder`: this folder contains auxiliary parameters related to the data stacks of the L1cRepository
+-   `output_specification->output_folder`: this is the folder where the output will be saved (each run corresponds to a sub-folder formatted with the current date time)
 
-*NOTE: Sample data and auxiliaries can be obtained by writing to* <biopal@esa.int>.
+*NOTE: Sample data (L1C_repository) and auxiliaries (auxiliary_products_folder) can be obtained by writing to* <biopal@esa.int>.
 
-The BioPAL GDAL paths are automatically found by the processor after a correct installation procedure; in case of problems or for particular user cases, it is possible to specify manually such paths, in this case edit `biopal/conf/biopal_configuration.xml`, uncomment the paths section and insert your absolute paths for:
+The BioPAL GDAL paths are automatically found by the processor after a correct installation procedure; in case of problems or for particular user cases, it is possible to specify manually such paths, in this case edit `biopal/conf/Configuration_File.xml`, uncomment the "gdal" section and insert your absolute paths for:
 -   `gdal_path`: this is the folder containing the GDAL executables, usually in the `/bin` subfolder of GDAL environment (containing e.g., *gdalwarp*, *gdal_translate*,... )
 -   `gdal_enviroment_path`: this is the GDAL_DATA environment variable path
 
@@ -129,8 +125,8 @@ BioPAL gives easy access to several datasets that are used for examples in the d
 ## Run the processor for users
 *NOTE: The run procedure here described is ready but not usable yet: it will be available once installation procedure described in "BioPAL package installation into the created environment" will be ready*.
 
-1.  Set the `inputs/Input_File.xml` as desired
-2.  Set the AGB, FH, TOMO_FH xml configurations present in `biopal/conf folder` as desired
+1.  Set the `inputs/Input_File.xml` as desired, the `dataset_query` section is already filled with default L1C_date and geographic_boundaries_polygon, to be used with the DEMO DataSet from ESA.
+2.  Set the AGB, FH, FD, TOMO_FH configuration sections present in `biopal/conf/Configuration_File.xml` as desired (default configuration parameters alreasy present)
 3.  In a conda command window, type the following instruction, which activates the biopal environment:
 
         conda activate biopal
@@ -150,7 +146,7 @@ With following command, default configurations are used:
 
 ## Run the processor for developers
 1.  Set the `inputs/Input_File.xml`as desired
-2.  Set the AGB, FH, TOMO_FH xml configurations present in `biopal/conf` folder as desired
+2.  Set the AGB, FH, FD, TOMO_FH configuration sections present in `biopal/conf/Configuration_File.xml` as desired
 3.  In a conda command window, type the following instruction, which activates the biopal environment:
 
         conda activate biopal
