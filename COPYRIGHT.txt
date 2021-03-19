@@ -1,0 +1,7 @@
+This code is released under MIT license, it is experimental and may change without notice.
+
+Libraries directly included in BioPAL:
+
+arepytools
+biopal\geometry\geometric_lib.py
+  copyright: Aresys S.r.l. <info@aresys.it>
