@@ -39,7 +39,7 @@ Here the required environment and dependencies are listed, as well as installati
 
 ## Requirements
 
-Python 3.6 is a minimum requirement. The packages required are specified in the file [requirements.txt](https://github.com/BioPAL/BioPAL/blob/dev/requirements.txt).
+Python 3.6 is a minimum requirement. The packages required are specified in the file [requirements.txt](https://github.com/BioPAL/BioPAL/blob/main/requirements.txt).
 
 ## Installation
 
@@ -62,10 +62,10 @@ Installation procedure described here makes use of the open-source package manag
         git clone --branch <branchname> <remote-repo-url>
     where:
 -- `<remote-repo-url>` is https://github.com/your_name_here/BioPAL.git (write your specific name)
--- `<branchname>` is the specific branch to be cloned: currently the developers branch is called `dev`
+-- `<branchname>` is the branch to be cloned: currently there is only a branch called `main`
     so the clone command will be (write your specific name):
     
-        git clone --branch dev https://github.com/your_name_here/BioPAL.git
+        git clone --branch main https://github.com/your_name_here/BioPAL.git
 
 ##### Make a local clone (users)
 
@@ -226,7 +226,7 @@ Read carefully also contributor\'s guides before getting started.
 
 6.  Commit local changes and push local branch to the GitHub private fork.
 
-7.  Submit a pull request through the GitHub website to the [dev branch](https://github.com/BioPAL/BioPAL/tree/dev) of the main repository.
+7.  Submit a pull request through the GitHub website to the [main branch](https://github.com/BioPAL/BioPAL/tree/main) of the main repository.
 
 ## Pull Request Requirements
 
