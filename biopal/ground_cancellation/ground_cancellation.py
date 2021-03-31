@@ -11,7 +11,9 @@ def check_pm_kz0(kz_stack, opt_str):
 
     condition = np.nansum(
         (np.nanmax(kz_list, axis=0) >= opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= opt_str.kz0)
-    ) < np.nansum((np.nanmax(kz_list, axis=0) >= -opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= -opt_str.kz0))
+    ) < np.nansum(
+        (np.nanmax(kz_list, axis=0) >= -opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= -opt_str.kz0)
+    )
 
     if condition:
         return -opt_str.kz0, kz_list
@@ -55,6 +57,13 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
     %                           demodulation height to perform interpolation
     %                  model_sign: (optional. Default: +1) model for the
     %                              interferometric phase: model_sign*kz*z
+    %                  z_demod_map: (optional. [Nrg x Naz] numpy array) vertical
+    %                               spectrum demodulation height to perform
+    %                               interpolation
+    %                  kz0_map: (optional. [Nrg x Naz] numpy array) desired
+    %                          phase-to-height map
+    %                  space_varying_cancellation: (optional. Default: false)
+    %                           if true opt_str.z_demod_map and opt_str.kz0_map are used
     %
     % OUTPUTkz0_crit
     %       GroundNotchedSLC: [Nrg x Naz] ground notche slc
@@ -67,7 +76,19 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
     acq_names = list(data_stack.keys())
     first_acq_dict = data_stack[acq_names[0]]
     Nrg, Naz = first_acq_dict[pol_name].shape
-
+    
+    # Checking whether space-varying cancellation should run. It has already
+    # been checked by ground_cancellation method, trust it.
+    if (
+        hasattr(opt_str, 'space_varying_cancellation')
+        and opt_str.space_varying_cancellation
+    ):
+        logging.info('AGB: (core) opt_str.space_varying_cancellation = True...:')
+        space_varying_cancellation = True
+    else:
+        logging.info('AGB: (core) opt_str.space_varying_cancellation = False...:')
+        space_varying_cancellation = False
+        
     if num_acq == 2:
 
         master_acq_id = acq_names[0]
@@ -77,36 +98,60 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
         mask_extrap = np.zeros((Nrg, Naz), dtype=np.int8)
 
     else:
-
-        if not (hasattr(opt_str, "kz0")) or not (hasattr(opt_str, "master_id")) or not (hasattr(opt_str, "z_demod")):
-            logging.error("Ground cancellation module: invalid number of arguments.")
+        # Checking opt_str
+        if not hasattr(opt_str, 'kz0'):
+            logging.error('Ground cancellation module: missing opt_str.kz0 input.')
             raise
-
+                
+        if not hasattr(opt_str, 'z_demod'):
+            logging.error('Ground cancellation module: missing opt_str.z_demod input.')
+            raise
+                
+        if not hasattr(opt_str, 'master_id'):
+            logging.error('Ground cancellation module: missing opt_str.master_id input.')
+            raise
+            
         # Check if it is better to generate +kz0 or -kz0
+        # Just one single kz0 to perform this check even in case of space-varying cancellation
         opt_str.kz0, _ = check_pm_kz0(kz_stack, opt_str)
 
         # Demodulation
         for acq_id in data_stack.keys():
-            data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
-                -1j * kz_stack[acq_id] * opt_str.z_demod
-            )
+            if space_varying_cancellation:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    -1j * kz_stack[acq_id] * opt_str.z_demod_map)
+            else:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    -1j * kz_stack[acq_id] * opt_str.z_demod)
 
-        Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0, pol_name)
+        # Generating synthetic SLC through interpolation
+        if space_varying_cancellation:
+            Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0_map, pol_name)
+        else:
+            Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0, pol_name)
 
         # Modulation
         for acq_id in data_stack.keys():
-            data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
-                1j * kz_stack[acq_id] * opt_str.z_demod
-            )
+            if space_varying_cancellation:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    1j * kz_stack[acq_id] * opt_str.z_demod_map)
+            else:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    1j * kz_stack[acq_id] * opt_str.z_demod)
 
-        Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod)
+        if space_varying_cancellation:
+            Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod_map)
+        else:
+            Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod)
 
         GroundNotchedSLC = data_stack[opt_str.master_id][pol_name] - Ikz0
 
     return GroundNotchedSLC, mask_extrap
 
 
-def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag, pho_r, theta_look, ground_slope):
+def ground_cancellation(
+    data_stack, kz_stack, multi_master_flag, z_emph, eq_flag, pho_r, theta_look, ground_slope
+):
 
     #      data_stack: stack of calibrated, ground steered slc images.
     #                  It is a dictionary of two nested dictionaries where:
@@ -114,37 +159,57 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
     #      kz_stack:   array of phase-to-height conversion
     #                  factors (kz) OR [num_acq x 1] vector of kz for constant geometries. Needed if num_acq > 2.
     #                  It is a dictionary where kz_stack[acquisition_name_string] is an array of shape [Nrg x Naz]
-    if not eq_flag == "1" and not eq_flag == "2" and not eq_flag == "3":
+    if not eq_flag == '1' and not eq_flag == '2' and not eq_flag == '3':
         error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
             eq_flag
         )
         logging.error(error_str)
         raise
 
-    # Ground notching
-    GroundNotchedSLC = {}
-
-    # Desired elevation for the peak of the ground notching processing
-    class opt_str:
-        pass
-
-    opt_str.z_demod = z_emph / 2  # [m]
-    opt_str.kz0 = np.pi / opt_str.z_demod / 2
-
     # Nrg, Naz, num_acq = data_stack[0].shape
 
+    # Initializing local paramters
     num_acq = len(data_stack)
     acq_names = list(data_stack.keys())
     first_acq_dict = data_stack[acq_names[0]]
     pol_names = list(first_acq_dict.keys())
     Nrg, Naz = first_acq_dict[pol_names[0]].shape
 
+
+    # Ground notching
+    GroundNotchedSLC = {}
+    
+
+    # Desired elevation for the peak of the ground notching processing
+    class opt_str:
+        pass
+
+    # Checking whether z_emph is a suitable map to drive the ground cancellation algorithm
+    opt_str.space_varying_cancellation = is_suitable_z_emph_map(z_emph, Nrg, Naz)
+    
+    # If it is not a suitable map and it is not a scalar, an exception should be raised
+            
+    # Ground cancellation parameters
+    if opt_str.space_varying_cancellation:
+        logging.info('AGB: (ground_cancellation) z_emph suitable 2D map...:')
+        opt_str.z_demod_map = z_emph / 2  # [m]
+        opt_str.kz0_map = np.pi / opt_str.z_demod_map / 2
+        opt_str.z_demod = np.mean(opt_str.z_demod_map)
+        opt_str.kz0 = np.pi / opt_str.z_demod / 2
+    else:
+        logging.info('AGB: (ground_cancellation) z_emph not suitable 2D map...:')
+        opt_str.z_demod = z_emph / 2  # [m]
+        opt_str.kz0 = np.pi / opt_str.z_demod / 2
+
+
     # Polarimetric channel
     for pol_name in pol_names:
 
         if num_acq == 2:
             opt_str.master_id = acq_names[0]
-            notch_final, mask_final = ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str)
+            notch_final, mask_final = ground_cancellation_core(
+                data_stack, pol_name, kz_stack, opt_str
+            )
             GroundNotchedSLC[pol_name] = notch_final
 
         elif not multi_master_flag:
@@ -172,7 +237,9 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
 
             # get the index of the max
             acq_id_max_pixels = max(num_pixels_kz, key=num_pixels_kz.get)
-            print("Choosing {} as optimal master SLC for pol {}".format(acq_id_max_pixels, pol_name))
+            print(
+                "Choosing {} as optimal master SLC for pol {}".format(acq_id_max_pixels, pol_name)
+            )
 
             # compute ground notch
             opt_str.master_id = acq_id_max_pixels
@@ -181,7 +248,9 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
             for acq_id_to_mod in kz_stack.keys():
                 kz_stack_mod[acq_id_to_mod] = kz_stack[acq_id_to_mod] - TEMP
 
-            notch_final, mask_final = ground_cancellation_core(data_stack, pol_name, kz_stack_mod, opt_str)
+            notch_final, mask_final = ground_cancellation_core(
+                data_stack, pol_name, kz_stack_mod, opt_str
+            )
             notch_final[mask_final == 1] = 0
 
             GroundNotchedSLC[pol_name] = notch_final
@@ -199,25 +268,33 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
                 for acq_id_to_mod in kz_stack.keys():
                     kz_stack_mod[acq_id_to_mod] = kz_stack[acq_id_to_mod] - TEMP
 
-                notch_temp, notch_mask = ground_cancellation_core(data_stack, pol_name, kz_stack_mod, opt_str)
+                notch_temp, notch_mask = ground_cancellation_core(
+                    data_stack, pol_name, kz_stack_mod, opt_str
+                )
                 notch_temp[notch_mask == 1] = 0
                 notch_final = notch_final + np.abs(notch_temp) ** 2
                 mask_final = mask_final + 1 - notch_mask
             mask_final[mask_final == 0] = 1
             GroundNotchedSLC[pol_name] = np.sqrt(notch_final / mask_final)
 
-        if eq_flag == "2":  # 2 = always active
+        if eq_flag == '2':  # 2 = always active
 
             if num_acq == 2:
                 normalization_factor = SingleBaselineEqualization(
                     z_emph, pho_r, kz_stack[acq_names[1]], theta_look, ground_slope
                 )
-                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(normalization_factor)
+                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(
+                    normalization_factor
+                )
             else:
-                normalization_factor = SingleBaselineEqualization(z_emph, pho_r, opt_str.kz0, theta_look, ground_slope)
-                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(normalization_factor)
+                normalization_factor = SingleBaselineEqualization(
+                    z_emph, pho_r, opt_str.kz0, theta_look, ground_slope
+                )
+                GroundNotchedSLC[pol_name] = GroundNotchedSLC[pol_name] / np.sqrt(
+                    normalization_factor
+                )
 
-        elif eq_flag == "3" and num_acq == 2:  # 3 = active only when nyum_acq == 2
+        elif eq_flag == '3' and num_acq == 2:  # 3 = active only when nyum_acq == 2
             normalization_factor = SingleBaselineEqualization(
                 z_emph, pho_r, kz_stack[acq_names[1]], theta_look, ground_slope
             )
@@ -252,7 +329,8 @@ def SingleBaselineEqualization(eq_height, pho_r, kz, theta_look, ground_slope):
 
     # Model power (up to the absolute forest reflectivity density)
     P = 2 * (
-        (xr0 + delta_xr / 2) * (1 - np.sin(kxr * (xr0 + delta_xr / 2)) / (kxr * (xr0 + delta_xr / 2)))
+        (xr0 + delta_xr / 2)
+        * (1 - np.sin(kxr * (xr0 + delta_xr / 2)) / (kxr * (xr0 + delta_xr / 2)))
         + delta_xr / 2 * (1 - np.sin(kxr * delta_xr / 2) / (kxr * delta_xr / 2))
     )
 
@@ -330,10 +408,39 @@ def kzInterp(data_stack_in, kz_stack_in, kz0, pol_name):
     kz_post = kz_stack[R, C, post_kz_ind]
     frac_part = (kz0 - kz_pre) / (kz_post - kz_pre)
 
-    Ikz0 = (1 - frac_part) * data_stack[R, C, pre_kz_ind] + frac_part * data_stack[R, C, post_kz_ind]
+    Ikz0 = (1 - frac_part) * data_stack[R, C, pre_kz_ind] + frac_part * data_stack[
+        R, C, post_kz_ind
+    ]
 
     mask_extrap = pre_tbe | post_tbe
 
     Ikz0[mask_extrap] = np.spacing(1)
 
     return Ikz0, mask_extrap
+
+def is_suitable_z_emph_map(z_emph, Nrg, Naz):
+    """It checks whether the input (z_emph) is a suitable 2D map to be used as a
+    space-varying height to be emphasized through ground cancellation. It must be:
+        - A numpy ndarray instance
+        - Two-dimensional
+        - Same size (in pixels) as the area currently processed
+        - All values greater than zero
+
+    INPUT
+    z_emph: variable to be evaluated
+    Nrg   : Number of rows currently processed
+    Naz   : Number of columns currently processed
+
+    OUTPUT
+    is_suitable: """
+    
+    is_suitable = False
+    if isinstance(z_emph, np.ndarray):
+        if (
+                np.ndim(z_emph) == 2
+                and z_emph.shape == (Nrg, Naz)
+                and z_emph.min() > 0
+            ):
+            is_suitable = True
+        
+    return is_suitable

@@ -324,6 +324,9 @@ class StackBasedProcessingAGB(Task):
                 max(north_in, north_out),
             ]
             lut_fnf_paths.append(fnf_name_curr)
+            
+        # To be set from configuration file in the final version
+        space_varying_ground_cancellation = True
 
         ########################## INITIAL STEPS END #############################
 
@@ -443,11 +446,19 @@ class StackBasedProcessingAGB(Task):
 
                     logging.info("Geometry library: correcting geometry global / local reference")
                     slope = slope - ellipsoid_slope
+                    
+                    # The kz taking into account the ground slope is generated too
+                    kz_ground_slope = kz.copy()
+                    
                     for swath_id in kz.keys():
                         kz[swath_id] = (
                             kz[swath_id]
                             * np.sin(off_nadir_angle_rad[master_id])
                             / np.sin(off_nadir_angle_rad[master_id] - ellipsoid_slope)
+                        )
+                        kz_ground_slope[swath_id] = (
+                            kz[swath_id]
+                            / (1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id] - ellipsoid_slope))
                         )
                     off_nadir_angle_rad[master_id] = off_nadir_angle_rad[master_id] - ellipsoid_slope
                     del ellipsoid_slope
@@ -483,8 +494,17 @@ class StackBasedProcessingAGB(Task):
                         raster_info_orig,
                         read_ref_h=read_ref_h,
                     )
+                    
+                    # The kz taking into account the ground slope is generated too
+                    # ellipsoid_slope is set to zero
+                    kz_ground_slope = kz.copy()
+                    for swath_id in kz.keys():
+                        kz_ground_slope[swath_id] = (
+                            kz[swath_id]
+                            / (1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id]))
+                        )
                     logging.info("AGB: ...geometry auxiliaries loading done.")
-
+                    
                 # read the rest of auxiliaries which are notpart of the geometry library:
                 if read_cal_screens:
 
@@ -550,20 +570,42 @@ class StackBasedProcessingAGB(Task):
             ### ground notching
             try:
 
-                logging.info("AGB: ground contribute cancellation...:")
+                if space_varying_ground_cancellation:
+                    
+                    # The map specifying the space-varying height to be emphasized
+                    # must be available here. For the moment a map filled with the
+                    # value taken from the configuration file is used.
+                    current_enhanced_forest_height = slope.copy()
+                    current_enhanced_forest_height.fill(proc_conf.ground_cancellation.enhanced_forest_height)
+                    
+                    logging.info('AGB: space-varying ground contribute cancellation...:')
+                    DN_beta0_notched = ground_cancellation(
+                        beta0_calibrated,
+                        kz_ground_slope,
+                        proc_conf.ground_cancellation.multi_master_flag,
+                        current_enhanced_forest_height,
+                        proc_conf.ground_cancellation.equalization_flag,
+                        raster_info.resolution_m_slant_rg,
+                        off_nadir_angle_rad[master_id],
+                        slope,
+                    )  # beta0_calibrated: 3 pol (nrg x Naz  x Nimmagini); DN_beta0_notched: 3 pol (Nrg x Naz x 1 immagine)
+                    del beta0_calibrated, kz, kz_ground_slope, current_enhanced_forest_height
+                else:
 
-                DN_beta0_notched = ground_cancellation(
-                    beta0_calibrated,
-                    kz,
-                    proc_conf.ground_cancellation.multi_master_flag,
-                    proc_conf.ground_cancellation.enhanced_forest_height,
-                    proc_conf.ground_cancellation.equalization_flag,
-                    raster_info.resolution_m_slant_rg,
-                    off_nadir_angle_rad[master_id],
-                    slope,
-                )  # beta0_calibrated: 3 pol (nrg x Naz  x Nimmagini); DN_beta0_notched: 3 pol (Nrg x Naz x 1 immagine)
-
-                del beta0_calibrated, kz
+                    logging.info("AGB: ground contribute cancellation...:")
+    
+                    DN_beta0_notched = ground_cancellation(
+                        beta0_calibrated,
+                        kz,
+                        proc_conf.ground_cancellation.multi_master_flag,
+                        proc_conf.ground_cancellation.enhanced_forest_height,
+                        proc_conf.ground_cancellation.equalization_flag,
+                        raster_info.resolution_m_slant_rg,
+                        off_nadir_angle_rad[master_id],
+                        slope,
+                    )  # beta0_calibrated: 3 pol (nrg x Naz  x Nimmagini); DN_beta0_notched: 3 pol (Nrg x Naz x 1 immagine)
+    
+                    del beta0_calibrated, kz
 
             except Exception as e:
                 logging.error("AGB: error during ground cancellation: " + str(e), exc_info=True)
