@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import logging
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -635,15 +638,15 @@ def MPMBshuffle(MPMB_correlation, rg_vec_subs, az_vec_subs, Npol, N):
 
 def Covariance4D2Correlation4D(Cov_MPMB):
     """It normalizes each element of the 4-D Multi-Polarimetric Multi-Baseline
-    % with respect to the corresponding diagonal terms.
-    %
-    % INPUT
-    %      Cov_MPMB: [Nimm*Npol x Nimm*Npol x Nr x Na] Covariance matrices
-    %
-    % OUTPUT
-    %       Corr_MPMB: [Nimm*Npol x Nimm*Npol x Nr x Na] normalized covariance
-    %                  matrices
-    %       varargout{1}: [Nr x Na x Nimm*Npol] diagonal entries of Cov_MPMB"""
+     with respect to the corresponding diagonal terms.
+    
+     INPUT
+          Cov_MPMB: [Nimm*Npol x Nimm*Npol x Nr x Na] Covariance matrices
+    
+     OUTPUT
+           Corr_MPMB: [Nimm*Npol x Nimm*Npol x Nr x Na] normalized covariance
+                      matrices
+           varargout{1}: [Nr x Na x Nimm*Npol] diagonal entries of Cov_MPMB"""
     temp, N, Nr, Na = Cov_MPMB.shape
     diag_mask = np.tile((np.eye(N).reshape(N, N, 1, 1)) > 0, [1, 1, Nr, Na])
     norm_util = Cov_MPMB[diag_mask]
@@ -658,13 +661,13 @@ def Covariance4D2Correlation4D(Cov_MPMB):
 
 def Covariance2D2Correlation2D(Cov2D):
     """It normalizes each element of the covariance matrix with respect to the
-    % corresponding elements on the main diagonal.
-    %
-    % INPUT
-    %      Cov2D: [N x N] covariance matrix
-    %
-    % OUTPUT
-    %       Corr2D: [N x N] normalized covariance matrix"""
+     corresponding elements on the main diagonal.
+    
+     INPUT
+          Cov2D: [N x N] covariance matrix
+    
+     OUTPUT
+           Corr2D: [N x N] normalized covariance matrix"""
     temp = np.diag(1 / np.sqrt(np.diag(Cov2D)))
     Corr2D = temp @ Cov2D @ temp
 
@@ -786,66 +789,66 @@ def covariance_matrix_vec2mat(vector_in):
 
 def SKPD_processing(Cov_MPMB, opt_str):
     """SKPD_processing
-    %
-    % Kernel of the Sum of Kronecker Product Decomposition.
-    %
-    % INPUT
-    %      Cov_MPMB: [N*Npol x N*Npol] covariance matrix
-    %       opt_str.
-    %                        N: number of images
-    %                     Npol: number of polarizations
-    %               Nsubspaces: number of desired subspaces
-    %                   Nparam: number of parameters sampling the "a" and "b"
-    %                           range of physical admissibility
-    %
-    % OUTPUT
-    %       out_str.
-    %               error: [1 x 4] logical vector.
-    %                      1. Cov_MPMB has nan of inf values
-    %                      2. Singular matrices have nan or inf values
-    %                      3. Singular matrices are not full rank
-    %                      4. Could not determine "a" or "b" ranges
-    %               lambda_SVD: singular values of the SKPD
-    %               Ro: tomographic part of the decomposition (normalized wrt
-    %                   Ro{k}(1, 1))
-    %               Co: polarimetric part of the decomposition
-    %               ax: vector gathering the admissible values for parameter a
-    %               bx: vector gathering the admissible values for parameter b
-    %               Ra: corresponding tomographic covariance matrices (at the
-    %                   edges of the possible range of values of "a")
-    %               Rb: corresponding tomographic covariance matrices (at the
-    %                   edges of the possible range of values of "b")
-    %               Ca: corresponding polarimetric covariance matrices (at the
-    %                   edges of the possible range of values of "a")
-    %               Cb: corresponding polarimetric covariance matrices (at the
-    %                   edges of the possible range of values of "b")
-    %               full_rank_Ra: true if Ra is full rank
-    %               full_rank_Rb: true if Rb is full rank
-    %               full_rank_Ca: true if Ca is full rank
-    %               full_rank_Cb: true if Cb is full rank
-    %               Ra_coherence: tomographic coherence of Ra
-    %               Rb_coherence: tomographic coherence of Rb
-    %               Ca_coherence: tomographic coherence of Ca
-    %               Cb_coherence: tomographic coherence of Cb
-    %               Ra_more_coherent_than_Rb: [1 x 1] logical
-    %               ax_R_max_coh: [1 x 2] logical. True if the parameter edge
-    %                             provides greater coherence
-    %               bx_R_max_coh: [1 x 2] logical. True if the parameter edge
-    %                             provides greater coherence
-    %               R_most_coeherent: most coherent R
-    %               Rcoh_thin: Most coherent scattering mechanism, most
-    %                          coherent among the range of admissibility
-    %               Rcoh_fat: Most coherent scattering mechanism, least
-    %                          coherent among the range of admissibility
-    %               Rincoh_thin: Least coherent scattering mechanism, most
-    %                          coherent among the range of admissibility
-    %               Rincoh_fat: Least coherent scattering mechanism, least
-    %                          coherent among the range of admissibility
-    %
-    % DEPENDENCIES
-    %             LowRankKronApproximation
-    %             SemiDefinitePositivenessJointRange
-    %                             JointDiagonalization"""
+    
+     Kernel of the Sum of Kronecker Product Decomposition.
+    
+     INPUT
+          Cov_MPMB: [N*Npol x N*Npol] covariance matrix
+           opt_str.
+                            N: number of images
+                         Npol: number of polarizations
+                   Nsubspaces: number of desired subspaces
+                       Nparam: number of parameters sampling the "a" and "b"
+                               range of physical admissibility
+    
+     OUTPUT
+           out_str.
+                   error: [1 x 4] logical vector.
+                          1. Cov_MPMB has nan of inf values
+                          2. Singular matrices have nan or inf values
+                          3. Singular matrices are not full rank
+                          4. Could not determine "a" or "b" ranges
+                   lambda_SVD: singular values of the SKPD
+                   Ro: tomographic part of the decomposition (normalized wrt
+                       Ro{k}(1, 1))
+                   Co: polarimetric part of the decomposition
+                   ax: vector gathering the admissible values for parameter a
+                   bx: vector gathering the admissible values for parameter b
+                   Ra: corresponding tomographic covariance matrices (at the
+                       edges of the possible range of values of "a")
+                   Rb: corresponding tomographic covariance matrices (at the
+                       edges of the possible range of values of "b")
+                   Ca: corresponding polarimetric covariance matrices (at the
+                       edges of the possible range of values of "a")
+                   Cb: corresponding polarimetric covariance matrices (at the
+                       edges of the possible range of values of "b")
+                   full_rank_Ra: true if Ra is full rank
+                   full_rank_Rb: true if Rb is full rank
+                   full_rank_Ca: true if Ca is full rank
+                   full_rank_Cb: true if Cb is full rank
+                   Ra_coherence: tomographic coherence of Ra
+                   Rb_coherence: tomographic coherence of Rb
+                   Ca_coherence: tomographic coherence of Ca
+                   Cb_coherence: tomographic coherence of Cb
+                   Ra_more_coherent_than_Rb: [1 x 1] logical
+                   ax_R_max_coh: [1 x 2] logical. True if the parameter edge
+                                 provides greater coherence
+                   bx_R_max_coh: [1 x 2] logical. True if the parameter edge
+                                 provides greater coherence
+                   R_most_coeherent: most coherent R
+                   Rcoh_thin: Most coherent scattering mechanism, most
+                              coherent among the range of admissibility
+                   Rcoh_fat: Most coherent scattering mechanism, least
+                              coherent among the range of admissibility
+                   Rincoh_thin: Least coherent scattering mechanism, most
+                              coherent among the range of admissibility
+                   Rincoh_fat: Least coherent scattering mechanism, least
+                              coherent among the range of admissibility
+    
+     DEPENDENCIES
+                 LowRankKronApproximation
+                 SemiDefinitePositivenessJointRange
+                                 JointDiagonalization"""
 
     class out_str:
         pass
@@ -985,25 +988,25 @@ def SKPD_processing(Cov_MPMB, opt_str):
 
 def LowRankKronApproximation(opt_str):
     """It returns the sum of Kronecker product decomposition of the matrix A
-    % just as the singular value decomposition. Matrix A is decomposed as:
-    % for k = 1:rank
-    %     A = A + kron(B{k}, C{k});
-    % end
-    %
-    % INPUT
-    %      opt_str.
-    %              A: [Nr x Nc] matrix to be decomposed and approximated
-    %              rank: rank of the approximation
-    %              Nr1: number of rows of the matrix B
-    %              Nc1: number of columns of the matrix B
-    %              Nr2: number of rows of the matrix C
-    %              Nr2: number of columns of the matrix C
-    %
-    % OUTPUT
-    %       out_str.
-    %               lambda: singular values of the decomposition
-    %               B: [rank x 1] cell of [Nr1 x Nc1] matrices
-    %               C: [rank x 1] cell of [Nr2 x Nc2] matrices"""
+     just as the singular value decomposition. Matrix A is decomposed as:
+     for k = 1:rank
+         A = A + kron(B{k}, C{k});
+     end
+    
+     INPUT
+          opt_str.
+                  A: [Nr x Nc] matrix to be decomposed and approximated
+                  rank: rank of the approximation
+                  Nr1: number of rows of the matrix B
+                  Nc1: number of columns of the matrix B
+                  Nr2: number of rows of the matrix C
+                  Nr2: number of columns of the matrix C
+    
+     OUTPUT
+           out_str.
+                   lambda: singular values of the decomposition
+                   B: [rank x 1] cell of [Nr1 x Nc1] matrices
+                   C: [rank x 1] cell of [Nr2 x Nc2] matrices"""
     RA = np.zeros((opt_str.Nr1 * opt_str.Nc1, opt_str.Nr2 * opt_str.Nc2), dtype=np.complex128)
     for p in np.arange(opt_str.Nc1):
         Ap = np.zeros((opt_str.Nr1, opt_str.Nr2 * opt_str.Nc2), dtype=np.complex128)
@@ -1033,27 +1036,27 @@ def LowRankKronApproximation(opt_str):
 
 def SemiDefinitePositivenessJointRange(opt_str):
     """Given the relationships:
-    %               Rg = a*Ro{1} + (1 - a)*Ro{2}
-    %               Rv = b*Ro{2} + (1 - b)*Ro{2}
-    %               Cg = (1 - b)*C{1} - b*C{2}
-    %               Cv = -(1 - a)*C{1} + a*C{2}
-    % this routine returns the range of values for parameters "a" and "b" such
-    % that matrices Rg, Rv, Cg, Cv are semi definite positive.
-    %
-    % INPUT
-    %      opt_str.
-    %              Ro: [2 x 1] cell of [N x N] Hermitian matrices
-    %              Co: [2 x 1] cell of [Npol x Npol] Hermitian matrices
-    %               N: number of points sampling the admissible range of values
-    %
-    % OUTPUT
-    %       out_str.
-    %               a: [1 x opt_str.N] vector
-    %               b: [1 x opt_str.N] vector
-    %               error: true if an error has occurred
-    %
-    % DEPENDENCIES
-    %             JointDiagonalization"""
+                   Rg = a*Ro{1} + (1 - a)*Ro{2}
+                   Rv = b*Ro{2} + (1 - b)*Ro{2}
+                   Cg = (1 - b)*C{1} - b*C{2}
+                   Cv = -(1 - a)*C{1} + a*C{2}
+     this routine returns the range of values for parameters "a" and "b" such
+     that matrices Rg, Rv, Cg, Cv are semi definite positive.
+    
+     INPUT
+          opt_str.
+                  Ro: [2 x 1] cell of [N x N] Hermitian matrices
+                  Co: [2 x 1] cell of [Npol x Npol] Hermitian matrices
+                   N: number of points sampling the admissible range of values
+    
+     OUTPUT
+           out_str.
+                   a: [1 x opt_str.N] vector
+                   b: [1 x opt_str.N] vector
+                   error: true if an error has occurred
+    
+     DEPENDENCIES
+                 JointDiagonalization"""
 
     class out_str:
         pass
@@ -1132,13 +1135,13 @@ def SemiDefinitePositivenessJointRange(opt_str):
 
 def JointDiagonalization(C):
     """It finds the matrix U that diagonalizes C{1} and C{2} at the same time
-    % (it means that U'*C{1}*U and U'*C{2}*U are diagonal)
-    %
-    % INPUT
-    %      C: [2 x 1] cell of [N x N] Hermitian matrices
-    %
-    % OUTPUT
-    %       U: diagonalizing matrix"""
+     (it means that U'*C{1}*U and U'*C{2}*U are diagonal)
+    
+     INPUT
+          C: [2 x 1] cell of [N x N] Hermitian matrices
+    
+     OUTPUT
+           U: diagonalizing matrix"""
     A, V = np.linalg.eig(C[1] @ np.linalg.inv(C[0]))
     U = np.linalg.inv(V.conj().transpose())
 

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import numpy as np
 import logging
@@ -23,6 +26,7 @@ from biopal.data_operations.data_operations import (
 )
 from biopal.utility.utility_functions import (
     Task,
+    start_logging,
     choose_equi7_sampling,
     check_if_path_exists,
     check_if_geometry_auxiliaries_are_present,
@@ -41,14 +45,11 @@ from biopal.geocoding.geocoding import (
     geocoding_init,
 )
 from biopal.io.xml_io import (
-    parse_chains_input_file,
-    parse_agb_configuration_file,
-    parse_coreprocessing_agb_configuration_file,
-    write_coreprocessing_agb_configuration_file,
-    parse_boundaries_files,
-    parse_lut_files,
-    write_lut_files,
-    proc_flags,
+    parse_input_file,
+    write_input_file,
+    parse_configuration_file,
+    write_configuration_file,
+    core_processing_agb,
 )
 
 from biopal.io.data_io import tiff_formatter
@@ -69,7 +70,11 @@ from biopal.agb.estimating_AGB import (
     compute_block_processing_order,
 )
 
-# %%
+
+class InvalidInputError(ValueError):
+    pass
+
+
 class AboveGroundBiomass(Task):
     """
     AGB main APP "AboveGroundBiomass" (see BioPAL README.md to launch) is composed by 
@@ -96,45 +101,23 @@ class AboveGroundBiomass(Task):
     """
 
     def __init__(
-        self, configuration_file_xml, geographic_boundaries, geographic_boundaries_per_stack, gdal_path,
+        self, configuration_file,
     ):
-        super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
-        self.geographic_boundaries_per_stack = geographic_boundaries_per_stack
-        self.gdal_path = gdal_path
+        super().__init__(configuration_file)
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         # Main APP #1: Stack Based Processing
-        stack_based_processing_obj = StackBasedProcessingAGB(
-            self.configuration_file_xml,
-            self.geographic_boundaries,  # can be a named tuple or a path to xml file
-            self.geographic_boundaries_per_stack,  # can be a named tuple or a path to xml file
-            self.gdal_path,  # optional
-        )
+        stack_based_processing_obj = StackBasedProcessingAGB(self.configuration_file)
 
         # Run Main APP #1: Stack Based Processing
-        (
-            coreprocessing_configuration_file,
-            lut_cal,
-            lut_fnf,
-            lut_stacks,
-            equi7_initialization,
-        ) = stack_based_processing_obj.run(input_file_xml)
+        input_file_updated, configuration_file_updated = stack_based_processing_obj.run(input_file)
 
         # Main APP #2: AGB Core Processing
-        agb_processing_obj = CoreProcessingAGB(
-            coreprocessing_configuration_file,
-            self.geographic_boundaries,  # can be a named tuple or a path to xml file
-            lut_cal,  # can be a list or a path to xml file
-            lut_fnf,  # can be a list or a path to xml file
-            lut_stacks,  # can be a list or a path to xml file
-            equi7_initialization,  # optional
-            self.gdal_path,  # optional
-        )
+        agb_processing_obj = CoreProcessingAGB(configuration_file_updated)
 
         # Run Main APP #2: AGB Core Processing
-        agb_processing_obj.run(input_file_xml)
+        agb_processing_obj.run(input_file_updated)
 
 
 class StackBasedProcessingAGB(Task):
@@ -145,74 +128,96 @@ class StackBasedProcessingAGB(Task):
     manually launched (stand alone) following this documentation.
 
     Stand alone "StackBasedProcessingAGB" APP launch.
+        The app needs an input file (see BioPAL\inputs\Input_File.xml) containing
+        "L2_product", "output_specification","dataset_query" and "stack_based_processing" sections':
+        The stack_based_processing section is filled by "dataset_query" APP
 
         Prepare a python script with following code:
+          
+        # dataset_query APP call if needed:
+        >>>from biopal.dataset_query.dataset_query import dataset_query
+        >>>dataset_query_obj = dataset_query(),
+        >>>input_file_with_stack_base_proc, _, _ = dataset_query_obj.run( input_file )
         
-        from biopal.agb.main_AGB import StackBasedProcessingAGB
-        stack_based_processing_obj = StackBasedProcessingAGB(
-        	ConfigurationFile_AGB_xml,
-        	geographic_boundaries_xml,
-        	geographic_boundaries_per_stack_xml,
-        )
-        stack_based_processing_obj.run( input_file_AGB_Chain_xml )
+        # StackBasedProcessingAGB APP call with the needed input sections filled:
+        >>>from biopal.agb.main_AGB import StackBasedProcessingAGB
+        >>>stack_based_processing_obj = StackBasedProcessingAGB(ConfigurationFile),
+        >>>stack_based_processing_obj.run( input_file_with_stack_base_proc )
         
         Where:
         ----------
-        ConfigurationFile_AGB_xml : path of the "BioPAL\biopal\conf\ConfigurationFile_AGB.xml"
-        geographic_boundaries_xml : path of the file from output folder of an already executed 
-		                            "AboveGroundBiomass" processing launched in the same geographical zone
-        geographic_boundaries_per_stack_xml : same description of geographic_boundaries_xml 
-        input_file_AGB_Chain_xml : path of the inner AGB chain input from an already generated 
-		                           "AboveGroundBiomass" at stack_APP_output\BIOMASS_L2_YYYYYYYYTXXXXXX\AGB\InputFile.xml", 
-                                   where the OutputFolder should be updated to avoid overwriting. 
+        ConfigurationFile : path of the "BioPAL\biopal\conf\ConfigurationFile.xml"
+        input_file: path of the BioPAl input file, containing 
+                    "L2_product", "output_specification", and "dataset_query" and 
+                    "stack_based_processing" sections' (see BioPAL\inputs\Input_File.xml)    
+        
+        input_file_with_stack_base_proc: path of the BioPAl input file, containing 
+                                         "L2_product", "output_specification", "dataset_query" and 
+                                         "stack_based_processing" sections'.
+             
     """
 
-    def __init__(
-        self, configuration_file_xml, geographic_boundaries, geographic_boundaries_per_stack, gdal_path=None,
-    ):
-        if gdal_path is None:
-            gdal_path = ""
-        super().__init__(configuration_file_xml)
-        self.stand_alone_call = False
-        if isinstance(geographic_boundaries, str):
-            self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)
-            self.stand_alone_call = True
+    def __init__(self, configuration_file):
+        super().__init__(configuration_file)
+
+    def _run(self, input_file):
+
+        # parse the input file and check for the needed sections in it:
+        if isinstance(input_file, str):
+            check_if_path_exists(input_file, "FILE")
+            input_params_obj = parse_input_file(input_file)
         else:
-            self.geographic_boundaries = geographic_boundaries
-        if isinstance(geographic_boundaries_per_stack, str):
-            self.geographic_boundaries_per_stack = parse_boundaries_files(geographic_boundaries_per_stack)
-            self.stand_alone_call = True
+            input_params_obj = input_file
+        if (
+            input_params_obj.L2_product is None
+            or input_params_obj.output_specification is None
+            or input_params_obj.dataset_query is None
+            or input_params_obj.stack_based_processing is None
+        ):
+            error_message = [
+                "StackBasedProcessingAGB APP input file should contain at least"
+                ' "L2_product", "output_specification", "dataset_query" and "stack_based_processing" sections'
+            ]
+            raise InvalidInputError(error_message)
+
+        # parse the configuration file and check for the needed sections in it:
+        if isinstance(input_file, str):
+            check_if_path_exists(self.configuration_file, "FILE")
+            conf_params_obj = parse_configuration_file(self.configuration_file)
         else:
-            self.geographic_boundaries_per_stack = geographic_boundaries_per_stack
-        self.gdal_path = gdal_path
+            conf_params_obj = self.configuration_file
+        if (
+            conf_params_obj.processing_flags is None
+            or conf_params_obj.ground_cancellation is None
+            or conf_params_obj.estimate_agb is None
+        ):
+            error_message = [
+                "Configuration file for  StackBasedProcessingAGB APP should contain at least"
+                ' "processing_flags", "ground_cancellation" and "estimate_agb" sections'
+            ]
+            raise InvalidInputError(error_message)
 
-    def check_auxiliaries(self):
-        if not self.gdal_path:
-            # initialize the gdal_path
-            self.gdal_path, _ = set_gdal_paths(self.gdal_path)
-
-    def _run(self, input_file_xml):
-
-        if self.stand_alone_call:
-            proc_flags_struct = proc_flags(True, False, False, False, False)
-            proc_inputs = parse_chains_input_file(input_file_xml)
-            log_file_name = start_logging_agb(
-                proc_inputs.output_folder, proc_flags_struct, "DEBUG", "StackBasedProcessingAGB",
+        # Initialize the logger, of the APP has been called in a stand-alone call
+        if not hasattr(logging.getLoggerClass().root.handlers[0], "baseFilename"):
+            start_logging(
+                os.path.dirname(input_params_obj.output_specification.output_folder),
+                input_params_obj.L2_product,
+                "DEBUG",
+                app_name="StackBasedProcessingAGB",
             )
+        logging.info("AGB stack-based-processing APP starting\n")
 
-        self.check_auxiliaries()
+        # get needed parameters from input and configuration files
+        geographic_boundaries = input_params_obj.stack_based_processing.geographic_boundaries
+        geographic_boundaries_per_stack = input_params_obj.stack_based_processing.geographic_boundaries_per_stack
 
-        logging.info("AGB stack-based processing APP starting\n")
+        gdal_path, _ = set_gdal_paths(conf_params_obj.gdal.gdal_path, conf_params_obj.gdal.gdal_environment_path)
+
         ########################## INITIAL STEPS ##############################
 
-        logging.info("AGB: Reading chains configuration files")
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_inputs = parse_chains_input_file(input_file_xml)
-        proc_conf = parse_agb_configuration_file(self.configuration_file_xml)
-
         ### managing output folders:
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        if proc_conf.save_breakpoints:
+        products_folder = os.path.join(input_params_obj.output_specification.output_folder, "Products")
+        if conf_params_obj.processing_flags.save_breakpoints:
             breakpoints_output_folder = os.path.join(products_folder, "breakpoints")
             logging.info("AGB: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
@@ -223,17 +228,19 @@ class StackBasedProcessingAGB(Task):
         os.makedirs(temp_output_folder)
 
         ### get temporal date time of the input data (get the minimum date from all the stacks)
-        time_tag_mjd_initial = get_min_time_stamp_repository(proc_inputs.L1c_repository, proc_inputs.stack_composition)
+        time_tag_mjd_initial = get_min_time_stamp_repository(
+            input_params_obj.dataset_query.L1C_repository, input_params_obj.stack_based_processing.stack_composition
+        )
 
         # read the cals:
-        cal_format = check_cal_format(proc_inputs.reference_agb_folder)
+        cal_format = check_cal_format(input_params_obj.stack_based_processing.reference_agb_folder)
         if cal_format == "GeoJSON":
-            cal_fnames = get_foss_cal_names(proc_inputs.reference_agb)
+            cal_fnames = get_foss_cal_names(input_params_obj.stack_based_processing.reference_agb_folder)
             flag_cal = 0
             pass
         elif cal_format == "RASTER":
             flag_cal = 1
-            cal_fnames = get_raster_cal_names(proc_inputs.reference_agb_folder)
+            cal_fnames = get_raster_cal_names(input_params_obj.stack_based_processing.reference_agb_folder)
 
             # LUT: CAL
             lut_cal_boundaries = np.zeros((len(cal_fnames), 5))
@@ -266,25 +273,26 @@ class StackBasedProcessingAGB(Task):
 
         ### initialize the equi7 sampling grid
         equi7_sampling_intermediate = choose_equi7_sampling(
-            proc_conf.AGB.intermediate_ground_averaging, proc_conf.AGB.intermediate_ground_averaging / 2,
+            conf_params_obj.estimate_agb.intermediate_ground_averaging,
+            conf_params_obj.estimate_agb.intermediate_ground_averaging / 2,
         )
         e7g_intermediate = Equi7Grid(equi7_sampling_intermediate)
         logging.info("EQUI7 Grid sampling used for intermediate products: {}".format(equi7_sampling_intermediate))
 
         # it is loaded if equi7, or converted to equi7 if TANDEM-X
         # it is a list containing all the loaded FNF-FTILES
-        fnf_format = check_fnf_folder_format(proc_inputs.forest_mask_catalogue_folder)
+        fnf_format = check_fnf_folder_format(input_params_obj.stack_based_processing.forest_mask_catalogue_folder)
         if fnf_format == "TANDEM-X":
             logging.info("Initial Forest mask is in TANDEM-X format, converting to equi7...")
 
             # conversion step 1: get the tiff names of current zone
             equi7_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format(
-                proc_inputs.forest_mask_catalogue_folder,
+                input_params_obj.stack_based_processing.forest_mask_catalogue_folder,
                 e7g_intermediate,
-                proc_conf.AGB.intermediate_ground_averaging,
+                conf_params_obj.estimate_agb.intermediate_ground_averaging,
                 temp_output_folder,
-                self.gdal_path,
-                self.geographic_boundaries,
+                gdal_path,
+                geographic_boundaries,
                 time_tag_mjd_initial,
             )
 
@@ -293,11 +301,11 @@ class StackBasedProcessingAGB(Task):
 
             # re format the input mask in equi7 with the output resolution:
             equi7_fnf_mask_fnames = fnf_equi7_load_filter_equi7format(
-                proc_inputs.forest_mask_catalogue_folder,
+                input_params_obj.stack_based_processing.forest_mask_catalogue_folder,
                 e7g_intermediate,
-                proc_conf.AGB.intermediate_ground_averaging,
+                conf_params_obj.estimate_agb.intermediate_ground_averaging,
                 temp_output_folder,
-                self.gdal_path,
+                gdal_path,
             )
 
         # LUT: FNF
@@ -324,16 +332,16 @@ class StackBasedProcessingAGB(Task):
                 max(north_in, north_out),
             ]
             lut_fnf_paths.append(fnf_name_curr)
-            
+
         # To be set from configuration file in the final version
-        space_varying_ground_cancellation = True
+        space_varying_ground_cancellation = False
 
         ########################## INITIAL STEPS END #############################
 
         ########################## STACK BASED STEPS ##############################
 
         # LookUp tables initialization
-        number_of_stacks = len(proc_inputs.stack_composition.keys())
+        number_of_stacks = len(input_params_obj.stack_based_processing.stack_composition.keys())
         lut_progressive_stacks = np.zeros((number_of_stacks, 6))
         lut_stacks_boundaries = np.zeros((number_of_stacks, 4))
         lut_stacks_paths = []
@@ -344,7 +352,7 @@ class StackBasedProcessingAGB(Task):
         # cycle for each stack
         # for stack_key, scene_dict in proc_inputs.stacks_scenes_fnames_orders.items():
         for (stack_progressive_idx, (unique_stack_id, acquisitions_pf_names),) in enumerate(
-            proc_inputs.stack_composition.items()
+            input_params_obj.stack_based_processing.stack_composition.items()
         ):
 
             (
@@ -377,7 +385,9 @@ class StackBasedProcessingAGB(Task):
                 logging.info("AGB: Data loading for stack " + unique_stack_id + "; this may take a while:")
 
                 (beta0_calibrated, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
-                    proc_inputs.L1c_repository, acquisitions_pf_names, proc_conf.enable_resampling,
+                    input_params_obj.dataset_query.L1C_repository,
+                    acquisitions_pf_names,
+                    conf_params_obj.processing_flags.enable_resampling,
                 )
 
             except Exception as e:
@@ -387,16 +397,22 @@ class StackBasedProcessingAGB(Task):
             ### load or compute auxiliary data
             try:
 
-                read_ref_h = not proc_conf.apply_calibration_screen and proc_conf.DEM_flattening
-                read_cal_screens = proc_conf.apply_calibration_screen
+                read_ref_h = (
+                    not conf_params_obj.processing_flags.apply_calibration_screen
+                    and conf_params_obj.processing_flags.DEM_flattening
+                )
+                read_cal_screens = conf_params_obj.processing_flags.apply_calibration_screen
                 geometry_aux_are_present = check_if_geometry_auxiliaries_are_present(
-                    proc_inputs, unique_stack_id, acquisitions_pf_names, read_ref_h=read_ref_h,
+                    input_params_obj.stack_based_processing,
+                    unique_stack_id,
+                    acquisitions_pf_names,
+                    read_ref_h=read_ref_h,
                 )
 
-                if proc_conf.compute_geometry or not geometry_aux_are_present:
+                if conf_params_obj.processing_flags.compute_geometry or not geometry_aux_are_present:
 
                     # messages for the log:
-                    if proc_conf.compute_geometry:
+                    if conf_params_obj.processing_flags.compute_geometry:
                         logging.info("AGB: calling geometry library for stack " + unique_stack_id + "\n")
                         if geometry_aux_are_present:
                             logging.warning("    geometry auxiliaries will be overwritten for stack " + unique_stack_id)
@@ -416,12 +432,12 @@ class StackBasedProcessingAGB(Task):
                         _,
                         sar_geometry_master,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        proc_inputs.L1c_repository,
-                        proc_inputs,
+                        input_params_obj.dataset_query.L1C_repository,
+                        input_params_obj.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
                         master_id,
-                        proc_conf.enable_resampling,
+                        conf_params_obj.processing_flags.enable_resampling,
                         force_ellipsoid=True,
                     )
 
@@ -434,31 +450,30 @@ class StackBasedProcessingAGB(Task):
                         _,
                         _,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        proc_inputs.L1c_repository,
-                        proc_inputs,
+                        input_params_obj.dataset_query.L1C_repository,
+                        input_params_obj.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
                         master_id,
-                        proc_conf.enable_resampling,
+                        conf_params_obj.processing_flags.enable_resampling,
                         comp_ref_h=read_ref_h,
                         sar_geometry_master=sar_geometry_master,
                     )
 
                     logging.info("Geometry library: correcting geometry global / local reference")
                     slope = slope - ellipsoid_slope
-                    
+
                     # The kz taking into account the ground slope is generated too
                     kz_ground_slope = kz.copy()
-                    
+
                     for swath_id in kz.keys():
                         kz[swath_id] = (
                             kz[swath_id]
                             * np.sin(off_nadir_angle_rad[master_id])
                             / np.sin(off_nadir_angle_rad[master_id] - ellipsoid_slope)
                         )
-                        kz_ground_slope[swath_id] = (
-                            kz[swath_id]
-                            / (1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id] - ellipsoid_slope))
+                        kz_ground_slope[swath_id] = kz[swath_id] / (
+                            1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id] - ellipsoid_slope)
                         )
                     off_nadir_angle_rad[master_id] = off_nadir_angle_rad[master_id] - ellipsoid_slope
                     del ellipsoid_slope
@@ -487,24 +502,23 @@ class StackBasedProcessingAGB(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        proc_inputs,
+                        input_params_obj.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
-                        proc_conf.enable_resampling,
+                        conf_params_obj.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_ref_h=read_ref_h,
                     )
-                    
+
                     # The kz taking into account the ground slope is generated too
                     # ellipsoid_slope is set to zero
                     kz_ground_slope = kz.copy()
                     for swath_id in kz.keys():
-                        kz_ground_slope[swath_id] = (
-                            kz[swath_id]
-                            / (1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id]))
+                        kz_ground_slope[swath_id] = kz[swath_id] / (
+                            1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id])
                         )
                     logging.info("AGB: ...geometry auxiliaries loading done.")
-                    
+
                 # read the rest of auxiliaries which are notpart of the geometry library:
                 if read_cal_screens:
 
@@ -524,10 +538,10 @@ class StackBasedProcessingAGB(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        proc_inputs,
+                        input_params_obj.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
-                        proc_conf.enable_resampling,
+                        conf_params_obj.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_cal_screens=read_cal_screens,
                         read_ecef=False,
@@ -547,14 +561,14 @@ class StackBasedProcessingAGB(Task):
 
             ### Screen calibration (ground steering)
             try:
-                if proc_conf.apply_calibration_screen:
+                if conf_params_obj.processing_flags.apply_calibration_screen:
                     logging.info("AGB: applying calibration screen...")
                     beta0_calibrated = apply_calibration_screens(
                         beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id,
                     )
                     logging.info("...done.\n")
 
-                elif proc_conf.DEM_flattening:
+                elif conf_params_obj.processing_flags.DEM_flattening:
                     logging.info("AGB: DEM flattening... ")
                     beta0_calibrated = apply_dem_flattening(
                         beta0_calibrated, kz, reference_height, master_id, raster_info
@@ -571,40 +585,40 @@ class StackBasedProcessingAGB(Task):
             try:
 
                 if space_varying_ground_cancellation:
-                    
+
                     # The map specifying the space-varying height to be emphasized
                     # must be available here. For the moment a map filled with the
                     # value taken from the configuration file is used.
                     current_enhanced_forest_height = slope.copy()
-                    current_enhanced_forest_height.fill(proc_conf.ground_cancellation.enhanced_forest_height)
-                    
-                    logging.info('AGB: space-varying ground contribute cancellation...:')
+                    current_enhanced_forest_height.fill(conf_params_obj.ground_cancellation.enhanced_forest_height)
+
+                    logging.info("AGB: space-varying ground contribute cancellation...:")
                     DN_beta0_notched = ground_cancellation(
                         beta0_calibrated,
                         kz_ground_slope,
-                        proc_conf.ground_cancellation.multi_master_flag,
+                        conf_params_obj.ground_cancellation.multi_master_flag,
                         current_enhanced_forest_height,
-                        proc_conf.ground_cancellation.equalization_flag,
+                        conf_params_obj.ground_cancellation.equalization_flag,
                         raster_info.resolution_m_slant_rg,
                         off_nadir_angle_rad[master_id],
                         slope,
-                    )  # beta0_calibrated: 3 pol (nrg x Naz  x Nimmagini); DN_beta0_notched: 3 pol (Nrg x Naz x 1 immagine)
+                    )  # beta0_calibrated: 3 pol (nrg x Naz  x N images); DN_beta0_notched: 3 pol (Nrg x Naz x 1 image)
                     del beta0_calibrated, kz, kz_ground_slope, current_enhanced_forest_height
                 else:
 
                     logging.info("AGB: ground contribute cancellation...:")
-    
+
                     DN_beta0_notched = ground_cancellation(
                         beta0_calibrated,
                         kz,
-                        proc_conf.ground_cancellation.multi_master_flag,
-                        proc_conf.ground_cancellation.enhanced_forest_height,
-                        proc_conf.ground_cancellation.equalization_flag,
+                        conf_params_obj.ground_cancellation.multi_master_flag,
+                        conf_params_obj.ground_cancellation.enhanced_forest_height,
+                        conf_params_obj.ground_cancellation.equalization_flag,
                         raster_info.resolution_m_slant_rg,
                         off_nadir_angle_rad[master_id],
                         slope,
-                    )  # beta0_calibrated: 3 pol (nrg x Naz  x Nimmagini); DN_beta0_notched: 3 pol (Nrg x Naz x 1 immagine)
-    
+                    )  # beta0_calibrated: 3 pol (nrg x Naz  x images); DN_beta0_notched: 3 pol (Nrg x Naz x 1 image)
+
                     del beta0_calibrated, kz
 
             except Exception as e:
@@ -616,17 +630,20 @@ class StackBasedProcessingAGB(Task):
             look_angle_rad = np.nanmean(off_nadir_angle_rad[master_id])
             logging.info("AGB: look angle used is {} [deg] \n".format(np.rad2deg(look_angle_rad)))
 
-            if proc_conf.AGB.intermediate_ground_averaging > proc_conf.AGB.product_resolution / 2:
-                sigma_ground_res_m = proc_conf.AGB.product_resolution / 2
+            if (
+                conf_params_obj.estimate_agb.intermediate_ground_averaging
+                > conf_params_obj.estimate_agb.product_resolution / 2
+            ):
+                sigma_ground_res_m = conf_params_obj.estimate_agb.product_resolution / 2
                 logging.warning(
                     '"intermediate_ground_averaging" cannot be greater than "product_resolution/2", setting it to {}'.format(
                         sigma_ground_res_m
                     )
                 )
             else:
-                sigma_ground_res_m = proc_conf.AGB.intermediate_ground_averaging
+                sigma_ground_res_m = conf_params_obj.estimate_agb.intermediate_ground_averaging
 
-            if proc_conf.multilook_heading_correction:
+            if conf_params_obj.processing_flags.multilook_heading_correction:
                 sigma_ground_res_m = resolution_heading_correction(sigma_ground_res_m, heading_deg)
 
             windtm_x = np.int(np.round(sigma_ground_res_m / raster_info.pixel_spacing_az / 2) * 2 + 1)
@@ -668,7 +685,7 @@ class StackBasedProcessingAGB(Task):
             del beta0_notched_multi_looked
 
             ### saving breakpoints
-            if proc_conf.save_breakpoints:
+            if conf_params_obj.processing_flags.save_breakpoints:
                 logging.info("AGB: saving breakpoints (in slant range geometry) on " + breakpoints_output_folder)
                 post_string = "_SR_" + unique_stack_id
 
@@ -794,7 +811,7 @@ class StackBasedProcessingAGB(Task):
                         e7g_intermediate,
                         sigma0_ground_fnames[pol_name],
                         equi7_sigma0_outdir,
-                        gdal_path=self.gdal_path,
+                        gdal_path=gdal_path,
                         inband=None,
                         subgrid_ids=None,
                         accurate_boundary=False,
@@ -811,7 +828,7 @@ class StackBasedProcessingAGB(Task):
                     e7g_intermediate,
                     theta_ground_fname,
                     equi7_theta_outdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -831,16 +848,16 @@ class StackBasedProcessingAGB(Task):
 
             # N0: upper left corner for output map (UTM 32S)
             _, x_upper_left, y_upper_left = e7g_intermediate.lonlat2xy(
-                self.geographic_boundaries_per_stack[unique_stack_id].lon_min,
-                self.geographic_boundaries_per_stack[unique_stack_id].lat_max,
+                geographic_boundaries_per_stack[unique_stack_id].lon_min,
+                geographic_boundaries_per_stack[unique_stack_id].lat_max,
             )
             north_in = y_upper_left
             east_min = x_upper_left
 
             # lower right corner for output map (UTM 32S)
             _, x_lower_right, y_lower_right = e7g_intermediate.lonlat2xy(
-                self.geographic_boundaries_per_stack[unique_stack_id].lon_max,
-                self.geographic_boundaries_per_stack[unique_stack_id].lat_min,
+                geographic_boundaries_per_stack[unique_stack_id].lon_max,
+                geographic_boundaries_per_stack[unique_stack_id].lat_min,
             )
             north_out = y_lower_right
             east_max = x_lower_right
@@ -863,15 +880,14 @@ class StackBasedProcessingAGB(Task):
         # create the CoreProcessingAGB configuration file, starting from the default one
         # Read the default conf file:
         default_coreprocessing_conf_file = os.path.join(
-            os.path.dirname(self.configuration_file_xml), "ConfigurationFile_CoreProcessingAGB_Default.xml",
+            os.path.dirname(self.configuration_file), "ConfigurationFile_CoreProcessingAGB_Default.xml",
         )
-        conf_params_default = parse_coreprocessing_agb_configuration_file(default_coreprocessing_conf_file)
 
         # update the conf paths:
         # source composition:
         # source[index_obs][index_stack][index_file][path,band_id]
-        for index_obs, name in enumerate(conf_params_default.AGB.residual_function.formula_observables.name):
-            if not conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs]:
+        for index_obs, name in enumerate(conf_params_obj.estimate_agb.residual_function.formula_observables.name):
+            if not conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[index_obs]:
 
                 if name == "neg_sigma0_hh_db":
                     pol_name = "hh"
@@ -889,11 +905,13 @@ class StackBasedProcessingAGB(Task):
                     # file_list = [layer_list]
                     # stack_list = [file_list]
 
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[
                         index_obs
                     ] = sigma_ground_res_m
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "none"
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
                 elif name == "neg_sigma0_hv_db":
                     pol_name = "vh"
@@ -911,11 +929,13 @@ class StackBasedProcessingAGB(Task):
                     # file_list = [layer_list]
                     # stack_list = [file_list]
 
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[
                         index_obs
                     ] = sigma_ground_res_m
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "none"
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
                 elif name == "neg_sigma0_vv_db":
                     pol_name = "vv"
@@ -933,11 +953,13 @@ class StackBasedProcessingAGB(Task):
                     # file_list = [layer_list]
                     # stack_list = [file_list]
 
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[
                         index_obs
                     ] = sigma_ground_res_m
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "none"
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
                 elif (name == "cos_local_db") or (name == "theta_local"):
 
@@ -954,11 +976,13 @@ class StackBasedProcessingAGB(Task):
                     # file_list = [layer_list]
                     # stack_list = [file_list]
 
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[
                         index_obs
                     ] = sigma_ground_res_m
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "rad"
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "rad"
 
                 ## temporary (for tests with gedi-like data for calibration)
                 # elif name == "agb_1_cal_1km_db":
@@ -978,15 +1002,21 @@ class StackBasedProcessingAGB(Task):
                         file_list.append(layer_list)
                     stack_list = [file_list]
 
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "none"
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[
+                        index_obs
+                    ] = 100
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
                     ## uncomment if testing with gedi-like data
                     # stack_list = []
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 50
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "t/ha"
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[index_obs] = 50
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "t/ha"
 
                 ## temporary (for tests with height data)
                 # elif (name == "tomo_h_db"):
@@ -1005,15 +1035,13 @@ class StackBasedProcessingAGB(Task):
                         file_list.append(layer_list)
                     stack_list = [file_list]
 
-                    conf_params_default.AGB.residual_function.formula_observables.source_paths[index_obs] = stack_list
-                    conf_params_default.AGB.residual_function.formula_observables.source_resolution[index_obs] = 100
-                    conf_params_default.AGB.residual_function.formula_observables.source_unit[index_obs] = "none"
-
-        # write the updatec conf file:
-        coreprocessing_configuration_file_xml = os.path.join(
-            proc_inputs.output_folder, "ConfigurationFile_CoreProcessingAGB.xml"
-        )
-        write_coreprocessing_agb_configuration_file(conf_params_default, coreprocessing_configuration_file_xml)
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[
+                        index_obs
+                    ] = stack_list
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_resolution[
+                        index_obs
+                    ] = 100
+                    conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
         lut_cal = LookupTableAGB(paths=lut_cal_paths, boundaries=lut_cal_boundaries, progressive=None)
         lut_fnf = LookupTableAGB(paths=lut_fnf_paths, boundaries=lut_fnf_boundaries, progressive=None)
@@ -1021,22 +1049,27 @@ class StackBasedProcessingAGB(Task):
             paths=lut_stacks_paths, boundaries=lut_stacks_boundaries, progressive=lut_progressive_stacks,
         )
 
-        write_lut_files(lut_stacks, "stacks", proc_inputs.output_folder)
-        write_lut_files(lut_cal, "cal", proc_inputs.output_folder)
-        write_lut_files(lut_fnf, "fnf", proc_inputs.output_folder)
+        # write the input file with the sections needed by the Core Processing AGB APP:
+        out_input_file_xml = os.path.join(
+            os.path.dirname(input_params_obj.output_specification.output_folder), "Input_File_CoreProcessingAGB.xml"
+        )
+        input_params_obj.core_processing_agb = fill_core_processing_agb_obj(
+            input_params_obj, lut_cal, lut_fnf, lut_stacks
+        )
+        write_input_file(input_params_obj, out_input_file_xml)
 
-        logging.info("AGB stack-based processing APP ended correctly.\n")
-        if self.stand_alone_call:
-            print("AGB stack-based processing APP ended correctly.\n")
+        # write the updatec conf file:
+        coreprocessing_configuration_file_xml = os.path.join(
+            os.path.dirname(input_params_obj.output_specification.output_folder), "Configuration_File_paths_updated.xml"
+        )
+        write_configuration_file(conf_params_obj, coreprocessing_configuration_file_xml)
+
+        end_message = "AGB stack-based processing APP ended correctly.\n"
+        logging.info(end_message)
+        print(end_message)
         ########################## END OF STACK BASED STEPS ######################
 
-        return (
-            coreprocessing_configuration_file_xml,
-            lut_cal,
-            lut_fnf,
-            lut_stacks,
-            equi7_initialization,
-        )
+        return out_input_file_xml, coreprocessing_configuration_file_xml
 
 
 class CoreProcessingAGB(Task):
@@ -1051,123 +1084,122 @@ class CoreProcessingAGB(Task):
         Once the "StackBasedProcessingAGB" outputs are ready, it is possible to launch 
         many istances of "CoreProcessingAGB" APP without need to re launch all the processor.
         
+        The app needs an input file (see BioPAL\inputs\Input_File.xml) containing
+        "L2_product", "output_specification", "dataset_query" and "core_processing_agb" sections'
+        The core_processing_agb section is filled by "StackBasedProcessingAGB" APP
+        It also need an updated configuration file (see BioPAL\biopal\conf\Configuration_File.xml), 
+        where the section "core_processing_agb" is updated with object paths
+        
         Prepare a python script with following code:
         
-        from biopal.agb.main_AGB import CoreProcessingAGB
-        agb_processing_obj = CoreProcessingAGB(
-        	coreprocessing_conf_file,
-        	geographic_boundaries_xml
-        	lut_cal_xml
-        	lut_fnf_xml
-        	lut_stacks_xml
-        )
-        agb_processing_obj.run(input_file_xml)
+        # dataset_query APP call if needed:
+        >>>from biopal.dataset_query.dataset_query import dataset_query
+        >>>dataset_query_obj = dataset_query(),
+        >>>input_file_with_stack_base_proc, _, _ = dataset_query_obj.run( input_file )
+        
+        # StackBasedProcessingAGB APP call if needed:
+        >>>from biopal.agb.main_AGB import StackBasedProcessingAGB
+        >>>stack_based_processing_obj = StackBasedProcessingAGB(ConfigurationFile),
+        >>>input_file_with_core_processing_agb, ConfigurationFile_updated = stack_based_processing_obj.run( input_file_with_stack_base_proc )
+        
+        >>>from biopal.agb.main_AGB import CoreProcessingAGB
+        >>>agb_processing_obj = CoreProcessingAGB(ConfigurationFile_updated)
+        >>>agb_processing_obj.run(input_file_with_core_processing_agb)
         
         Where:
         ----------
-        coreprocessing_conf_file : path to xml conf that can be customized;
-                                   default one and a demo one are present in "BioPAL\biopal\conf" (with sourcePaths to be accurately filled);
-                                   there is also the one generated by "StackBasedProcessingAGB" in "stack_APP_output/AGB/ConfigurationFile_CoreProcessingAGB.xml"
-        
-        geographic_boundaries_xml : path to xml
-        lut_cal_xml : path to xml
-        lut_fnf_xml : path to xml
-        lut_stacks_xml  : path to xml
-        All the above "path to xml" files that can be found in an already executed "AboveGroundBiomass" APP
-        or "StackBasedProcessingAGB" APP launched in the same geographical zone       
+        ConfigurationFile : path of the "BioPAL\biopal\conf\ConfigurationFile.xml"
+        ConfigurationFile_updated: the section "core_processing_agb" has been updated with full paths, from StackBasedProcessingAGB APP
+        input_file: path of the BioPAl input file, containing 
+                    "L2_product", "output_specification", and "dataset_query" and 
+                    "stack_based_processing" sections' (see BioPAL\inputs\Input_File.xml) 
+        input_file_with_stack_base_proc: path of the BioPAl input file, containing 
+                                         "L2_product", "output_specification", "dataset_query" and 
+                                         "stack_based_processing" sections'.
+        input_file_with_core_processing_agb: path of the BioPAl input file, containing 
+                                         "L2_product", "output_specification", "dataset_query" and 
+                                         "input_file_with_core_processing_agb" sections'.                            
     """
 
-    def __init__(
-        self,
-        configuration_file_xml,
-        geographic_boundaries,
-        lut_cal,
-        lut_fnf,
-        lut_stacks,
-        equi7_conf=None,
-        gdal_path=None,
-    ):
-        if equi7_conf is None:
-            equi7_conf = {}
-        if gdal_path is None:
-            gdal_path = ""
-        super().__init__(configuration_file_xml)
-        self.stand_alone_call = False
-        if isinstance(geographic_boundaries, str):
-            self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)
-            self.stand_alone_call = True
+    def __init__(self, configuration_file):
+
+        super().__init__(configuration_file)
+
+    def _run(self, input_file):
+
+        # parse the input file and check for the needed sections in it:
+        if isinstance(input_file, str):
+            check_if_path_exists(input_file, "FILE")
+            input_params_obj = parse_input_file(input_file)
         else:
-            self.geographic_boundaries = geographic_boundaries
-        if isinstance(lut_cal, str):
-            self.lut_cal_paths, self.lut_cal, _ = parse_lut_files(lut_cal)
-            self.stand_alone_call = True
+            input_params_obj = input_file
+        if (
+            input_params_obj.L2_product is None
+            or input_params_obj.output_specification is None
+            or input_params_obj.dataset_query is None
+            or input_params_obj.core_processing_agb is None
+        ):
+            error_message = [
+                "CoreProcessingAGB APP input file should contain at least"
+                ' "L2_product", "output_specification", "dataset_query" and "core_processing_agb" sections'
+            ]
+            raise InvalidInputError(error_message)
+
+        # parse the configuration file and check for the needed sections in it:
+        if isinstance(input_file, str):
+            check_if_path_exists(self.configuration_file, "FILE")
+            conf_params_obj = parse_configuration_file(self.configuration_file)
         else:
-            self.lut_cal_paths = lut_cal.paths
-            self.lut_cal = lut_cal.boundaries
-        if isinstance(lut_fnf, str):
-            self.lut_fnf_paths, self.lut_fnf, _ = parse_lut_files(lut_fnf)
-            self.stand_alone_call = True
-        else:
-            self.lut_fnf_paths = lut_fnf.paths
-            self.lut_fnf = lut_fnf.boundaries
-        if isinstance(lut_stacks, str):
-            (self.lut_stacks_paths, self.lut_stacks_boundaries, self.lut_progressive_stacks,) = parse_lut_files(
-                lut_stacks
+            conf_params_obj = self.configuration_file
+        if (
+            conf_params_obj.processing_flags is None
+            or conf_params_obj.ground_cancellation is None
+            or conf_params_obj.estimate_agb is None
+        ):
+            error_message = [
+                "Configuration file for  CoreProcessingAGB APP should contain at least"
+                ' "processing_flags", "ground_cancellation" and "estimate_agb" sections'
+            ]
+            raise InvalidInputError(error_message)
+
+        # Initialize the logger, of the APP has been called in a stand-alone call
+        if not hasattr(logging.getLoggerClass().root.handlers[0], "baseFilename"):
+            start_logging(
+                os.path.dirname(input_params_obj.output_specification.output_folder),
+                input_params_obj.L2_product,
+                "DEBUG",
+                app_name="CoreProcessingAGB",
             )
-            self.stand_alone_call = True
-        else:
-            self.lut_stacks_paths = lut_stacks.paths
-            self.lut_stacks_boundaries = lut_stacks.boundaries
-            self.lut_progressive_stacks = lut_stacks.progressive
-
-        self.equi7_sampling_intermediate = equi7_conf.get("equi7_sampling_intermediate")
-        self.e7g_intermediate = equi7_conf.get("e7g_intermediate")
-        self.gdal_path = gdal_path
-
-    def check_auxiliaries(self, proc_conf):
-        if not self.equi7_sampling_intermediate:
-            # initialize the equi7 sampling grid
-            self.equi7_sampling_intermediate = choose_equi7_sampling(
-                proc_conf.AGB.intermediate_ground_averaging, proc_conf.AGB.intermediate_ground_averaging / 2,
-            )
-            self.e7g_intermediate = Equi7Grid(self.equi7_sampling_intermediate)
-
-        if not self.gdal_path:
-            # initialize the gdal_path
-            self.gdal_path, _ = set_gdal_paths(self.gdal_path)
-
-    # %%
-    def _run(self, input_file_xml):
-
-        if self.stand_alone_call:
-            proc_flags_struct = proc_flags(True, False, False, False, False)
-            proc_inputs = parse_chains_input_file(input_file_xml)
-            log_file_name = start_logging_agb(
-                proc_inputs.output_folder, proc_flags_struct, "DEBUG", "CoreProcessingAGB",
-            )
-
         logging.info("AGB core-processing APP starting\n")
 
-        if self.stand_alone_call:
-            logging.info(
-                "EQUI7 Grid sampling used for intermediate products: {}".format(self.equi7_sampling_intermediate)
-            )
+        # get needed parameters from input and configuration files
+        gdal_path, _ = set_gdal_paths(conf_params_obj.gdal.gdal_path, conf_params_obj.gdal.gdal_environment_path)
 
-        # AGB: Reading chains configuration files
-        logging.info("AGB: Reading chains configuration files")
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_inputs = parse_chains_input_file(input_file_xml)
-        proc_conf = parse_coreprocessing_agb_configuration_file(self.configuration_file_xml, proc_inputs.output_folder)
+        geographic_boundaries = input_params_obj.stack_based_processing.geographic_boundaries
+        lut_cal_paths = input_params_obj.core_processing_agb.lut_cal.paths
+        lut_cal = input_params_obj.core_processing_agb.lut_cal.boundaries
+
+        lut_fnf_paths = input_params_obj.core_processing_agb.lut_fnf.paths
+        lut_fnf = input_params_obj.core_processing_agb.lut_fnf.boundaries
+
+        lut_stacks_paths = input_params_obj.core_processing_agb.lut_stacks.paths
+        lut_stacks_boundaries = input_params_obj.core_processing_agb.lut_stacks.boundaries
+        lut_progressive_stacks = input_params_obj.core_processing_agb.lut_stacks.progressive
+
+        ### initialize the equi7 sampling grid
+        equi7_sampling_intermediate = choose_equi7_sampling(
+            conf_params_obj.estimate_agb.intermediate_ground_averaging,
+            conf_params_obj.estimate_agb.intermediate_ground_averaging / 2,
+        )
+        e7g_intermediate = Equi7Grid(equi7_sampling_intermediate)
 
         # setting up directories and making sure that preprocessing has been run
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
+        products_folder = os.path.join(input_params_obj.output_specification.output_folder, "Products")
         temp_proc_folder = os.path.join(products_folder, "temp")
         if not (os.path.exists(temp_proc_folder)):
             error_message = '"temp" folder is not present in output: StackBasedProcessingAGB APP should be launched before CoreProcessingAGB '
             logging.error(error_message)
             raise RuntimeError(error_message)
-        # check auxiliaries (equi7 initialization) and if not present, compute them
-        self.check_auxiliaries(proc_conf)
 
         # preparing folders for final and temporary output
         global_agb_folder = os.path.join(products_folder, "global_AGB")
@@ -1186,7 +1218,6 @@ class CoreProcessingAGB(Task):
         
         
         """
-        proc_conf = parse_coreprocessing_agb_configuration_file(self.configuration_file_xml)
         # read and initialize all the parameters needed for the inversion
         (
             _,
@@ -1208,14 +1239,14 @@ class CoreProcessingAGB(Task):
             geographic_grid_sampling,
             sub_grid_string,
         ) = initialize_inversion_parameters(
-            self.equi7_sampling_intermediate,
-            proc_inputs.geographic_grid_sampling,
-            self.geographic_boundaries,
-            proc_conf.AGB,
+            equi7_sampling_intermediate,
+            input_params_obj.output_specification.geographic_grid_sampling,
+            geographic_boundaries,
+            conf_params_obj.estimate_agb,
         )
 
         #### read formula, parameter and observable defitions
-        algorithm_setup = proc_conf.AGB
+        algorithm_setup = conf_params_obj.estimate_agb
         formula_terms = algorithm_setup.residual_function.formula_terms
         formula_parameters = algorithm_setup.residual_function.formula_parameters
         formula_observables = algorithm_setup.residual_function.formula_observables
@@ -1322,7 +1353,7 @@ class CoreProcessingAGB(Task):
 
         ### PREPARING STACK INFO
         # read acquisition info table
-        stack_info_table = self.lut_progressive_stacks
+        stack_info_table = lut_progressive_stacks
         stack_info_table_columns = [
             "stack_id",
             "global_cycle_id",
@@ -1350,8 +1381,8 @@ class CoreProcessingAGB(Task):
             block_corner_coordinates_north,
             block_size_east,
             block_size_north,
-            self.lut_cal,  # right now, this uses boundaries but in the future it should be capable of using polygons (including additional_sampling_polygons)
-            self.lut_stacks_boundaries,  # right now, this uses boundaries but in the future it should be capable of using polygons
+            lut_cal,  # right now, this uses boundaries but in the future it should be capable of using polygons (including additional_sampling_polygons)
+            lut_stacks_boundaries,  # right now, this uses boundaries but in the future it should be capable of using polygons
         )
 
         ### RUNNING PARAMETER BLOCKS
@@ -1427,7 +1458,7 @@ class CoreProcessingAGB(Task):
 
                 # this should be updated to a more generalised approach based on polygons defining the extent of each image
                 (block_has_data, _) = check_block_for_data_and_cal(
-                    current_block_extents, self.lut_stacks_boundaries, self.lut_cal
+                    current_block_extents, lut_stacks_boundaries, lut_cal
                 )
 
                 # tabulation
@@ -1623,8 +1654,8 @@ class CoreProcessingAGB(Task):
                     formula_observables.averaging_method,
                     formula_observables.limits,
                     formula_observables.is_required,
-                    [[x, 0] for x in self.lut_fnf_paths],
-                    self.lut_fnf,
+                    [[x, 0] for x in lut_fnf_paths],
+                    lut_fnf,
                     identifier_table[:, 2],
                     identifier_table[:, 1],
                     space_invariant_parameter_table,
@@ -1818,10 +1849,10 @@ class CoreProcessingAGB(Task):
                         # get extents of the current EQUI7 tile
                         # [(left, lower), (right, upper)]
                         try:
-                            lon_min, lat_min = getattr(self.e7g_intermediate, equi7_subgrid_code).xy2lonlat(
+                            lon_min, lat_min = getattr(e7g_intermediate, equi7_subgrid_code).xy2lonlat(
                                 min(pixel_axis_east), min(pixel_axis_north)
                             )
-                            lon_max, lat_max = getattr(self.e7g_intermediate, equi7_subgrid_code).xy2lonlat(
+                            lon_max, lat_max = getattr(e7g_intermediate, equi7_subgrid_code).xy2lonlat(
                                 max(pixel_axis_east), max(pixel_axis_north)
                             )
                         except Exception as e:
@@ -1838,7 +1869,7 @@ class CoreProcessingAGB(Task):
                             equi7_product,
                             current_file_path,
                             temp_agb_folder,
-                            gdal_path=self.gdal_path,
+                            gdal_path=gdal_path,
                             ftiles=equi7_product.search_tiles_in_roi(bbox=[(lon_min, lat_min), (lon_max, lat_max)]),
                             accurate_boundary=False,
                             withtilenamesuffix=False,
@@ -1864,9 +1895,9 @@ class CoreProcessingAGB(Task):
                                 )
                         parameter_map_pathlists[parameter_idx].append([output_equi7_file_path[0], 0])
 
-                        # self.lut_cal_paths.append(output_file_path)
-                self.lut_cal = np.row_stack(
-                    (self.lut_cal, np.concatenate((current_block_extents[np.array([0, 1, 3, 2])], np.zeros(1))),)
+                        # lut_cal_paths.append(output_file_path)
+                lut_cal = np.row_stack(
+                    (lut_cal, np.concatenate((current_block_extents[np.array([0, 1, 3, 2])], np.zeros(1))),)
                 )
 
                 skip_current_block = False
@@ -1945,11 +1976,11 @@ class CoreProcessingAGB(Task):
                                 parameter_name, current_merged_file_path
                             )
                         )
-
-            logging.info("AGB core-processing APP ended correctly.\n")
-            if self.stand_alone_call:
-                print("AGB core-processing APP ended correctly.\n")
-
+                        
+            end_message = ("AGB core-processing APP ended correctly.\n")
+            logging.info(end_message)
+            print(end_message)
+            
         except Exception as e:
             logging.error(
                 "AGB: core-processing APP error during creation of wall-to-wall maps." + str(e), exc_info=True,
@@ -1957,39 +1988,26 @@ class CoreProcessingAGB(Task):
             raise
 
 
-def start_logging_agb(output_folder, proc_flags, log_level, app_name):
-    # CRITICAL 50
-    # ERROR 40
-    # WARNING 30
-    # INFO 20
-    # DEBUG 10
-    # NOTSET 0
+def fill_core_processing_agb_obj(input_params_obj, lut_cal, lut_fnf, lut_stacks):
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    if log_level == "DEBUG":
-        level_to_set = logging.DEBUG
-    elif log_level == "INFO":
-        level_to_set = logging.INFO
-    elif log_level == "WARNING":
-        level_to_set = logging.WARNING
-    elif log_level == "ERROR":
-        level_to_set = logging.ERROR
+    """
+    Internal function called by the StackBasedProcessingAGB APP:
+        
+        the StackBasedProcessingAGB APP fills the structure
+        to be written into the xml input file for the next APP, which is the 
+        core processing for the AGB.
+        The returned object "core_processing_agb_obj" contains three lookup tables with paths, boundaries 
+        and other specific parameters, of the products (ground notched stacks, 
+        forest mask, calibrations) computed by the APP itself.
+        
+        Usage of the returned object:
+            The returned object can be added to the input_params_obj and it 
+            can be written to disk if needed, as (core_processing_agb_obj is 
+                                                  overwritten by this command, if already present):
+                - input_params_obj.core_processing_agb_obj = core_processing_agb_obj
+                - write_input_file(input_params_obj, input_file_xml)
+    """
 
-    log_file_name = os.path.join(output_folder, app_name + "_APP.log")
+    core_processing_agb_obj = core_processing_agb(lut_cal, lut_fnf, lut_stacks,)
 
-    logging.basicConfig(
-        handlers=[logging.FileHandler(log_file_name, mode="w", encoding="utf-8"), logging.StreamHandler(),],
-        level=level_to_set,
-        format="%(asctime)s - %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    logging.getLogger("matplotlib.font_manager").disabled = True
-
-    logging.info(" --BIOMASS L2 Processor-- ")
-    logging.info("Executing {} APP".format(app_name))
-
-    logging.info(" \n")
-
-    return log_file_name
+    return core_processing_agb_obj

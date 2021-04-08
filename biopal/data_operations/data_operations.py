@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import logging
 import pyproj
@@ -423,6 +426,21 @@ def read_and_oversample_aux_data(
         reference_agb,
         system_decorr_fun,
     )
+
+
+def get_equi7_tiff_names(directory):
+
+    equi7_fnames = []
+
+    equi7_tile_names = os.listdir(directory)
+    for equi7_tile_name in equi7_tile_names:
+        equi7_subtile_names = os.listdir(os.path.join(directory, equi7_tile_name))
+        for equi7_subtile_name in equi7_subtile_names:
+            tiff_names = os.listdir(os.path.join(directory, equi7_tile_name, equi7_subtile_name))
+            for tiff_name in tiff_names:
+                equi7_fnames.append(os.path.join(directory, equi7_tile_name, equi7_subtile_name, tiff_name))
+
+    return equi7_fnames
 
 
 def fnf_tandemx_load_filter_equi7format(

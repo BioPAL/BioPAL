@@ -1,4 +1,5 @@
-# Constants
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
 
 from scipy.constants import c as LIGHTSPEED
 
