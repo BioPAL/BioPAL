@@ -17,7 +17,8 @@ class TestGroundCancellation():
                coming from the "initial_values" function is converted to a 2D map.
         
     The generated output is tested to be a dictionary with the three expected 
-    polarizations, each containing a 2D map with expected Nrg, Naz dimensions.
+    polarizations, each containing a 2D map with expected Nrg, Naz dimensions 
+    and with expected data type.
    
     Test execution:
     "pytest" needs to be installed in the environment:
@@ -46,7 +47,7 @@ class TestGroundCancellation():
         (
          Nrg, 
          Naz,            
-         data_input_dict,
+         data_stack_dict,
          wave_number_dict,
          multi_master_flag,
          enhanced_forest_height,
@@ -57,7 +58,7 @@ class TestGroundCancellation():
          ) = self.initial_values()
         
         notched_pol_dict = ground_cancellation(
-            data_input_dict,
+            data_stack_dict,
             wave_number_dict,
             multi_master_flag,
             enhanced_forest_height,
@@ -73,8 +74,13 @@ class TestGroundCancellation():
         for pol, data in notched_pol_dict.items():
             
             assert data.shape==(Nrg,Naz), 'wrong output shape, in test with space varying OFF'
-
-
+            
+            if multi_master_flag:
+                assert isinstance(data[0,0], np.float64), 'wrong output data type; when multi_master_flag is True it should be float64, in test with space varying OFF'
+            else:
+                assert isinstance(data[0,0], np.complex128), 'wrong output data type; when multi_master_flag is False it is supposed to be complex128, in test with space varying OFF'
+    
+    
     def test_ground_cancellation_space_varying(self):
         """
         ground_cancellation functional test #2
@@ -85,7 +91,7 @@ class TestGroundCancellation():
         (
           Nrg, 
           Naz,            
-          data_input_dict,
+          data_stack_dict,
           wave_number_dict,
           multi_master_flag,
           enhanced_forest_height_scalar,
@@ -101,7 +107,7 @@ class TestGroundCancellation():
         
         warnings.filterwarnings('ignore') # warnings silenced for convenience
         notched_pol_dict = ground_cancellation(
-            data_input_dict,
+            data_stack_dict,
             wave_number_dict,
             multi_master_flag,
             enhanced_forest_height_map,
@@ -117,8 +123,13 @@ class TestGroundCancellation():
         for pol, data in notched_pol_dict.items():
             
             assert data.shape==(Nrg,Naz), 'wrong output shape, in test with space varying ON'
-        
-        
+            
+            if multi_master_flag:
+                assert isinstance(data[0,0], np.float64), 'wrong output data type; when multi_master_flag is True it should be float64, in test with space varying ON'
+            else:
+                assert isinstance(data[0,0], np.complex128), 'wrong output data type; when multi_master_flag is False it is supposed to be complex128, in test with space varying ON'
+    
+    
     def initial_values(self):
         """
         Generates dummy variables for the ground cancellation APP, for functional testing
@@ -129,7 +140,7 @@ class TestGroundCancellation():
             integer, number of range samples for the dummy maps
         Naz
             integer, number of azimuth lines for the dummy maps
-        data_input_dict
+        data_stack_dict
             dictionary with three acquisitions, each containing a sub dictionary with 
             three polarizations, each containing  a raster with random complex values
         wave_number_dict
@@ -153,7 +164,7 @@ class TestGroundCancellation():
         Naz = 2656
         data_dummy = 1/np.sqrt(2)*np.random.rand(Nrg,Naz)+ 1j/np.sqrt(2)*np.random.rand(Nrg,Naz)
         pol_dict = {'hh': data_dummy, 'hv': data_dummy, 'vv': data_dummy }
-        data_input_dict = {'BSL_00': pol_dict, 'BSL_01': pol_dict, 'BSL_02': pol_dict }
+        data_stack_dict = {'BSL_00': pol_dict, 'BSL_01': pol_dict, 'BSL_02': pol_dict }
         
         wave_number_dummy = np.ones((Nrg,Naz))
         wave_number_dict = {'BSL_00': 0*wave_number_dummy, 'BSL_01': -0.03*wave_number_dummy, 'BSL_02': 0.08*wave_number_dummy }
@@ -168,7 +179,7 @@ class TestGroundCancellation():
         return (
             Nrg, 
             Naz,            
-            data_input_dict,
+            data_stack_dict,
             wave_number_dict,
             multi_master_flag,
             enhanced_forest_height,
