@@ -5,37 +5,41 @@ import warnings
 
 class TestGroundCancellation():
     """
-    ground_cancellation functional tests
+    "ground_cancellation" APP functional tests
+    performed with pytest framework: https://docs.pytest.org/en/stable/getting-started.html
     
-    Executes ground_cancellation APP twice:
+    "ground_cancellation" APP is executed twice:
         
-        first time with space varying flag disabled and dummy inputs.
+        first time with space varying feature disabled and dummy inputs.
         
-        second time with space varying flag enabled and dummy inputs: 
-               to enable it, the scalar enhanced forest height coming from 
-               the initial_values() function is converted to a 2D map.
+        second time with space varying feature enabled and dummy inputs: 
+               to enable the space varying feature, the scalar enhanced forest height 
+               coming from the "initial_values" function is converted to a 2D map.
         
     The generated output is tested to be a dictionary with the three expected 
-    polarizations, each containing a 2D map with expected Nrg, Naz dimensions
+    polarizations, each containing a 2D map with expected Nrg, Naz dimensions.
    
     Test execution:
-    pytest needs to be installed in the environment
-    from command line, go in the BioPAL directory and type the following instruction:
+    "pytest" needs to be installed in the environment:
+        
+        >>>pip install -U pytest
+        
+    From command line go in the "BioPAL/" directory and type the following instruction:
         
         >>>pytest
         
-    This will automatically executes all the pytest formatted tests found in BioPAL
+    This will automatically execute all the pytest-formatted tests in BioPAL
     
     Parameters
     ----------
-    None, all the dummy parameters are loaded from the initial_values() function
+    None, all the dummy parameters are loaded from the "initial_values" function
     
     """
 
     def test_ground_cancellation(self):
         """
         ground_cancellation functional test #1
-        Executes ground_cancellation APP, with space varying flag disabled and 
+        Executes ground_cancellation APP, with space varying feature disabled and 
         dummy inputs
         """
         
@@ -74,7 +78,7 @@ class TestGroundCancellation():
     def test_ground_cancellation_space_varying(self):
         """
         ground_cancellation functional test #2
-        Executes ground_cancellation APP, with space varying flag enabled and 
+        Executes ground_cancellation APP, with space varying feature enabled and 
         dummy inputs
         """
         
@@ -91,7 +95,7 @@ class TestGroundCancellation():
           slope,
           ) = self.initial_values()
         
-        # convert to 2dMap, to enable the space varying
+        # converting to 2D map, in order to enable the space varying feature
         enhanced_forest_height_map = slope.copy()
         enhanced_forest_height_map.fill(enhanced_forest_height_scalar)
         
