@@ -27,14 +27,13 @@ def ground_cancellation(
         each data_stack[ acquisition_name_string ][ polarization_name_string ] 
         is an array of shape [Nrg x Naz].
     kz_stack
-        Array of phase-to-height conversion factors (kz) OR [num_acq x 1] vector 
-        of kz for constant geometries. Needed if num_acq > 2.
+        Array of phase-to-height conversion factors. Needed if num_acq > 2.
         It is a dictionary where kz_stack[acquisition_name_string] is an array 
-        of shape [Nrg x Naz].
+        of shape [Nrg x Naz] or a scalar for constant geometries.
     multi_master_flag
         If true  average notch is computed with all possible masters;
-        if false average notch is computed automatically selecting the best master,
-        In both cases, only if more than two acquisitions are present,
+        if false average notch is computed automatically selecting the best master.
+        In both cases, only if more than two acquisitions are present.
     z_emph
         Can be a scalar value for forest height in meters used in the processing 
         to determine the vertical wavenumber for which the ground cancelled data 
@@ -52,18 +51,18 @@ def ground_cancellation(
     theta_look
         off-nadir angles map, in radiants, it is an array of shape [Nrg x Naz].
     ground_slope
-        Terrain slope angles map, in radiants, it is an array of shape [Nrg x Naz].
+        Terrain slope map, in radiants, it is an array of shape [Nrg x Naz].
         
     Returns
     -------
     GroundNotchedSLC
-        It is a dictionary containing three polarizations, each containing 
-        an [Nrg x Naz] ground notche SLC image
+        Dictionary containing three polarizations, each composed by 
+        an [Nrg x Naz] ground notched SLC image.
     
     """
 
     if not eq_flag == "1" and not eq_flag == "2" and not eq_flag == "3":
-        error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
+        error_str = 'Configuration flag "model_based_equalization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
             eq_flag
         )
         logging.error(error_str)
@@ -200,10 +199,9 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
         each data_stack[ acquisition_name_string ][ polarization_name_string ] 
         is an array of shape [Nrg x Naz].
     kz_stack
-        Array of phase-to-height conversion factors (kz) OR [num_acq x 1] vector 
-        of kz for constant geometries. Needed if num_acq > 2.
+        Array of phase-to-height conversion factors. Needed if num_acq > 2.
         It is a dictionary where kz_stack[acquisition_name_string] is an array 
-        of shape [Nrg x Naz].              
+        of shape [Nrg x Naz] or a scalar for constant geometries.          
     pol_name
         string, possible values are 'hh','vh','vv': polarization to be processed 
         from the ones into the data_stack dictionary.
@@ -234,7 +232,7 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
         [Nrg x Naz] ground notche SLC image.
     mask_extrap
         [Nrg x Naz] logical mask: it is true if the desired phase-to-height is 
-                                  out of the available range  
+                                  out of the available range.
     """
 
     num_acq = len(data_stack)
@@ -342,10 +340,10 @@ def kzInterp(data_stack_in, kz_stack_in, kz0, pol_name):
     Returns
     -------
       Ikz0
-          [Nrg x Naz] synthetic SLC
+          [Nrg x Naz] synthetic SLC.
       mask_extrap
           [Nrg x Naz] logical mask true if the desired phase-to-height is out 
-                      of the available range            
+                      of the available range.            
     """
 
     num_acq = len(data_stack_in)
@@ -417,21 +415,21 @@ def SingleBaselineEqualization(eq_height, pho_r, kz, theta_look, ground_slope):
     ----------
     eq_height
         the desired height for which the power is equalized 
-        (see also ground_cancellation APP doc)
+        (see also ground_cancellation APP doc).
       pho_r
           slant range resolution in meters.
       kz
           [Nrg x Naz]  the phase-to-height conversion factor for the 
-          interferometric pair
+          interferometric pair.
       theta_look
-          [Nrg x Naz] off-nadir angle in degrees, in slant range geometry
+          [Nrg x Naz] off-nadir angle in degrees, in slant range geometry.
       ground_slope
-          [Nrg x Naz] terrain slope in degrees, in slant range geometry
+          [Nrg x Naz] terrain slope in degrees, in slant range geometry.
 
     Returns
     -------
     normalization_factor
-        [Nrg x Naz] power normalization factor
+        [Nrg x Naz] power normalization factor.
     """
 
     # Phase-to-crossrange conversion factor
@@ -479,7 +477,7 @@ def is_suitable_z_emph_map(z_emph, Nrg, Naz):
     Returns
     -------
     is_suitable
-        boolean, true if z_emph is a 2D map, false if it is scalar
+        boolean, true if z_emph is a 2D map, false if it is scalar.
     """
 
     is_suitable = False

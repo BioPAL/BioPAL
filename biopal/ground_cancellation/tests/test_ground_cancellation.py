@@ -8,17 +8,17 @@ class TestGroundCancellation():
     "ground_cancellation" APP functional tests
     performed with pytest framework: https://docs.pytest.org/en/stable/getting-started.html
     
-    "ground_cancellation" APP is executed twice:
+    "ground_cancellation" APP executed twice:
         
-        first time with space varying feature disabled and dummy inputs.
+        first with space varying feature disabled and dummy inputs.
         
-        second time with space varying feature enabled and dummy inputs: 
+        second with space varying feature enabled and dummy inputs: 
                to enable the space varying feature, the scalar enhanced forest height 
                coming from the "initial_values" function is converted to a 2D map.
         
-    The generated output is tested to be a dictionary with the three expected 
-    polarizations, each containing a 2D map with expected Nrg, Naz dimensions 
-    and with expected data type.
+    It checks the output to be a dictionary with the three polarizations, each 
+    containing a 2D map with expected Nrg, Naz dimensions  in addition with 
+    expected data type.
    
     Test execution:
     "pytest" needs to be installed in the environment:
@@ -76,9 +76,9 @@ class TestGroundCancellation():
             assert data.shape==(Nrg,Naz), 'wrong output shape, in test with space varying OFF'
             
             if multi_master_flag:
-                assert isinstance(data[0,0], np.float64), 'wrong output data type; when multi_master_flag is True it should be float64, in test with space varying OFF'
+                assert isinstance(data[0,0], np.float64), 'wrong output data type; when multi_master_flag is true it is supposed to be float64, in test with space varying OFF'
             else:
-                assert isinstance(data[0,0], np.complex128), 'wrong output data type; when multi_master_flag is False it is supposed to be complex128, in test with space varying OFF'
+                assert isinstance(data[0,0], np.complex128), 'wrong output data type; when multi_master_flag is false it is supposed to be complex128, in test with space varying OFF'
     
     
     def test_ground_cancellation_space_varying(self):
@@ -125,9 +125,9 @@ class TestGroundCancellation():
             assert data.shape==(Nrg,Naz), 'wrong output shape, in test with space varying ON'
             
             if multi_master_flag:
-                assert isinstance(data[0,0], np.float64), 'wrong output data type; when multi_master_flag is True it should be float64, in test with space varying ON'
+                assert isinstance(data[0,0], np.float64), 'wrong output data type; when multi_master_flag is true it is supposed to be float64, in test with space varying ON'
             else:
-                assert isinstance(data[0,0], np.complex128), 'wrong output data type; when multi_master_flag is False it is supposed to be complex128, in test with space varying ON'
+                assert isinstance(data[0,0], np.complex128), 'wrong output data type; when multi_master_flag is false it is supposed to be complex128, in test with space varying ON'
     
     
     def initial_values(self):
