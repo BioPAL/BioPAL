@@ -5,168 +5,68 @@ import numpy as np
 import logging
 
 
-def check_pm_kz0(kz_stack, opt_str):
-
-    # convert input kz from dict to list in order to perform ne max mmin search:
-    kz_list = []
-    [kz_list.append(v) for v in kz_stack.values()]
-    del kz_stack
-
-    condition = np.nansum(
-        (np.nanmax(kz_list, axis=0) >= opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= opt_str.kz0)
-    ) < np.nansum((np.nanmax(kz_list, axis=0) >= -opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= -opt_str.kz0))
-
-    if condition:
-        return -opt_str.kz0, kz_list
-
-    else:
-        return opt_str.kz0, kz_list
-
-
-def kz0_crit(kz_stack, opt_str):
-
-    # Check if it is better to generate +kz0 or -kz0
-    opt_str.kz0, kz_list = check_pm_kz0(kz_stack, opt_str)
-
-    # get the minimums and maximums of the modified kz stack, return as a 2D array
-    min_array = np.nanmin(kz_list, axis=0)
-    max_array = np.nanmax(kz_list, axis=0)
-
-    # check for how many pixels the kz0 is in between
-    num_array = (min_array < opt_str.kz0) & (opt_str.kz0 < max_array)
-    pixelcount = np.sum(num_array)
-
-    return pixelcount
-
-
-def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
+def ground_cancellation(
+        data_stack, 
+        kz_stack, 
+        multi_master_flag, 
+        z_emph, 
+        eq_flag, 
+        pho_r, 
+        theta_look, 
+        ground_slope
+        ):
     """
-     It computes the ground cancellation from input data stack, for the desired polarization.
+     "ground_cancellation" APP:
+         Computes the ground cancellation from input data stack.
     
-     INPUT
-          data_stack: stack of calibrated, ground steered slc images.
-                      It is a dictionary of two nested dictionaries where:
-                      each data_stack[ acquisition_name_string ][ polarization_name_string ] is an array of shape [Nrg x Naz]
-          kz_stack:   array of phase-to-height conversion
-                      factors (kz) OR [num_acq x 1] vector of kz for constant geometries. Needed if num_acq > 2.
-                      It is a dictionary where kz_stack[acquisition_name_string] is an array of shape [Nrg x Naz]
-          pol_name:   string, polarization to be processed from the ones into the data_stack dictionary
-          opt_str.
-                      kz0: desired phase-to-height
-                      master: index of the master image
-                      z_demod: (optional. Default: 0) vertical spectrum
-                               demodulation height to perform interpolation
-                      model_sign: (optional. Default: +1) model for the
-                                  interferometric phase: model_sign*kz*z
-                      z_demod_map: (optional. [Nrg x Naz] numpy array) vertical
-                                   spectrum demodulation height to perform
-                                   interpolation
-                      kz0_map: (optional. [Nrg x Naz] numpy array) desired
-                              phase-to-height map
-                      space_varying_cancellation: (optional. Default: false)
-                               if true opt_str.z_demod_map and opt_str.kz0_map are used
+    Parameters
+    ----------
+    data_stack
+        Stack of calibrated, ground steered SLC images.
+        It is a dictionary of two nested dictionaries where:
+        each data_stack[ acquisition_name_string ][ polarization_name_string ] 
+        is an array of shape [Nrg x Naz].
+    kz_stack
+        Array of phase-to-height conversion factors. Needed if num_acq > 2.
+        It is a dictionary where kz_stack[acquisition_name_string] is an array 
+        of shape [Nrg x Naz] or a scalar for constant geometries.
+    multi_master_flag
+        If true  average notch is computed with all possible masters;
+        if false average notch is computed automatically selecting the best master.
+        In both cases, only if more than two acquisitions are present.
+    z_emph
+        Can be a scalar value for forest height in meters used in the processing 
+        to determine the vertical wavenumber for which the ground cancelled data 
+        is generated (only with more than two acquisitions).
+        Can be a 2D map of shape [Nrg x Naz] and in this case the space varying 
+        feature is enabled.
+    eq_flag
+        backscatter equalization, with possible values (strings) '1','2' or '3' where:
+        1: equalization OFF
+        2: equalization ON
+        3: if just two acquisitions are present in each of the used stacks is ON,
+           otherwise is OFF
+    pho_r
+        Slant range resolution in meters.
+    theta_look
+        off-nadir angles map, in radiants, it is an array of shape [Nrg x Naz].
+    ground_slope
+        Terrain slope map, in radiants, it is an array of shape [Nrg x Naz].
+        
+    Returns
+    -------
+    GroundNotchedSLC
+        Dictionary containing three polarizations, each composed by 
+        an [Nrg x Naz] ground notched SLC image.
     
-     OUTPUTkz0_crit
-           GroundNotchedSLC: [Nrg x Naz] ground notche slc
-    
-     DEPENDENCIES
-                 kzInterp
     """
 
-    num_acq = len(data_stack)
-    acq_names = list(data_stack.keys())
-    first_acq_dict = data_stack[acq_names[0]]
-    Nrg, Naz = first_acq_dict[pol_name].shape
-
-    # Checking whether space-varying cancellation should run. It has already
-    # been checked by ground_cancellation method, trust it.
-    if hasattr(opt_str, "space_varying_cancellation") and opt_str.space_varying_cancellation:
-        logging.info("AGB: (core) opt_str.space_varying_cancellation = True...:")
-        space_varying_cancellation = True
-    else:
-        logging.info("AGB: (core) opt_str.space_varying_cancellation = False...:")
-        space_varying_cancellation = False
-
-    if num_acq == 2:
-
-        master_acq_id = acq_names[0]
-        slave_acq_id = acq_names[1]
-
-        GroundNotchedSLC = data_stack[master_acq_id][pol_name] - data_stack[slave_acq_id][pol_name]
-        mask_extrap = np.zeros((Nrg, Naz), dtype=np.int8)
-
-    else:
-        # Checking opt_str
-        if not hasattr(opt_str, "kz0"):
-            logging.error("Ground cancellation module: missing opt_str.kz0 input.")
-            raise
-
-        if not hasattr(opt_str, "z_demod"):
-            logging.error("Ground cancellation module: missing opt_str.z_demod input.")
-            raise
-
-        if not hasattr(opt_str, "master_id"):
-            logging.error("Ground cancellation module: missing opt_str.master_id input.")
-            raise
-
-        # Check if it is better to generate +kz0 or -kz0
-        # Just one single kz0 to perform this check even in case of space-varying cancellation
-        opt_str.kz0, _ = check_pm_kz0(kz_stack, opt_str)
-
-        # Demodulation
-        for acq_id in data_stack.keys():
-            if space_varying_cancellation:
-                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
-                    -1j * kz_stack[acq_id] * opt_str.z_demod_map
-                )
-            else:
-                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
-                    -1j * kz_stack[acq_id] * opt_str.z_demod
-                )
-
-        # Generating synthetic SLC through interpolation
-        if space_varying_cancellation:
-            Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0_map, pol_name)
-        else:
-            Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0, pol_name)
-
-        # Modulation
-        for acq_id in data_stack.keys():
-            if space_varying_cancellation:
-                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
-                    1j * kz_stack[acq_id] * opt_str.z_demod_map
-                )
-            else:
-                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
-                    1j * kz_stack[acq_id] * opt_str.z_demod
-                )
-
-        if space_varying_cancellation:
-            Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod_map)
-        else:
-            Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod)
-
-        GroundNotchedSLC = data_stack[opt_str.master_id][pol_name] - Ikz0
-
-    return GroundNotchedSLC, mask_extrap
-
-
-def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag, pho_r, theta_look, ground_slope):
-
-    #      data_stack: stack of calibrated, ground steered slc images.
-    #                  It is a dictionary of two nested dictionaries where:
-    #                    each data_stack[ acquisition_name_string ][ polarization_name_string ] is an array of shape [Nrg x Naz]
-    #      kz_stack:   array of phase-to-height conversion
-    #                  factors (kz) OR [num_acq x 1] vector of kz for constant geometries. Needed if num_acq > 2.
-    #                  It is a dictionary where kz_stack[acquisition_name_string] is an array of shape [Nrg x Naz]
     if not eq_flag == "1" and not eq_flag == "2" and not eq_flag == "3":
-        error_str = 'Configuration flag "ModelBasedEqualization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
+        error_str = 'Configuration flag "model_based_equalization" value "{}" not valid, choose among "1", "2" or "3", where "1"->always OFF; "2"->always ON; "3"->ON only if two acquisitions are present'.format(
             eq_flag
         )
         logging.error(error_str)
         raise
-
-    # Nrg, Naz, num_acq = data_stack[0].shape
 
     # Initializing local paramters
     num_acq = len(data_stack)
@@ -286,58 +186,165 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
     return GroundNotchedSLC
 
 
-def SingleBaselineEqualization(eq_height, pho_r, kz, theta_look, ground_slope):
-    """It generates an model based equalization map for ground notched data from geometry.
+def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
+    """
+     Core function of the "ground_cancellation" APP:
+         it computes the ground cancellation from input data stack, for the desired polarization.
+    
+    Parameters
+    ----------
+    data_stack
+        Stack of calibrated, ground steered slc images.
+        It is a dictionary of two nested dictionaries where:
+        each data_stack[ acquisition_name_string ][ polarization_name_string ] 
+        is an array of shape [Nrg x Naz].
+    kz_stack
+        Array of phase-to-height conversion factors. Needed if num_acq > 2.
+        It is a dictionary where kz_stack[acquisition_name_string] is an array 
+        of shape [Nrg x Naz] or a scalar for constant geometries.          
+    pol_name
+        string, possible values are 'hh','vh','vv': polarization to be processed 
+        from the ones into the data_stack dictionary.
+    opt_str
+        class object containing folllowing attributes:
+            kz0
+                desired phase-to-height
+            master_id
+                string, ID of the master image
+            z_demod
+                optional. Default: 0. Vertical spectrum demodulation height to 
+                                      perform interpolation
+            model_sign
+                optional. Default: +,1. Model for the interferometric phase: 
+                                        model_sign*kz*z
+            z_demod_map: 
+                optional. [Nrg x Naz] numpy array. Vertical spectrum demodulation 
+                          height to perform interpolation
+            kz0_map
+                optional. [Nrg x Naz] numpy array. Desired phase-to-height map
+            space_varying_cancellation
+                optional. Default: false. If true then opt_str.z_demod_map and 
+                                          opt_str.kz0_map are used
+    
+    Returns
+    -------
+    GroundNotchedSLC
+        [Nrg x Naz] ground notche SLC image.
+    mask_extrap
+        [Nrg x Naz] logical mask: it is true if the desired phase-to-height is 
+                                  out of the available range.
+    """
 
-    INPUT
-      eq_height: the desired height for which the power is equalized
-      pho_r: slant range resolution
-      kz: [Nrg x Naz]  the phase-toheight conversion factor for the interferometric pair
-      theta_look: [Nrg x Naz]  off-nadir angle in slant range geometry
-      ground_slope: [Nrg x Naz]  terrain slope in slant range geometry
+    num_acq = len(data_stack)
+    acq_names = list(data_stack.keys())
+    first_acq_dict = data_stack[acq_names[0]]
+    Nrg, Naz = first_acq_dict[pol_name].shape
 
-    OUTPUT
-      normalization_factor: [Nrg x Naz] power normalization factor"""
+    # Checking whether space-varying cancellation should run. It has already
+    # been checked by ground_cancellation method, trust it.
+    if hasattr(opt_str, "space_varying_cancellation") and opt_str.space_varying_cancellation:
+        logging.info("AGB: (core) opt_str.space_varying_cancellation = True...:")
+        space_varying_cancellation = True
+    else:
+        logging.info("AGB: (core) opt_str.space_varying_cancellation = False...:")
+        space_varying_cancellation = False
 
-    # Phase-to-crossrange conversion factor
-    kxr = kz * np.sin(theta_look)
+    if num_acq == 2:
 
-    # Cross-range coordinate of the forest top height in the middle of the
-    # resolution cell
-    xr0 = eq_height / (np.cos(theta_look)) / (np.tan(theta_look) - np.tan(ground_slope))
+        master_acq_id = acq_names[0]
+        slave_acq_id = acq_names[1]
 
-    # Spread along the cross-range direction of a surface due to acquisition
-    # geometry (pho_r = range resolution)
-    delta_xr = pho_r / np.tan(theta_look - ground_slope)
+        GroundNotchedSLC = data_stack[master_acq_id][pol_name] - data_stack[slave_acq_id][pol_name]
+        mask_extrap = np.zeros((Nrg, Naz), dtype=np.int8)
 
-    # Model power (up to the absolute forest reflectivity density)
-    P = 2 * (
-        (xr0 + delta_xr / 2) * (1 - np.sin(kxr * (xr0 + delta_xr / 2)) / (kxr * (xr0 + delta_xr / 2)))
-        + delta_xr / 2 * (1 - np.sin(kxr * delta_xr / 2) / (kxr * delta_xr / 2))
-    )
+    else:
+        # Checking opt_str
+        if not hasattr(opt_str, "kz0"):
+            logging.error("Ground cancellation module: missing opt_str.kz0 input.")
+            raise
 
-    # Surface normalization
-    normalization_factor = P / np.sin(theta_look - ground_slope)
+        if not hasattr(opt_str, "z_demod"):
+            logging.error("Ground cancellation module: missing opt_str.z_demod input.")
+            raise
 
-    return normalization_factor
+        if not hasattr(opt_str, "master_id"):
+            logging.error("Ground cancellation module: missing opt_str.master_id input.")
+            raise
+
+        # Check if it is better to generate +kz0 or -kz0
+        # Just one single kz0 to perform this check even in case of space-varying cancellation
+        opt_str.kz0, _ = check_pm_kz0(kz_stack, opt_str)
+
+        # Demodulation
+        for acq_id in data_stack.keys():
+            if space_varying_cancellation:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    -1j * kz_stack[acq_id] * opt_str.z_demod_map
+                )
+            else:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    -1j * kz_stack[acq_id] * opt_str.z_demod
+                )
+
+        # Generating synthetic SLC through interpolation
+        if space_varying_cancellation:
+            Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0_map, pol_name)
+        else:
+            Ikz0, mask_extrap = kzInterp(data_stack, kz_stack, opt_str.kz0, pol_name)
+
+        # Modulation
+        for acq_id in data_stack.keys():
+            if space_varying_cancellation:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    1j * kz_stack[acq_id] * opt_str.z_demod_map
+                )
+            else:
+                data_stack[acq_id][pol_name] = data_stack[acq_id][pol_name] * np.exp(
+                    1j * kz_stack[acq_id] * opt_str.z_demod
+                )
+
+        if space_varying_cancellation:
+            Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod_map)
+        else:
+            Ikz0 = Ikz0 * np.exp(1j * opt_str.kz0 * opt_str.z_demod)
+
+        GroundNotchedSLC = data_stack[opt_str.master_id][pol_name] - Ikz0
+
+    return GroundNotchedSLC, mask_extrap
 
 
 def kzInterp(data_stack_in, kz_stack_in, kz0, pol_name):
-    """It generates a synthetic SLC stack of acquisitions by interpolating the original stack of SLC data_stack
-    defined over the kz axis specified by kz_stack in correspondence of the desired kz0.
-
-    INPUT
-    data_stack: stack of calibrated, ground steered slc images.
-                It is a dictionary of two nested dictionaries where:
-                 each data_stack[ acquisition_name_string ][ polarization_name_string ] is an array of shape [Nrg x Naz]
-     kz_stack:  array of phase-to-height conversion
-                factors (kz) OR [num_acq x 1] vector of kz for constant geometries. Needed if num_acq > 2.
-                It is a dictionary where kz_stack[acquisition_name_string] is an array of shape [Nrg x Naz]
-      kz0:  scalar or [Nrg x Naz] desired phase-to-height
-
-    OUTPUT
-      Ikz0: [Nrg x Naz] synthetic SLC
-      mask_extrap: [Nrg x Naz] logical mask true if the desired kz0 is out of the available range"""
+    """
+    It generates a synthetic SLC stack of acquisitions by interpolating the 
+    original stack of SLC data_stack defined over the kz axis specified by 
+    kz_stack in correspondence of the desired phase-to-height.
+  
+    Parameters
+    ----------
+    data_stack_in
+        Stack of calibrated, ground steered slc images.
+        It is a dictionary of two nested dictionaries where:
+        each data_stack[ acquisition_name_string ][ polarization_name_string ] 
+        is an array of shape [Nrg x Naz].
+    kz_stack_in
+        Array of phase-to-height conversion factors (kz) OR [num_acq x 1] vector 
+        of kz for constant geometries. Needed if num_acq > 2.
+        It is a dictionary where kz_stack[acquisition_name_string] is an array 
+        of shape [Nrg x Naz].                
+    kz0
+        scalar or [Nrg x Naz]: desired phase-to-height.
+    pol_name
+        string, possible values are 'hh','vh','vv': polarization to be processed 
+        from the ones into the data_stack dictionary.
+        
+    Returns
+    -------
+      Ikz0
+          [Nrg x Naz] synthetic SLC.
+      mask_extrap
+          [Nrg x Naz] logical mask true if the desired phase-to-height is out 
+                      of the available range.            
+    """
 
     num_acq = len(data_stack_in)
     acq_names = list(data_stack_in.keys())
@@ -399,21 +406,79 @@ def kzInterp(data_stack_in, kz_stack_in, kz0, pol_name):
     return Ikz0, mask_extrap
 
 
+def SingleBaselineEqualization(eq_height, pho_r, kz, theta_look, ground_slope):
+    """
+    It generates an model based equalization map for ground notched data from 
+    geometry.
+
+    Parameters
+    ----------
+    eq_height
+        the desired height for which the power is equalized 
+        (see also ground_cancellation APP doc).
+      pho_r
+          slant range resolution in meters.
+      kz
+          [Nrg x Naz]  the phase-to-height conversion factor for the 
+          interferometric pair.
+      theta_look
+          [Nrg x Naz] off-nadir angle in degrees, in slant range geometry.
+      ground_slope
+          [Nrg x Naz] terrain slope in degrees, in slant range geometry.
+
+    Returns
+    -------
+    normalization_factor
+        [Nrg x Naz] power normalization factor.
+    """
+
+    # Phase-to-crossrange conversion factor
+    kxr = kz * np.sin(theta_look)
+
+    # Cross-range coordinate of the forest top height in the middle of the
+    # resolution cell
+    xr0 = eq_height / (np.cos(theta_look)) / (np.tan(theta_look) - np.tan(ground_slope))
+
+    # Spread along the cross-range direction of a surface due to acquisition
+    # geometry (pho_r = range resolution)
+    delta_xr = pho_r / np.tan(theta_look - ground_slope)
+
+    # Model power (up to the absolute forest reflectivity density)
+    P = 2 * (
+        (xr0 + delta_xr / 2) * (1 - np.sin(kxr * (xr0 + delta_xr / 2)) / (kxr * (xr0 + delta_xr / 2)))
+        + delta_xr / 2 * (1 - np.sin(kxr * delta_xr / 2) / (kxr * delta_xr / 2))
+    )
+
+    # Surface normalization
+    normalization_factor = P / np.sin(theta_look - ground_slope)
+
+    return normalization_factor
+
+
 def is_suitable_z_emph_map(z_emph, Nrg, Naz):
-    """It checks whether the input (z_emph) is a suitable 2D map to be used as a
-    space-varying height to be emphasized through ground cancellation. It must be:
-        - A numpy ndarray instance
-        - Two-dimensional
-        - Same size (in pixels) as the area currently processed
-        - All values greater than zero
+    """
+    It checks whether the input (z_emph) is a suitable 2D map to be used as a
+    space-varying height to be emphasized through ground cancellation. 
+    It must be:
+        - a numpy ndarray instance
+        - two-dimensional
+        - same size (in pixels) as the area currently processed
+        - all values greater than zero
 
-    INPUT
-    z_emph: variable to be evaluated
-    Nrg   : Number of rows currently processed
-    Naz   : Number of columns currently processed
+    Parameters
+    ----------
+    z_emph
+        variable to be evaluated.
+    Nrg
+        Number of rows currently processed.
+    Naz
+        Number of columns currently processed.
 
-    OUTPUT
-    is_suitable: """
+    Returns
+    -------
+    is_suitable
+        boolean, true if z_emph is a 2D map, false if it is scalar.
+    """
 
     is_suitable = False
     if isinstance(z_emph, np.ndarray):
@@ -421,3 +486,37 @@ def is_suitable_z_emph_map(z_emph, Nrg, Naz):
             is_suitable = True
 
     return is_suitable
+
+
+def check_pm_kz0(kz_stack, opt_str):
+
+    # convert input kz from dict to list in order to perform ne max mmin search:
+    kz_list = []
+    [kz_list.append(v) for v in kz_stack.values()]
+    del kz_stack
+
+    condition = np.nansum(
+        (np.nanmax(kz_list, axis=0) >= opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= opt_str.kz0)
+    ) < np.nansum((np.nanmax(kz_list, axis=0) >= -opt_str.kz0) & (np.nanmin(kz_list, axis=0) <= -opt_str.kz0))
+
+    if condition:
+        return -opt_str.kz0, kz_list
+
+    else:
+        return opt_str.kz0, kz_list
+
+
+def kz0_crit(kz_stack, opt_str):
+
+    # Check if it is better to generate +kz0 or -kz0
+    opt_str.kz0, kz_list = check_pm_kz0(kz_stack, opt_str)
+
+    # get the minimums and maximums of the modified kz stack, return as a 2D array
+    min_array = np.nanmin(kz_list, axis=0)
+    max_array = np.nanmax(kz_list, axis=0)
+
+    # check for how many pixels the kz0 is in between
+    num_array = (min_array < opt_str.kz0) & (opt_str.kz0 < max_array)
+    pixelcount = np.sum(num_array)
+
+    return pixelcount
