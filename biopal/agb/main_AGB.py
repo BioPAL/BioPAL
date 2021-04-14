@@ -1337,7 +1337,7 @@ class CoreProcessingAGB(Task):
         # (e.g., GEDI pixels or 3rd party reference data)
         additional_sampling_polygons = []
         # this is temporary; this should be read from an xml-file or something
-        test_additional_polygons = True
+        test_additional_polygons = False
         if test_additional_polygons:
             # as an example, use 1km resolution cells (e.g., to calibrate with GEDI pixels)
             dd = 1000  # dimension
