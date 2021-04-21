@@ -1,8 +1,0 @@
-<ConfigurationBioPAL version="1.0">
-	<!--
-	<GDAL>
-		<gdal_path>gdal/bin</gdal_path>
-		<gdal_environment_path>pkgs/libgdal-2.3.3-h2e7e64b_0/share/gdal</gdal_environment_path>
-	</GDAL>
-	-->
-</ConfigurationBioPAL>

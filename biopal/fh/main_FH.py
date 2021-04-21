@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import logging
 import os
 import numpy as np
@@ -23,6 +26,7 @@ from biopal.data_operations.data_operations import (
 )
 from biopal.utility.utility_functions import (
     Task,
+    set_gdal_paths,
     choose_equi7_sampling,
     check_if_path_exists,
     check_if_geometry_auxiliaries_are_present,
@@ -39,8 +43,8 @@ from biopal.geocoding.geocoding import (
     geocoding_init,
 )
 from biopal.io.xml_io import (
-    parse_chains_input_file,
-    parse_chains_configuration_file,
+    parse_input_file,
+    parse_configuration_file,
 )
 from biopal.io.data_io import tiff_formatter
 from biopal.screen_calibration.screen_calibration import apply_calibration_screens
@@ -55,52 +59,44 @@ class ForestHeight(Task):
     """
 
     def __init__(
-        self, configuration_file_xml, geographic_boundaries, stacks_to_merge_dict, gdal_path,
+        self, configuration_file, stacks_to_merge_dict,
     ):
-        super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
+        super().__init__(configuration_file)
         self.stacks_to_merge_dict = stacks_to_merge_dict
-        self.gdal_path = gdal_path
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         # Main APP #1: Stack Based Processing
-        stack_based_processing_obj = StackBasedProcessingFH(
-            self.configuration_file_xml, self.geographic_boundaries, self.gdal_path,
-        )
+        stack_based_processing_obj = StackBasedProcessingFH(self.configuration_file)
 
         # Run Main APP #1: Stack Based Processing
-        (data_equi7_fnames, mask_equi7_fnames) = stack_based_processing_obj.run(input_file_xml)
+        (data_equi7_fnames, mask_equi7_fnames) = stack_based_processing_obj.run(input_file)
 
         # Main APP #2: Core Processing
         fh_processing_obj = CoreProcessingFH(
-            self.configuration_file_xml, self.stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
+            self.configuration_file, self.stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
         )
 
         # Run Main APP #2: AGB Core Processing
-        fh_processing_obj.run(input_file_xml)
+        fh_processing_obj.run(input_file)
 
 
 class StackBasedProcessingFH(Task):
-    def __init__(
-        self, configuration_file_xml, geographic_boundaries, gdal_path,
-    ):
-        super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
-        self.gdal_path = gdal_path
+    def __init__(self, configuration_file):
+        super().__init__(configuration_file)
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         ########################## INITIAL STEPS ##############################
 
         logging.info("FH: Reading chains configuration files")
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
+        check_if_path_exists(self.configuration_file, "FILE")
+        proc_conf = parse_configuration_file(self.configuration_file)
+        proc_inputs = parse_input_file(input_file)
 
         ### managing output folders:
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        if proc_conf.save_breakpoints:
+        products_folder = os.path.join(proc_inputs.output_specification.output_folder, "Products")
+        if proc_conf.processing_flags.save_breakpoints:
             breakpoints_output_folder = os.path.join(products_folder, "breakpoints")
             logging.info("FH: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
@@ -110,12 +106,21 @@ class StackBasedProcessingFH(Task):
         os.makedirs(temp_output_folder)
 
         ### get temporal date time of the input data (get the minimum date from all the stacks)
-        time_tag_mjd_initial = get_min_time_stamp_repository(proc_inputs.L1c_repository, proc_inputs.stack_composition)
+        time_tag_mjd_initial = get_min_time_stamp_repository(
+            proc_inputs.dataset_query.L1C_repository, proc_inputs.stack_based_processing.stack_composition
+        )
 
         ### initialize the equi7 sampling grid
-        equi7_sampling = choose_equi7_sampling(proc_conf.FH.product_resolution, proc_inputs.geographic_grid_sampling)
+        equi7_sampling = choose_equi7_sampling(
+            proc_conf.estimate_fh.product_resolution, proc_inputs.output_specification.geographic_grid_sampling
+        )
         e7g = Equi7Grid(equi7_sampling)
         logging.info("EQUI7 Grid sampling used: {}".format(equi7_sampling))
+
+        # get needed parameters from input and configuration files
+        geographic_boundaries = proc_inputs.stack_based_processing.geographic_boundaries
+
+        gdal_path, _ = set_gdal_paths(proc_conf.gdal.gdal_path, proc_conf.gdal.gdal_environment_path)
 
         ########################## INITIAL STEPS END ##############################
 
@@ -123,7 +128,9 @@ class StackBasedProcessingFH(Task):
         data_equi7_fnames = {}
         mask_equi7_fnames = {}
         ########################## STACK BASED STEPS ##############################
-        for stack_idx, (unique_stack_id, acquisitions_pf_names) in enumerate(proc_inputs.stack_composition.items()):
+        for stack_idx, (unique_stack_id, acquisitions_pf_names) in enumerate(
+            proc_inputs.stack_based_processing.stack_composition.items()
+        ):
 
             # make temporary sub-directories
             temp_output_folder_gr = os.path.join(temp_output_folder, "geocoded", unique_stack_id)
@@ -136,7 +143,9 @@ class StackBasedProcessingFH(Task):
                 logging.info("FH: Data loading for stack " + unique_stack_id + "; this may take a while:")
 
                 (beta0_calibrated, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
-                    proc_inputs.L1c_repository, acquisitions_pf_names, proc_conf.enable_resampling
+                    proc_inputs.dataset_query.L1C_repository,
+                    acquisitions_pf_names,
+                    proc_conf.processing_flags.enable_resampling,
                 )
 
             except Exception as e:
@@ -146,17 +155,24 @@ class StackBasedProcessingFH(Task):
             ### load or compute auxiliary data
             try:
 
-                read_dist = proc_conf.FH.spectral_shift_filtering
-                read_ref_h = not proc_conf.apply_calibration_screen and proc_conf.DEM_flattening
-                read_cal_screens = proc_conf.apply_calibration_screen
+                read_dist = proc_conf.estimate_fh.spectral_shift_filtering
+                read_ref_h = (
+                    not proc_conf.processing_flags.apply_calibration_screen
+                    and proc_conf.processing_flags.DEM_flattening
+                )
+                read_cal_screens = proc_conf.processing_flags.apply_calibration_screen
                 geometry_aux_are_present = check_if_geometry_auxiliaries_are_present(
-                    proc_inputs, unique_stack_id, acquisitions_pf_names, read_ref_h=read_ref_h, read_dist=read_dist,
+                    proc_inputs.stack_based_processing,
+                    unique_stack_id,
+                    acquisitions_pf_names,
+                    read_ref_h=read_ref_h,
+                    read_dist=read_dist,
                 )
 
-                if proc_conf.compute_geometry or not geometry_aux_are_present:
+                if proc_conf.processing_flags.compute_geometry or not geometry_aux_are_present:
 
                     # messages for the log:
-                    if proc_conf.compute_geometry:
+                    if proc_conf.processing_flags.compute_geometry:
                         logging.info("FH: calling geometry library for stack " + unique_stack_id + "\n")
                         if geometry_aux_are_present:
                             logging.warning("    geometry auxiliaries will be overwritten for stack " + unique_stack_id)
@@ -176,12 +192,12 @@ class StackBasedProcessingFH(Task):
                         _,
                         sar_geometry_master,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        proc_inputs.L1c_repository,
-                        proc_inputs,
+                        proc_inputs.dataset_query.L1C_repository,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
                         master_id,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         comp_ref_h=read_ref_h,
                         comp_dist=read_dist,
                         force_ellipsoid=True,
@@ -196,12 +212,12 @@ class StackBasedProcessingFH(Task):
                         R,
                         _,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        proc_inputs.L1c_repository,
-                        proc_inputs,
+                        proc_inputs.dataset_query.L1C_repository,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
                         master_id,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         comp_ref_h=read_ref_h,
                         sar_geometry_master=sar_geometry_master,
                     )
@@ -241,10 +257,10 @@ class StackBasedProcessingFH(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        proc_inputs,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_ref_h=read_ref_h,
                         read_dist=read_dist,
@@ -270,10 +286,10 @@ class StackBasedProcessingFH(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        proc_inputs,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_cal_screens=read_cal_screens,
                         read_ecef=False,
@@ -293,14 +309,14 @@ class StackBasedProcessingFH(Task):
 
             ### Screen calibration (ground steering)
             try:
-                if proc_conf.apply_calibration_screen:
+                if proc_conf.processing_flags.apply_calibration_screen:
                     logging.info("FH: applying calibration screen...")
                     beta0_calibrated = apply_calibration_screens(
                         beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id,
                     )
                     logging.info("...done.\n")
 
-                elif proc_conf.DEM_flattening:
+                elif proc_conf.processing_flags.DEM_flattening:
                     logging.info("FH: DEM flattening... ")
                     beta0_calibrated = apply_dem_flattening(
                         beta0_calibrated, kz, reference_height, master_id, raster_info
@@ -316,10 +332,14 @@ class StackBasedProcessingFH(Task):
             logging.info("FH: incidence angle used is {} [deg] \n".format(np.rad2deg(look_angle_rad)))
 
             ### mean of off nadir and slope over final resolution
-            windtm_x = np.int(np.round(proc_conf.FH.product_resolution / raster_info.pixel_spacing_az / 2) * 2 + 1)
+            windtm_x = np.int(
+                np.round(proc_conf.estimate_fh.product_resolution / raster_info.pixel_spacing_az / 2) * 2 + 1
+            )
             windtm_y = np.int(
                 np.round(
-                    proc_conf.FH.product_resolution / (raster_info.pixel_spacing_slant_rg / np.sin(look_angle_rad)) / 2
+                    proc_conf.estimate_fh.product_resolution
+                    / (raster_info.pixel_spacing_slant_rg / np.sin(look_angle_rad))
+                    / 2
                 )
                 * 2
                 + 1
@@ -360,7 +380,7 @@ class StackBasedProcessingFH(Task):
             # a third map which is the forest non forest mask
             delta_kz = np.maximum.reduce(kz_list_temp) - np.minimum.reduce(kz_list_temp)
             condition_curr = np.logical_and(
-                delta_kz > proc_conf.FH.kz_thresholds[0], delta_kz < proc_conf.FH.kz_thresholds[1]
+                delta_kz > proc_conf.estimate_fh.kz_thresholds[0], delta_kz < proc_conf.estimate_fh.kz_thresholds[1]
             )
             kz_mask = np.where(condition_curr, True, False)
             kz_mask[kz_nan_mask] = False
@@ -368,9 +388,9 @@ class StackBasedProcessingFH(Task):
             del kz_list_temp, kz_nan_mask
 
             # covariance estimation window size, it may be modified by an internal flag in case of air-plane geometry
-            cov_est_window_size = proc_conf.FH.product_resolution
+            cov_est_window_size = proc_conf.estimate_fh.product_resolution
 
-            if proc_conf.multilook_heading_correction:
+            if proc_conf.processing_flags.multilook_heading_correction:
                 _, heading_deg, _, _, _, _ = decode_unique_acquisition_id_string(unique_stack_id + "_BSL_00")
 
                 cov_est_window_size = resolution_heading_correction(cov_est_window_size, heading_deg)
@@ -381,7 +401,7 @@ class StackBasedProcessingFH(Task):
             logging.info("FH: " + unique_stack_id + ": performing heigth estimation...")
             try:
 
-                if proc_conf.FH.spectral_shift_filtering:
+                if proc_conf.estimate_fh.spectral_shift_filtering:
 
                     (
                         estimated_height,
@@ -405,7 +425,7 @@ class StackBasedProcessingFH(Task):
                         raster_info.carrier_frequency_hz,
                         raster_info.range_bandwidth_hz,
                         kz,
-                        proc_conf.FH,
+                        proc_conf.estimate_fh,
                         R,
                         off_nadir_angle_rad,
                         slope,
@@ -433,7 +453,7 @@ class StackBasedProcessingFH(Task):
                         raster_info.carrier_frequency_hz,
                         raster_info.range_bandwidth_hz,
                         kz,
-                        proc_conf.FH,
+                        proc_conf.estimate_fh,
                     )
 
                 estimated_height = estimated_height / np.cos(slope_filtered[rg_vec_subs, :][:, az_vec_subs])
@@ -509,7 +529,7 @@ class StackBasedProcessingFH(Task):
                 raise
 
             ### saving breakpoints
-            if proc_conf.save_breakpoints:
+            if proc_conf.processing_flags.save_breakpoints:
                 logging.info("FH: saving breakpoints (in slant range geometry) on " + breakpoints_output_folder)
                 post_string = "_SR_" + unique_stack_id
 
@@ -532,8 +552,8 @@ class StackBasedProcessingFH(Task):
 
             ### creating mask to exclude estimation not valid values:
             condition_curr = np.logical_and(
-                data_ground > proc_conf.FH.model_parameters.estimation_valid_values_limits[0],
-                data_ground < proc_conf.FH.model_parameters.estimation_valid_values_limits[1],
+                data_ground > proc_conf.estimate_fh.model_parameters.estimation_valid_values_limits[0],
+                data_ground < proc_conf.estimate_fh.model_parameters.estimation_valid_values_limits[1],
             )
             estimation_mask_ground = np.where(condition_curr, True, False)
             estimation_mask_ground[np.isnan(data_ground)] = False
@@ -595,7 +615,7 @@ class StackBasedProcessingFH(Task):
             try:
 
                 equi7_sampling = choose_equi7_sampling(
-                    proc_conf.FH.product_resolution, proc_inputs.geographic_grid_sampling
+                    proc_conf.estimate_fh.product_resolution, proc_inputs.output_specification.geographic_grid_sampling
                 )
                 e7g = Equi7Grid(equi7_sampling)
                 logging.info("    EQUI7 Grid sampling used: {}".format(equi7_sampling))
@@ -608,7 +628,7 @@ class StackBasedProcessingFH(Task):
                     e7g,
                     data_ground_fname,
                     equi7_data_outdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -620,7 +640,7 @@ class StackBasedProcessingFH(Task):
                     e7g,
                     kz_and_valid_values_mask_ground_fname,
                     equi7_temp_mask_outdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -644,18 +664,18 @@ class StackBasedProcessingFH(Task):
                 ### prepare the forest non forest mask
                 # it is loaded if equi7, or converted to equi7 if TANDEM-X
                 # it is a list containing all the loaded FNF-FTILES
-                fnf_format = check_fnf_folder_format(proc_inputs.forest_mask_catalogue_folder)
+                fnf_format = check_fnf_folder_format(proc_inputs.stack_based_processing.forest_mask_catalogue_folder)
                 if fnf_format == "TANDEM-X":
                     logging.info("Initial Forest mask is in TANDEM-X format, converting to equi7...")
 
                     # conversion step 1: get the tiff names of current zone
                     equi7_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format(
-                        proc_inputs.forest_mask_catalogue_folder,
+                        proc_inputs.stack_based_processing.forest_mask_catalogue_folder,
                         e7g,
-                        proc_conf.FH.product_resolution,
+                        proc_conf.estimate_fh.product_resolution,
                         temp_output_folder,
-                        self.gdal_path,
-                        self.geographic_boundaries,
+                        gdal_path,
+                        geographic_boundaries,
                         time_tag_mjd_initial,
                     )
 
@@ -664,11 +684,11 @@ class StackBasedProcessingFH(Task):
 
                     # re format the input mask in equi7 with the output resolution:
                     equi7_fnf_mask_fnames = fnf_equi7_load_filter_equi7format(
-                        proc_inputs.forest_mask_catalogue_folder,
+                        proc_inputs.stack_based_processing.forest_mask_catalogue_folder,
                         e7g,
-                        proc_conf.FH.product_resolution,
+                        proc_conf.estimate_fh.product_resolution,
                         temp_output_folder,
-                        self.gdal_path,
+                        gdal_path,
                     )
 
             # check the equi7_fnf_mask_fnames
@@ -690,24 +710,24 @@ class StackBasedProcessingFH(Task):
 
 class CoreProcessingFH(Task):
     def __init__(
-        self, configuration_file_xml, stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
+        self, configuration_file, stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
     ):
 
-        super().__init__(configuration_file_xml)
+        super().__init__(configuration_file)
         self.stacks_to_merge_dict = stacks_to_merge_dict
         self.data_equi7_fnames = data_equi7_fnames
         self.mask_equi7_fnames = mask_equi7_fnames
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         # FH: Reading chains configuration files
         logging.info("FH: Reading chains configuration files")
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
+        check_if_path_exists(self.configuration_file, "FILE")
+        proc_conf = parse_configuration_file(self.configuration_file)
+        proc_inputs = parse_input_file(input_file)
 
         # managing folders
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
+        products_folder = os.path.join(proc_inputs.output_specification.output_folder, "Products")
         temp_output_folder = os.path.join(products_folder, "temp")
 
         ######################## NOT STACK BASED STEPS ############################
@@ -739,7 +759,7 @@ class CoreProcessingFH(Task):
             logging.error(e, exc_info=True)
             raise
 
-        if proc_conf.delete_temporary_files:
+        if proc_conf.processing_flags.delete_temporary_files:
             try:
                 shutil.rmtree(temp_output_folder)
             except:

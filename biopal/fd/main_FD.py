@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import numpy as np
 import logging
@@ -17,6 +20,7 @@ from biopal.data_operations.data_operations import (
     fnf_equi7_load_filter_equi7format,
     fnf_tandemx_load_filter_equi7format,
     apply_dem_flattening,
+    get_equi7_tiff_names,
 )
 from biopal.utility.utility_functions import (
     Task,
@@ -43,9 +47,8 @@ from biopal.geocoding.geocoding import (
     geocoding_init,
 )
 from biopal.io.xml_io import (
-    parse_chains_input_file,
-    parse_chains_configuration_file,
-    parse_boundaries_files,
+    parse_input_file,
+    parse_configuration_file,
 )
 
 from biopal.io.data_io import tiff_formatter
@@ -68,17 +71,15 @@ class ForestDisturbance(Task):
     """
 
     def __init__(
-        self, configuration_file_xml, geographic_boundaries, gdal_path,
+        self, configuration_file,
     ):
-        super().__init__(configuration_file_xml)
-        self.geographic_boundaries = geographic_boundaries
-        self.gdal_path = gdal_path
+        super().__init__(configuration_file)
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         # 1) Prepare initialization APP
         # organize the input dataSet by grouping all the temporal global cycles of each stack
-        initialize_fd_obj = initializeAlgorithmFD(self.configuration_file_xml)
+        initialize_fd_obj = initializeAlgorithmFD(self.configuration_file)
 
         # 1) Run the initialization APP
         (
@@ -87,7 +88,7 @@ class ForestDisturbance(Task):
             equi7_sampling,
             proc_inputs,
             proc_conf,
-        ) = initialize_fd_obj.run(input_file_xml)
+        ) = initialize_fd_obj.run(input_file)
 
         # 2) Main APP: CoreProcessingFD
         # cycle over each nominal geometry stack (containing all its global cycles)
@@ -97,8 +98,7 @@ class ForestDisturbance(Task):
 
             # 2) Prepare Main APP: CoreProcessingFD
             core_processing_obj = CoreProcessingFD(
-                self.configuration_file_xml,
-                self.geographic_boundaries,
+                self.configuration_file,
                 cycles_composition,
                 stack_idx,
                 nominal_geometry_stack_id,
@@ -108,17 +108,16 @@ class ForestDisturbance(Task):
                 equi7_sampling,  # optional
                 proc_inputs,  # optional
                 proc_conf,  # optional
-                self.gdal_path,  # optional
             )
 
             # 2) Run Main APP: CoreProcessingFD
             (
                 final_forest_mask_data,  # this goes in input to next iteration
                 temp_output_folder,
-            ) = core_processing_obj.run(input_file_xml)
+            ) = core_processing_obj.run(input_file)
 
         # Ending the ForestDisturbance APP
-        if proc_conf.delete_temporary_files:
+        if proc_conf.processing_flags.delete_temporary_files:
             try:
                 shutil.rmtree(temp_output_folder)
             except:
@@ -133,22 +132,22 @@ class initializeAlgorithmFD(Task):
     the "CoreProcessingFD" APP
     """
 
-    def __init__(self, configuration_file_xml):
+    def __init__(self, configuration_file):
 
-        super().__init__(configuration_file_xml)
+        super().__init__(configuration_file)
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         ########################## INITIAL STEPS ##############################
 
         logging.info("FD: Reading chains configuration files")
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
+        check_if_path_exists(self.configuration_file, "FILE")
+        proc_conf = parse_configuration_file(self.configuration_file)
+        proc_inputs = parse_input_file(input_file)
 
         ### managing output folders:
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        if proc_conf.save_breakpoints:
+        products_folder = os.path.join(proc_inputs.output_specification.output_folder, "Products")
+        if proc_conf.processing_flags.save_breakpoints:
             breakpoints_output_folder = os.path.join(products_folder, "breakpoints")
             logging.info("FD: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
@@ -164,7 +163,9 @@ class initializeAlgorithmFD(Task):
         )  # dict which groupes togheter all the differente global cycles for stacks with same nominal geometry
         # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
         logging.info('FD: grouping togheter the stacks which have same "nominal geometry" in different global cycles:')
-        for idx, (unique_stack_id, unique_acq_pf_names) in enumerate(proc_inputs.stack_composition.items()):
+        for idx, (unique_stack_id, unique_acq_pf_names) in enumerate(
+            proc_inputs.stack_based_processing.stack_composition.items()
+        ):
             nominal_geometry_stack_id = unique_stack_id[
                 6:
             ]  # remove the global cycle indication, maintain the geometry indications
@@ -176,16 +177,20 @@ class initializeAlgorithmFD(Task):
             cycles_composition[nominal_geometry_stack_id][global_cycle_idx] = unique_acq_pf_names
         logging.info(
             "    for the #{} stacks in input, #{} different nominal geometries have been found \n".format(
-                len(proc_inputs.stack_composition), len(cycles_composition)
+                len(proc_inputs.stack_based_processing.stack_composition), len(cycles_composition)
             )
         )
 
         ### initialize the equi7 sampling grid
-        equi7_sampling = choose_equi7_sampling(proc_conf.FD.product_resolution, proc_inputs.geographic_grid_sampling)
+        equi7_sampling = choose_equi7_sampling(
+            proc_conf.change_detection_fd.product_resolution, proc_inputs.output_specification.geographic_grid_sampling
+        )
         logging.info("EQUI7 Grid sampling used: {}".format(equi7_sampling))
 
         ### get temporal date time of the input data (get the minimum date from all the stacks)
-        time_tag_mjd_initial = get_min_time_stamp_repository(proc_inputs.L1c_repository, proc_inputs.stack_composition)
+        time_tag_mjd_initial = get_min_time_stamp_repository(
+            proc_inputs.dataset_query.L1C_repository, proc_inputs.stack_based_processing.stack_composition
+        )
 
         ########################## INITIAL STEPS END #############################
 
@@ -202,8 +207,7 @@ class CoreProcessingFD(Task):
 
     def __init__(
         self,
-        configuration_file_xml,
-        geographic_boundaries,
+        configuration_file,
         cycles_composition,
         stack_idx,
         nominal_geometry_stack_id,
@@ -213,16 +217,10 @@ class CoreProcessingFD(Task):
         equi7_sampling=None,
         proc_inputs=None,
         proc_conf=None,
-        gdal_path=None,
     ):
-        if gdal_path is None:
-            gdal_path = ""
 
-        super().__init__(configuration_file_xml)
-        if isinstance(geographic_boundaries, str):
-            self.geographic_boundaries = parse_boundaries_files(geographic_boundaries)
-        else:
-            self.geographic_boundaries = geographic_boundaries
+        super().__init__(configuration_file)
+
         self.cycles_composition = cycles_composition
         self.stack_idx = stack_idx
         self.nominal_geometry_stack_id = nominal_geometry_stack_id
@@ -232,37 +230,39 @@ class CoreProcessingFD(Task):
         self.equi7_sampling = equi7_sampling
         self.proc_inputs = proc_inputs
         self.proc_conf = proc_conf
-        self.gdal_path = gdal_path
 
-    def check_auxiliaries(self, input_file_xml):
+    def check_auxiliaries(self, input_file):
         if self.final_forest_mask_data is None:
             self.final_forest_mask_data = {}
         if self.proc_inputs is None:
-            self.proc_inputs = parse_chains_input_file(input_file_xml)
+            self.proc_inputs = parse_input_file(input_file)
         if self.proc_conf is None:
-            self.proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
+            self.proc_conf = parse_configuration_file(self.configuration_file)
         if self.equi7_sampling is None:
             self.equi7_sampling = choose_equi7_sampling(
-                self.proc_conf.FD.product_resolution, self.proc_inputs.geographic_grid_sampling
+                self.proc_conf.change_detection_fd.product_resolution,
+                self.proc_inputs.output_specification.geographic_grid_sampling,
             )
-        if not self.gdal_path:
-            # initialize the gdal_path
-            self.gdal_path, _ = set_gdal_paths(self.gdal_path)
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
-        self.check_auxiliaries(input_file_xml)
+        self.check_auxiliaries(input_file)
+
+        # get needed parameters from input and configuration files
+        geographic_boundaries = self.proc_inputs.stack_based_processing.geographic_boundaries
+
+        gdal_path, _ = set_gdal_paths(self.proc_conf.gdal.gdal_path, self.proc_conf.gdal.gdal_environment_path)
 
         logging.info("FD stack-based processing APP starting\n")
 
         ########################## INITIALIZATIONS ############################
         number_of_pols = 3
 
-        products_folder = os.path.join(self.proc_inputs.output_folder, "Products")
+        products_folder = os.path.join(self.proc_inputs.output_specification.output_folder, "Products")
         temp_output_folder = os.path.join(products_folder, "temp")
         if not os.path.exists(temp_output_folder):
             os.makedirs(temp_output_folder)
-        if self.proc_conf.save_breakpoints:
+        if self.proc_conf.processing_flags.save_breakpoints:
             breakpoints_output_folder = os.path.join(products_folder, "breakpoints")
             if not os.path.exists(breakpoints_output_folder):
                 os.makedirs(breakpoints_output_folder)
@@ -289,7 +289,9 @@ class CoreProcessingFD(Task):
             self.global_cycle_dict.items()
         ):
 
-            time_tag_mjd_curr = get_data_time_stamp(self.proc_inputs.L1c_repository, uniqie_acq_ids_all_cycles_list[0])
+            time_tag_mjd_curr = get_data_time_stamp(
+                self.proc_inputs.dataset_query.L1C_repository, uniqie_acq_ids_all_cycles_list[0]
+            )
 
             # reconstruct current unique_stack_id
             global_cycle_idx_str = str(global_cycle_idx)
@@ -334,7 +336,9 @@ class CoreProcessingFD(Task):
                 logging.info("FD: input data reading:...")
 
                 beta0_calibrated, master_id, raster_info, raster_info_orig = read_and_oversample_data(
-                    self.proc_inputs.L1c_repository, uniqie_acq_ids_all_cycles_list, self.proc_conf.enable_resampling
+                    self.proc_inputs.dataset_query.L1C_repository,
+                    uniqie_acq_ids_all_cycles_list,
+                    self.proc_conf.processing_flags.enable_resampling,
                 )
 
             except Exception as e:
@@ -345,16 +349,22 @@ class CoreProcessingFD(Task):
             ### load or compute auxiliary data
             try:
 
-                read_ref_h = not self.proc_conf.apply_calibration_screen and self.proc_conf.DEM_flattening
-                read_cal_screens = self.proc_conf.apply_calibration_screen
+                read_ref_h = (
+                    not self.proc_conf.processing_flags.apply_calibration_screen
+                    and self.proc_conf.processing_flags.DEM_flattening
+                )
+                read_cal_screens = self.proc_conf.processing_flags.apply_calibration_screen
                 geometry_aux_are_present = check_if_geometry_auxiliaries_are_present(
-                    self.proc_inputs, unique_stack_id, uniqie_acq_ids_all_cycles_list, read_ref_h=read_ref_h
+                    self.proc_inputs.stack_based_processing,
+                    unique_stack_id,
+                    uniqie_acq_ids_all_cycles_list,
+                    read_ref_h=read_ref_h,
                 )
 
-                if self.proc_conf.compute_geometry or not geometry_aux_are_present:
+                if self.proc_conf.processing_flags.compute_geometry or not geometry_aux_are_present:
 
                     # messages for the log:
-                    if self.proc_conf.compute_geometry:
+                    if self.proc_conf.processing_flags.compute_geometry:
                         logging.info("FD: calling geometry library for stack " + unique_stack_id + "\n")
                         if geometry_aux_are_present:
                             logging.warning("    geometry auxiliaries will be overwritten for stack " + unique_stack_id)
@@ -366,12 +376,12 @@ class CoreProcessingFD(Task):
                         )
 
                     _, _, ellipsoid_slope, _, _, _, sar_geometry_master = compute_and_oversample_geometry_auxiliaries(
-                        self.proc_inputs.L1c_repository,
-                        self.proc_inputs,
+                        self.proc_inputs.dataset_query.L1C_repository,
+                        self.proc_inputs.stack_based_processing,
                         unique_stack_id,
                         uniqie_acq_ids_all_cycles_list,
                         master_id,
-                        self.proc_conf.enable_resampling,
+                        self.proc_conf.processing_flags.enable_resampling,
                         force_ellipsoid=True,
                     )
 
@@ -384,12 +394,12 @@ class CoreProcessingFD(Task):
                         _,
                         _,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        self.proc_inputs.L1c_repository,
-                        self.proc_inputs,
+                        self.proc_inputs.dataset_query.L1C_repository,
+                        self.proc_inputs.stack_based_processing,
                         unique_stack_id,
                         uniqie_acq_ids_all_cycles_list,
                         master_id,
-                        self.proc_conf.enable_resampling,
+                        self.proc_conf.processing_flags.enable_resampling,
                         sar_geometry_master=sar_geometry_master,
                     )
 
@@ -428,10 +438,10 @@ class CoreProcessingFD(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        self.proc_inputs,
+                        self.proc_inputs.stack_based_processing,
                         unique_stack_id,
                         uniqie_acq_ids_all_cycles_list,
-                        self.proc_conf.enable_resampling,
+                        self.proc_conf.processing_flags.enable_resampling,
                         raster_info_orig,
                     )
                     logging.info("FD: ...geometry auxiliaries loading done.")
@@ -442,10 +452,10 @@ class CoreProcessingFD(Task):
                     logging.warning("FD: loading calibration screens \n")
 
                     _, _, _, _, _, _, _, cal_screens, cal_screens_raster_info, _, _, _ = read_and_oversample_aux_data(
-                        self.proc_inputs,
+                        self.proc_inputs.stack_based_processing,
                         unique_stack_id,
                         uniqie_acq_ids_all_cycles_list,
-                        self.proc_conf.enable_resampling,
+                        self.proc_conf.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_cal_screens=read_cal_screens,
                         read_ecef=False,
@@ -463,14 +473,14 @@ class CoreProcessingFD(Task):
 
             ### Screen calibration (ground steering)
             try:
-                if self.proc_conf.apply_calibration_screen:
+                if self.proc_conf.processing_flags.apply_calibration_screen:
                     logging.info("FH: applying calibration screen...")
                     beta0_calibrated = apply_calibration_screens(
                         beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id
                     )
                     logging.info("...done.\n")
 
-                elif self.proc_conf.DEM_flattening:
+                elif self.proc_conf.processing_flags.DEM_flattening:
                     logging.info("FH: DEM flattening... ")
                     beta0_calibrated = apply_dem_flattening(
                         beta0_calibrated, kz, reference_height, master_id, raster_info
@@ -508,7 +518,7 @@ class CoreProcessingFD(Task):
             logging.info("...done.\n")
 
             ### saving breakpoints
-            if self.proc_conf.save_breakpoints:
+            if self.proc_conf.processing_flags.save_breakpoints:
                 logging.info("FD: saving breakpoints (in slant range geometry) on " + breakpoints_output_folder)
                 post_string = "_SR_" + unique_stack_id
 
@@ -518,9 +528,9 @@ class CoreProcessingFD(Task):
                 logging.info("...done.\n")
 
             # covariance estimation window size, it may be modified by an internal flag in case of air-plane geometry
-            cov_est_window_size = self.proc_conf.FD.product_resolution
+            cov_est_window_size = self.proc_conf.change_detection_fd.product_resolution
 
-            if self.proc_conf.multilook_heading_correction:
+            if self.proc_conf.processing_flags.multilook_heading_correction:
                 _, heading_deg, _, _, _, _ = decode_unique_acquisition_id_string(unique_stack_id + "_BSL_00")
 
                 cov_est_window_size = resolution_heading_correction(cov_est_window_size, heading_deg)
@@ -688,7 +698,7 @@ class CoreProcessingFD(Task):
                     e7g,
                     cov_ground_fname,
                     equi7_COV_parent_tempdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -702,7 +712,7 @@ class CoreProcessingFD(Task):
                     e7g,
                     inc_angle_ground_fname,
                     equi7_inc_parent_tempdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -726,36 +736,44 @@ class CoreProcessingFD(Task):
 
             logging.info("...done.\n")
 
-            if self.stack_idx == 0 and time_step_idx == 0:
-                # prepare the forest non forest mask
-                # it is loaded if equi7, or converted to equi7 if TANDEM-X
-                # it is a list containing all the loaded FNF-FTILES
-                fnf_format = check_fnf_folder_format(self.proc_inputs.forest_mask_catalogue_folder)
-                if fnf_format == "TANDEM-X":
-                    logging.info("Initial Forest mask is in TANDEM-X format, converting to equi7...")
+            if time_step_idx == 0:
+                recomputed_fnf_folder = os.path.join(temp_output_folder, "input_fnf", "equi7")
+                if os.path.exists(recomputed_fnf_folder):
+                    # do not recompute fnf mask in output sampling if already present (because of precious cycles computation)
+                    equi7_initial_fnf_mask_fnames = get_equi7_tiff_names(recomputed_fnf_folder)
 
-                    # conversion step 1: get the tiff names of current zone
-                    equi7_initial_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format(
-                        self.proc_inputs.forest_mask_catalogue_folder,
-                        e7g,
-                        self.proc_conf.FD.product_resolution,
-                        temp_output_folder,
-                        self.gdal_path,
-                        self.geographic_boundaries,
-                        self.time_tag_mjd_initial,
+                else:
+                    # prepare the forest non forest mask
+                    # it is loaded if equi7, or converted to equi7 if TANDEM-X
+                    # it is a list containing all the loaded FNF-FTILES
+                    fnf_format = check_fnf_folder_format(
+                        self.proc_inputs.stack_based_processing.forest_mask_catalogue_folder
                     )
+                    if fnf_format == "TANDEM-X":
+                        logging.info("Initial Forest mask is in TANDEM-X format, converting to equi7...")
 
-                elif fnf_format == "EQUI7":
-                    logging.info("Initial Forest mask reading and formatting...")
+                        # conversion step 1: get the tiff names of current zone
+                        equi7_initial_fnf_mask_fnames = fnf_tandemx_load_filter_equi7format(
+                            self.proc_inputs.stack_based_processing.forest_mask_catalogue_folder,
+                            e7g,
+                            self.proc_conf.change_detection_fd.product_resolution,
+                            temp_output_folder,
+                            gdal_path,
+                            geographic_boundaries,
+                            self.time_tag_mjd_initial,
+                        )
 
-                    # re format the input mask in equi7 with the output resolution:
-                    equi7_initial_fnf_mask_fnames = fnf_equi7_load_filter_equi7format(
-                        self.proc_inputs.forest_mask_catalogue_folder,
-                        e7g,
-                        self.proc_conf.FD.product_resolution,
-                        temp_output_folder,
-                        self.gdal_path,
-                    )
+                    elif fnf_format == "EQUI7":
+                        logging.info("Initial Forest mask reading and formatting...")
+
+                        # re format the input mask in equi7 with the output resolution:
+                        equi7_initial_fnf_mask_fnames = fnf_equi7_load_filter_equi7format(
+                            self.proc_inputs.stack_based_processing.forest_mask_catalogue_folder,
+                            e7g,
+                            self.proc_conf.change_detection_fd.product_resolution,
+                            temp_output_folder,
+                            gdal_path,
+                        )
 
             # check the equi7_fnf_mask_fnames
             check_equi7_mask_coverage(equi7_cov_temp_fnames, equi7_initial_fnf_mask_fnames)
@@ -822,7 +840,7 @@ class CoreProcessingFD(Task):
                 data_driver = gdal.Open(equi7_inc_temp_fnames[equi7_tile_idx], GA_ReadOnly)
                 inc_angle_equi7_rad = data_driver.GetRasterBand(1).ReadAsArray()
                 mat_number_of_looks = np.floor(
-                    (self.proc_conf.FD.product_resolution ** 2)
+                    (self.proc_conf.change_detection_fd.product_resolution ** 2)
                     / (raster_info.resolution_m_az * raster_info.resolution_m_slant_rg / np.sin(inc_angle_equi7_rad))
                 )
                 np.save(os.path.join(temp_output_folder, "mat_number_of_looks.npy"), mat_number_of_looks)
@@ -834,7 +852,7 @@ class CoreProcessingFD(Task):
                     prev_global_cycle_id_str = str(prev_global_cycle_id)
 
                     equi7_avg_cov_out_tiff_name_prev = os.path.join(
-                        self.proc_inputs.average_covariance_folder,
+                        self.proc_inputs.stack_based_processing.average_covariance_folder,
                         unique_stack_id_prev,
                         equi7_zone_name,
                         equi7_tile_name,
@@ -950,7 +968,7 @@ class CoreProcessingFD(Task):
                             j_idx,
                             number_of_pols,
                             cov_number_of_looks,
-                            self.proc_conf.FD.confidence_level,
+                            self.proc_conf.change_detection_fd.confidence_level,
                             False,
                         )
 

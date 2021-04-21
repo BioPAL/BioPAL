@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import logging
 import numpy as np
@@ -16,20 +19,20 @@ from biopal.statistics.utility_statistics import (
 
 def UpperThresholdForestHeight(power_cube, opt_str):
     """It finds the last drop of the power spectrum from opt_str.thr times the
-    % peak of the spectrum. The corresponding elevation is returned.
-    %
-    % INPUT
-    %      power_cube: [Nr x Nc x Nz] positive real valued cube of
-    %                  backscattered power
-    %      opt_str.
-    %              thr: threshold for the spectrum drop (between 0 and 1)
-    %              z: [Nz x 1] elevation axis
-    % OUTPUT
-    %       out_str.
-    %               z: [Nr x Nc] canopy elevation map
-    %
-    % DEPENDENCIES
-    %             FindStep3"""
+     peak of the spectrum. The corresponding elevation is returned.
+    
+     INPUT
+          power_cube: [Nr x Nc x Nz] positive real valued cube of
+                      backscattered power
+          opt_str.
+                  thr: threshold for the spectrum drop (between 0 and 1)
+                  z: [Nz x 1] elevation axis
+     OUTPUT
+           out_str.
+                   z: [Nr x Nc] canopy elevation map
+    
+     DEPENDENCIES
+                 FindStep3"""
     Nr, Na, Nz = power_cube.shape
     power_peak = np.max(power_cube, axis=2)
     greater_power_mask = power_cube > power_peak.reshape((Nr, Na, 1)) * opt_str.thr
@@ -46,16 +49,16 @@ def UpperThresholdForestHeight(power_cube, opt_str):
 
 def FindStep3(I, varargin):
     """This routin finds the first or the last step in a logical 3D along the
-    % third direction. The first step is a rising one whereas the last is a
-    % drop.
-    %
-    % INPUT
-    %      I: [Nr x Nc x N] logical array to be explored
-    %      varargin{1}: (optional. Default: 'first') either 'first' or 'last'
-    %
-    % OUTPUT
-    %       linear_indices: [Nr x Nc] matrix of linear indices where the step
-    %                       has been detected"""
+     third direction. The first step is a rising one whereas the last is a
+     drop.
+    
+     INPUT
+          I: [Nr x Nc x N] logical array to be explored
+          varargin{1}: (optional. Default: 'first') either 'first' or 'last'
+    
+     OUTPUT
+           linear_indices: [Nr x Nc] matrix of linear indices where the step
+                           has been detected"""
     Nr, Na, Nz = I.shape
     I = I > 0
 

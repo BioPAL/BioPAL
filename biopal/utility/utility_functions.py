@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import logging
 import numpy as np
@@ -12,9 +15,9 @@ from biopal.utility.constants import LIGHTSPEED
 
 # The class Task is the template to be inherited for the creation of each BioPAL APP
 class Task:
-    def __init__(self, configuration_file_xml):
+    def __init__(self, configuration_file=None):
 
-        self.configuration_file_xml = configuration_file_xml
+        self.configuration_file = configuration_file
 
     def name(self):
         return self.__class__.__name__
@@ -38,6 +41,55 @@ class Task:
             raise RuntimeError(error_msg)
 
 
+def start_logging(output_folder, L2_product, log_level, app_name=None):
+    # CRITICAL 50
+    # ERROR 40
+    # WARNING 30
+    # INFO 20
+    # DEBUG 10
+    # NOTSET 0
+
+    if log_level == "DEBUG":
+        level_to_set = logging.DEBUG
+    elif log_level == "INFO":
+        level_to_set = logging.INFO
+    elif log_level == "WARNING":
+        level_to_set = logging.WARNING
+    elif log_level == "ERROR":
+        level_to_set = logging.ERROR
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    if not app_name:
+        log_file_name = os.path.join(output_folder, "biomassL2.log")
+    else:
+        log_file_name = os.path.join(output_folder, app_name + "_APP.log")
+
+    if os.path.exists(log_file_name):
+        raise RuntimeError( 'output folder {} is not empty.'.format(output_folder))
+       
+    logging.basicConfig(
+        handlers=[logging.FileHandler(log_file_name, mode="w", encoding="utf-8"), logging.StreamHandler(),],
+        level=level_to_set,
+        format="%(asctime)s - %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    
+
+    logging.getLogger("matplotlib.font_manager").disabled = True
+
+    logging.info(" --BIOMASS L2 Processor-- ")
+    if not app_name:
+        logging.info("Executing BioPAL full processor, L2 product: {}".format(L2_product))
+    else:
+        logging.info("Executing {} APP".format(app_name))
+
+    logging.info(" \n")
+
+    return log_file_name
+
+
 def set_gdal_paths(gdal_path, gdal_environment_path=None):
     if gdal_path is None or not gdal_path:
         gdal_info_path = which("gdalinfo")
@@ -53,8 +105,8 @@ def set_gdal_paths(gdal_path, gdal_environment_path=None):
         # Set the enviroment
         os.environ["GDAL_DATA"] = gdal_environment_path
 
-    logging.info("gdal_path " + gdal_path)
-    logging.info("gdal_environment_path " + gdal_environment_path)
+    logging.info("gdal_path: " + gdal_path)
+    logging.info("gdal_environment_path: " + gdal_environment_path)
 
     return gdal_path, gdal_environment_path
 

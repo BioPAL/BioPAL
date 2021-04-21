@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import scipy as sp
 import logging
@@ -105,10 +108,20 @@ def sample_and_tabulate_data(
 
     # filling out columns 3-8 with stack IDs and corresponding other identifications from stack_info_table
     identifier_table[:, 2] = np.kron(np.ones(number_of_samples), stack_id_vector)
-    for id_idx in range(5):
-        identifier_table[:, 3 + id_idx] = sp.interpolate.interp1d(
-            stack_id_vector, stack_info_table[:, 1 + id_idx], kind="nearest"
-        )(identifier_table[:, 2])
+    if number_of_stacks == 1:
+        
+        for id_idx in range(5):
+            identifier_table[:, 3 + id_idx] = sp.interpolate.interp1d(
+                np.array([stack_id_vector[0],stack_id_vector[0]]), 
+                np.array([stack_info_table[:, 1 + id_idx][0], stack_info_table[:, 1 + id_idx][0]]), kind="nearest"
+            )(identifier_table[:, 2])
+            
+    else:
+        
+        for id_idx in range(5):
+            identifier_table[:, 3 + id_idx] = sp.interpolate.interp1d(
+                stack_id_vector, stack_info_table[:, 1 + id_idx], kind="nearest"
+            )(identifier_table[:, 2])        
 
     # allocate observable table
     observable_table = np.nan * np.zeros((number_of_samples * number_of_stacks, number_of_observables))

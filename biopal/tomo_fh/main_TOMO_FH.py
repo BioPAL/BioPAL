@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
+# SPDX-License-Identifier: MIT
+
 import os
 import numpy as np
 import logging
@@ -18,6 +21,7 @@ from biopal.data_operations.data_operations import (
 )
 from biopal.utility.utility_functions import (
     Task,
+    set_gdal_paths,
     choose_equi7_sampling,
     check_if_path_exists,
     check_if_geometry_auxiliaries_are_present,
@@ -31,8 +35,8 @@ from biopal.geocoding.geocoding import (
     geocoding_init,
 )
 from biopal.io.xml_io import (
-    parse_chains_input_file,
-    parse_chains_configuration_file,
+    parse_input_file,
+    parse_configuration_file,
 )
 from biopal.io.data_io import tiff_formatter
 from biopal.screen_calibration.screen_calibration import apply_calibration_screens
@@ -44,48 +48,44 @@ from biopal.tomo.processing_TOMO import BiomassForestHeightSKPD
 
 class TomoForestHeight(Task):
     def __init__(
-        self, configuration_file_xml, stacks_to_merge_dict, gdal_path,
+        self, configuration_file, stacks_to_merge_dict,
     ):
-        super().__init__(configuration_file_xml)
+        super().__init__(configuration_file)
         self.stacks_to_merge_dict = stacks_to_merge_dict
-        self.gdal_path = gdal_path
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         # Main APP #1: Stack Based Processing
-        stack_based_processing_obj = StackBasedProcessingTOMOFH(self.configuration_file_xml, self.gdal_path,)
+        stack_based_processing_obj = StackBasedProcessingTOMOFH(self.configuration_file)
 
         # Run Main APP #1: Stack Based Processing
-        (data_equi7_fnames, mask_equi7_fnames) = stack_based_processing_obj.run(input_file_xml)
+        (data_equi7_fnames, mask_equi7_fnames) = stack_based_processing_obj.run(input_file)
 
         # Main APP #2: Core Processing
         tomo_fh_processing_obj = CoreProcessingTOMOFH(
-            self.configuration_file_xml, self.stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
+            self.configuration_file, self.stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
         )
 
         # Run Main APP #2: AGB Core Processing
-        tomo_fh_processing_obj.run(input_file_xml)
+        tomo_fh_processing_obj.run(input_file)
 
 
 class StackBasedProcessingTOMOFH(Task):
-    def __init__(
-        self, configuration_file_xml, gdal_path,
-    ):
-        super().__init__(configuration_file_xml)
-        self.gdal_path = gdal_path
+    def __init__(self, configuration_file):
+        super().__init__(configuration_file)
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
 
         ########################## INITIAL STEPS ##############################
 
         logging.info("TOMO FH: Reading chains configuration file")
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
+        check_if_path_exists(self.configuration_file, "FILE")
+        proc_conf = parse_configuration_file(self.configuration_file)
+        proc_inputs = parse_input_file(input_file)
 
         ### managing output folders:
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
-        if proc_conf.save_breakpoints:
+        products_folder = os.path.join(proc_inputs.output_specification.output_folder, "Products")
+        if proc_conf.processing_flags.save_breakpoints:
             breakpoints_output_folder = os.path.join(products_folder, "breakpoints")
             logging.info("TOMO FH: Breakpoints will be saved into: " + breakpoints_output_folder)
             os.makedirs(breakpoints_output_folder)
@@ -95,17 +95,20 @@ class StackBasedProcessingTOMOFH(Task):
         os.makedirs(temp_output_folder)
 
         equi7_sampling = choose_equi7_sampling(
-            proc_conf.TOMO_FH.product_resolution, proc_inputs.geographic_grid_sampling
+            proc_conf.estimate_tomo_fh.product_resolution, proc_inputs.output_specification.geographic_grid_sampling
         )
         e7g = Equi7Grid(equi7_sampling)
         logging.info("    EQUI7 Grid sampling used: {}".format(equi7_sampling))
+
+        # get needed parameters from input and configuration files
+        gdal_path, _ = set_gdal_paths(proc_conf.gdal.gdal_path, proc_conf.gdal.gdal_environment_path)
 
         ########################## INITIAL STEPS END #############################
 
         data_equi7_fnames = {}
         mask_equi7_fnames = {}
         ########################## STACK BASED STEPS ##############################
-        for unique_stack_id, acquisitions_pf_names in proc_inputs.stack_composition.items():
+        for unique_stack_id, acquisitions_pf_names in proc_inputs.stack_based_processing.stack_composition.items():
 
             # make temporary sub-directories
             temp_output_folder_gr = os.path.join(temp_output_folder, "geocoded", unique_stack_id)
@@ -118,7 +121,9 @@ class StackBasedProcessingTOMOFH(Task):
                 logging.info("TOMO FH: Data loading for stack " + unique_stack_id + "; this may take a while:")
 
                 (beta0_calibrated, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
-                    proc_inputs.L1c_repository, acquisitions_pf_names, proc_conf.enable_resampling
+                    proc_inputs.dataset_query.L1C_repository,
+                    acquisitions_pf_names,
+                    proc_conf.processing_flags.enable_resampling,
                 )
             except Exception as e:
                 logging.error("TOMO FH: error during input data reading: " + str(e), exc_info=True)
@@ -127,16 +132,23 @@ class StackBasedProcessingTOMOFH(Task):
             ### load or compute auxiliary data
             try:
 
-                read_ref_h = not proc_conf.apply_calibration_screen and proc_conf.DEM_flattening
-                read_cal_screens = proc_conf.apply_calibration_screen
+                read_ref_h = (
+                    not proc_conf.processing_flags.apply_calibration_screen
+                    and proc_conf.processing_flags.DEM_flattening
+                )
+                read_cal_screens = proc_conf.processing_flags.apply_calibration_screen
                 geometry_aux_are_present = check_if_geometry_auxiliaries_are_present(
-                    proc_inputs, unique_stack_id, acquisitions_pf_names, read_ref_h=read_ref_h, read_dist=False,
+                    proc_inputs.stack_based_processing,
+                    unique_stack_id,
+                    acquisitions_pf_names,
+                    read_ref_h=read_ref_h,
+                    read_dist=False,
                 )
 
-                if proc_conf.compute_geometry or not geometry_aux_are_present:
+                if proc_conf.processing_flags.compute_geometry or not geometry_aux_are_present:
 
                     # messages for the log:
-                    if proc_conf.compute_geometry:
+                    if proc_conf.processing_flags.compute_geometry:
                         logging.info("TOMO FH: calling geometry library for stack " + unique_stack_id + "\n")
                         if geometry_aux_are_present:
                             logging.warning("    geometry auxiliaries will be overwritten for stack " + unique_stack_id)
@@ -156,12 +168,12 @@ class StackBasedProcessingTOMOFH(Task):
                         _,
                         sar_geometry_master,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        proc_inputs.L1c_repository,
-                        proc_inputs,
+                        proc_inputs.dataset_query.L1C_repository,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
                         master_id,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         comp_ref_h=read_ref_h,
                         comp_dist=False,
                         force_ellipsoid=True,
@@ -176,12 +188,12 @@ class StackBasedProcessingTOMOFH(Task):
                         _,
                         _,
                     ) = compute_and_oversample_geometry_auxiliaries(
-                        proc_inputs.L1c_repository,
-                        proc_inputs,
+                        proc_inputs.dataset_query.L1C_repository,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
                         master_id,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         comp_ref_h=read_ref_h,
                         comp_dist=False,
                         sar_geometry_master=sar_geometry_master,
@@ -222,10 +234,10 @@ class StackBasedProcessingTOMOFH(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        proc_inputs,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_ref_h=read_ref_h,
                         read_dist=False,
@@ -251,10 +263,10 @@ class StackBasedProcessingTOMOFH(Task):
                         _,
                         _,
                     ) = read_and_oversample_aux_data(
-                        proc_inputs,
+                        proc_inputs.stack_based_processing,
                         unique_stack_id,
                         acquisitions_pf_names,
-                        proc_conf.enable_resampling,
+                        proc_conf.processing_flags.enable_resampling,
                         raster_info_orig,
                         read_cal_screens=read_cal_screens,
                         read_ecef=False,
@@ -274,14 +286,14 @@ class StackBasedProcessingTOMOFH(Task):
 
             ### Screen calibration (ground steering)
             try:
-                if proc_conf.apply_calibration_screen:
+                if proc_conf.processing_flags.apply_calibration_screen:
                     logging.info("TOMO FH: applying calibration screen...")
                     beta0_calibrated = apply_calibration_screens(
                         beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id,
                     )
                     logging.info("...done.\n")
 
-                elif proc_conf.DEM_flattening:
+                elif proc_conf.processing_flags.DEM_flattening:
                     logging.info("TOM FH: DEM flattening... ")
                     beta0_calibrated = apply_dem_flattening(
                         beta0_calibrated, kz, reference_height, master_id, raster_info
@@ -299,10 +311,12 @@ class StackBasedProcessingTOMOFH(Task):
             logging.info("TOMO FH: incidence angle used is {} [deg] \n".format(np.rad2deg(look_angle_rad)))
 
             ### mean of off nadir and slope over final resolution
-            windtm_x = np.int(np.round(proc_conf.TOMO_FH.product_resolution / raster_info.pixel_spacing_az / 2) * 2 + 1)
+            windtm_x = np.int(
+                np.round(proc_conf.estimate_tomo_fh.product_resolution / raster_info.pixel_spacing_az / 2) * 2 + 1
+            )
             windtm_y = np.int(
                 np.round(
-                    proc_conf.TOMO_FH.product_resolution
+                    proc_conf.estimate_tomo_fh.product_resolution
                     / (raster_info.pixel_spacing_slant_rg / np.sin(look_angle_rad))
                     / 2
                 )
@@ -324,9 +338,9 @@ class StackBasedProcessingTOMOFH(Task):
             logging.info("...done.")
 
             # covariance estimation window size, it may be modified by an internal flag in case of air-plane geometry
-            cov_est_window_size = proc_conf.TOMO_FH.product_resolution
+            cov_est_window_size = proc_conf.estimate_tomo_fh.product_resolution
 
-            if proc_conf.multilook_heading_correction:
+            if proc_conf.processing_flags.multilook_heading_correction:
                 _, heading_deg, _, _, _, _ = decode_unique_acquisition_id_string(unique_stack_id + "_BSL_00")
 
                 cov_est_window_size = resolution_heading_correction(cov_est_window_size, heading_deg)
@@ -338,9 +352,10 @@ class StackBasedProcessingTOMOFH(Task):
             try:
 
                 vertical_vector = np.arange(
-                    proc_conf.vertical_range.minimum_height,
-                    proc_conf.vertical_range.maximum_height + proc_conf.vertical_range.sampling,
-                    proc_conf.vertical_range.sampling,
+                    proc_conf.estimate_tomo_fh.vertical_range.minimum_height,
+                    proc_conf.estimate_tomo_fh.vertical_range.maximum_height
+                    + proc_conf.estimate_tomo_fh.vertical_range.sampling,
+                    proc_conf.estimate_tomo_fh.vertical_range.sampling,
                 )
 
                 (estimated_height, power_peak, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = BiomassForestHeightSKPD(
@@ -353,7 +368,7 @@ class StackBasedProcessingTOMOFH(Task):
                     raster_info.range_bandwidth_hz,
                     kz,
                     vertical_vector,
-                    proc_conf.TOMO_FH,
+                    proc_conf.estimate_tomo_fh,
                 )
 
                 estimated_height = estimated_height * (
@@ -419,7 +434,7 @@ class StackBasedProcessingTOMOFH(Task):
                 raise
 
             ### saving breakpoints
-            if proc_conf.save_breakpoints:
+            if proc_conf.processing_flags.save_breakpoints:
                 logging.info("TOMO FH: saving mail results (in slant range geometry) on " + breakpoints_output_folder)
                 post_string = "_SR_" + unique_stack_id
 
@@ -431,8 +446,8 @@ class StackBasedProcessingTOMOFH(Task):
 
             ### creating mask to exclude estimation not valid values:
             condition_curr = np.logical_and(
-                data_ground > proc_conf.TOMO_FH.estimation_valid_values_limits[0],
-                data_ground < proc_conf.TOMO_FH.estimation_valid_values_limits[1],
+                data_ground > proc_conf.estimate_tomo_fh.estimation_valid_values_limits[0],
+                data_ground < proc_conf.estimate_tomo_fh.estimation_valid_values_limits[1],
             )
             estimation_mask_ground = np.where(condition_curr, True, False)
             estimation_mask_ground[np.isnan(data_ground)] = False
@@ -494,7 +509,7 @@ class StackBasedProcessingTOMOFH(Task):
                     e7g,
                     data_ground_fname,
                     equi7_data_outdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -506,7 +521,7 @@ class StackBasedProcessingTOMOFH(Task):
                     e7g,
                     valid_values_mask_ground_fname,
                     equi7_mask_outdir,
-                    gdal_path=self.gdal_path,
+                    gdal_path=gdal_path,
                     inband=None,
                     subgrid_ids=None,
                     accurate_boundary=False,
@@ -534,21 +549,21 @@ class StackBasedProcessingTOMOFH(Task):
 
 class CoreProcessingTOMOFH(Task):
     def __init__(
-        self, configuration_file_xml, stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
+        self, configuration_file, stacks_to_merge_dict, data_equi7_fnames, mask_equi7_fnames,
     ):
-        super().__init__(configuration_file_xml)
+        super().__init__(configuration_file)
         self.stacks_to_merge_dict = stacks_to_merge_dict
         self.data_equi7_fnames = data_equi7_fnames
         self.mask_equi7_fnames = mask_equi7_fnames
 
-    def _run(self, input_file_xml):
+    def _run(self, input_file):
         ######################## NOT STACK BASED STEPS ############################
 
         ### managing output folders:
-        check_if_path_exists(self.configuration_file_xml, "FILE")
-        proc_conf = parse_chains_configuration_file(self.configuration_file_xml)
-        proc_inputs = parse_chains_input_file(input_file_xml)
-        products_folder = os.path.join(proc_inputs.output_folder, "Products")
+        check_if_path_exists(self.configuration_file, "FILE")
+        proc_conf = parse_configuration_file(self.configuration_file)
+        proc_inputs = parse_input_file(input_file)
+        products_folder = os.path.join(proc_inputs.output_specification.output_folder, "Products")
         temp_output_folder = os.path.join(products_folder, "temp")
 
         try:
@@ -579,7 +594,7 @@ class CoreProcessingTOMOFH(Task):
             logging.error(e, exc_info=True)
             raise
 
-        if proc_conf.delete_temporary_files:
+        if proc_conf.processing_flags.delete_temporary_files:
             shutil.rmtree(temp_output_folder)
 
         logging.info("TOMO FH: Forest Height estimation ended correctly.\n")

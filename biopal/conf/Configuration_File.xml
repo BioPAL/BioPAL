@@ -1,63 +1,99 @@
-<ConfigurationL2CoreProcessingAGB version="1.0">
-	<EstimateAGB>
+<BioPALConfiguration version="0.1">
+	<!--gdal>
+		<gdal_path>gdal/bin</gdal_path>
+		<gdal_environment_path>pkgs/libgdal-2.3.3-h2e7e64b_0/share/gdal</gdal_environment_path>
+	</gdal-->
+	<processing_flags>
+		<enable_resampling>False</enable_resampling>
+		<compute_geometry>False</compute_geometry>
+		<apply_calibration_screen>False</apply_calibration_screen>
+		<DEM_flattening>False</DEM_flattening>
+		<multilook_heading_correction>True</multilook_heading_correction>
+		<save_breakpoints>True</save_breakpoints>
+		<delete_temporaryFiles>False</delete_temporaryFiles>
+	</processing_flags>
+	<ground_cancellation>
+		<multi_master>True</multi_master>
+		<enhanced_forest_height unit="m">50</enhanced_forest_height>
+		<model_based_equalization always_off="1" always_on="2" on_if_two_acquisitions="3">1</model_based_equalization>
+	</ground_cancellation>
+	<estimate_agb>
+		<product_resolution unit="m">200</product_resolution><!--(roi) sampling area size-->
+		<forest_class_observable_name>forest_class</forest_class_observable_name>
+		<transfer_function_name>sin2</transfer_function_name>
+		<number_of_tests>5</number_of_tests>
+		<fraction_of_roi_per_test>1</fraction_of_roi_per_test>
+		<fraction_of_cal_per_test>1</fraction_of_cal_per_test>
+		<add_variability_on_cal_data >False</add_variability_on_cal_data >
+		<intermediate_ground_averaging>100</intermediate_ground_averaging> <!-- intermediate_ground_averaging<=product_resolution/2 >-->
+		<distance_sampling_area unit="m">300</distance_sampling_area><!--distance roi-->
+		<parameter_block_size unit="m">7500</parameter_block_size>
+		<distance_parameter_block unit="m">5250</distance_parameter_block>
+		<min_number_of_rois>2</min_number_of_rois>
+		<min_number_of_rois_per_stack>0</min_number_of_rois_per_stack>
+		<min_number_of_cals_per_test>2</min_number_of_cals_per_test>
+		<min_number_of_rois_per_test>1</min_number_of_rois_per_test>
+		<estimation_valid_values_limits>
+			<min unit="t/ha">1</min>
+			<max unit="t/ha">1000</max>
+		</estimation_valid_values_limits>
 		<residual_function>
-			      <formula_terms>
-        <term>
-		<name>cal_hh</name>
-          <string>l_hh + a_hh * agb_1_cal_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
-		<weight>
-		  <step1>1.0</step1>
-		  <step2>1.0</step2>
-		  <step3>1.0</step3>
-	    </weight>
-        </term>
-        <term>
-		<name>cal_hv</name>
-          <string>l_hv + a_hv * agb_1_cal_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
-		<weight>
-		  <step1>1.0</step1>
-		  <step2>1.0</step2>
-		  <step3>1.0</step3>
-	    </weight>
-        </term>
-        <term>
-		<name>cal_vv</name>
-          <string>l_vv + a_vv * agb_1_cal_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
-		<weight>
-		  <step1>1.0</step1>
-		  <step2>1.0</step2>
-		  <step3>1.0</step3>
-	    </weight>
-        </term>
-        <term>
-		<name>est_hh</name>
-          <string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
-		<weight>
-		  <step1>1.0</step1>
-		  <step2>1.0</step2>
-		  <step3>1.0</step3>
-	    </weight>
-        </term>
-        <term>
-		<name>est_hv</name>
-          <string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
-		<weight>
-		  <step1>1.0</step1>
-		  <step2>1.0</step2>
-		  <step3>1.0</step3>
-	    </weight>
-        </term>
-        <term>
-		<name>est_vv</name>
-          <string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
-		<weight>
-		  <step1>1.0</step1>
-		  <step2>1.0</step2>
-		  <step3>1.0</step3>
-	    </weight>
-        </term>
-      </formula_terms>
-
+			<formula_terms>
+				<term>
+					<name>cal_hh</name>
+					<string>l_hh + a_hh * agb_1_cal_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
+					<weight>
+						<step1>1.0</step1>
+						<step2>1.0</step2>
+						<step3>1.0</step3>
+					</weight>
+				</term>
+				<term>
+					<name>cal_hv</name>
+					<string>l_hv + a_hv * agb_1_cal_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
+					<weight>
+						<step1>1.0</step1>
+						<step2>1.0</step2>
+						<step3>1.0</step3>
+					</weight>
+				</term>
+				<term>
+					<name>cal_vv</name>
+					<string>l_vv + a_vv * agb_1_cal_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
+					<weight>
+						<step1>1.0</step1>
+						<step2>1.0</step2>
+						<step3>1.0</step3>
+					</weight>
+				</term>
+				<term>
+					<name>est_hh</name>
+					<string>l_hh + a_hh * agb_1_est_db + n_hh * cos_local_db + neg_sigma0_hh_db </string>
+					<weight>
+						<step1>1.0</step1>
+						<step2>1.0</step2>
+						<step3>1.0</step3>
+					</weight>
+				</term>
+				<term>
+					<name>est_hv</name>
+					<string>l_hv + a_hv * agb_1_est_db + n_hv * cos_local_db + neg_sigma0_hv_db </string>
+					<weight>
+						<step1>1.0</step1>
+						<step2>1.0</step2>
+						<step3>1.0</step3>
+					</weight>
+				</term>
+				<term>
+					<name>est_vv</name>
+					<string>l_vv + a_vv * agb_1_est_db + n_vv * cos_local_db + neg_sigma0_vv_db </string>
+					<weight>
+						<step1>1.0</step1>
+						<step2>1.0</step2>
+						<step3>1.0</step3>
+					</weight>
+				</term>
+			</formula_terms>
 			<formula_parameters>
 				<par>
 					<name>l_hh</name><!-- "l" = agb model scaling-->
@@ -328,27 +364,46 @@
 					<transform>db</transform>
 					<averaging_method>mean</averaging_method>
 				</obs>
-
 			</formula_observables>
 		</residual_function>
-		<forest_class_observable_name>forest_class</forest_class_observable_name>
-		<transfer_function_name>sin2</transfer_function_name>
-		<number_of_tests>5</number_of_tests>
-		<fraction_of_roi_per_test>1</fraction_of_roi_per_test>
-		<fraction_of_cal_per_test>1</fraction_of_cal_per_test>
-		<add_variability_on_cal_data >False</add_variability_on_cal_data >
-		<intermediate_ground_averaging>100</intermediate_ground_averaging> <!-- intermediate_ground_averaging<=product_resolution/2 >-->
-		<product_resolution unit="m">200</product_resolution><!--(roi) sampling area size-->
-		<distance_sampling_area unit="m">300</distance_sampling_area><!--distance roi-->
-		<parameter_block_size unit="m">7500</parameter_block_size>
-		<distance_parameter_block unit="m">5250</distance_parameter_block>
-		<min_number_of_rois>2</min_number_of_rois>
-		<min_number_of_rois_per_stack>0</min_number_of_rois_per_stack>
-		<min_number_of_cals_per_test>2</min_number_of_cals_per_test>
-		<min_number_of_rois_per_test>1</min_number_of_rois_per_test>
-		<EstimationValidValuesLimits><!-- necessary? -->
-			<min unit="t/ha">1</min>
-			<max unit="t/ha">1000</max>
-		</EstimationValidValuesLimits>
-	</EstimateAGB>
-</ConfigurationL2CoreProcessingAGB>
+	</estimate_agb>
+	<estimate_fh>
+		<product_resolution unit="m">200</product_resolution>
+		<estimation_valid_values_limits unit='m'>
+			<min>5</min>
+			<max>100</max>
+		</estimation_valid_values_limits>
+		<spectral_shift_filtering>False</spectral_shift_filtering>
+		<KZ_thresholds unit="1/m">
+			<min>0.01</min>
+			<max>0.19</max>
+		</KZ_thresholds>
+		<model_parameters>
+			<maximum_height unit="m">61</maximum_height>
+			<number_of_extinction_value>51</number_of_extinction_value>
+			<number_of_ground_volume_ratio_value>100</number_of_ground_volume_ratio_value>
+			<number_of_temporal_decorrelation_value>21</number_of_temporal_decorrelation_value>
+		</model_parameters>
+		<median_factor>5</median_factor>
+	</estimate_fh>
+	<estimate_tomo_fh>
+		<product_resolution unit="m">200</product_resolution>
+		<vertical_range unit="m">
+			<maximum_height>80</maximum_height>
+			<minimum_height>-10</minimum_height>
+			<sampling>5</sampling>
+		</vertical_range>
+		<estimation_valid_values_limits unit='m'>
+			<min>5</min>
+			<max>100</max>
+		</estimation_valid_values_limits>
+		<enable_super_resolution>False</enable_super_resolution>
+		<regularization_noise_factor>1e-3</regularization_noise_factor>
+		<power_threshold>0.8</power_threshold>
+		<median_factor>5</median_factor>
+	</estimate_tomo_fh>
+	<change_detection_fd>
+		<product_resolution unit="m">50</product_resolution>
+		<confidence_level>0.01</confidence_level>
+	</change_detection_fd>
+</BioPALConfiguration>
