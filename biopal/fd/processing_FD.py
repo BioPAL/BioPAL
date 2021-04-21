@@ -69,7 +69,7 @@ def _apply_index_(a, idx, axis=-1):
     '''
     i = list(np.ogrid[[slice(x) for x in a.shape]])
     i[axis] = idx
-    return a[i]
+    return a[tuple(i)]
     
 
 def generalized_eigendecomp(A, B, eps=1e-6):
@@ -101,6 +101,13 @@ def generalized_eigendecomp(A, B, eps=1e-6):
         Generalized eigenvalues (real) between A and B matrices
     V : ndarray, shape (..., N, N)
         Generalized eigenvectors between A and B matrices
+    
+    References
+    ----------
+    Alonso González, A., López Martínez, C., Papathanassiou, K., & Hajnsek, I.
+    (2020). Polarimetric SAR time series change analysis over agricultural
+    areas. IEEE transactions on geoscience and remote sensing, 58(10),
+    7317-7330.
 
     """
     # Apply main diagonal preloading
