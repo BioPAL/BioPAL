@@ -2,7 +2,7 @@
 	<L2_product options="AGB, FH, FD, TOMO_FH">AGB</L2_product>
 	<output_specification>
 		<output_folder>output_folder_full_path</output_folder>
-		<geographic_grid_sampling unit="m">80</geographic_grid_sampling>
+		<geographic_grid_sampling unit="m">50</geographic_grid_sampling>
 	</output_specification>
 	<dataset_query>
 		<L1C_repository>dataSet_full_path</L1C_repository>
