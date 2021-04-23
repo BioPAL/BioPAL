@@ -7,7 +7,7 @@ import pyproj
 import shutil
 import numpy as np
 from osgeo import gdal
-from gdalconst import GA_ReadOnly
+from osgeo.gdalconst import GA_ReadOnly
 from scipy.interpolate import interp1d
 from skimage.filters.rank import majority as majority_filter
 from equi7grid.equi7grid import Equi7Grid

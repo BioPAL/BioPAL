@@ -5,7 +5,7 @@ import os
 import numpy as np
 import logging
 import shutil
-from gdalconst import GA_ReadOnly
+from osgeo.gdalconst import GA_ReadOnly
 from osgeo import gdal
 from equi7grid.equi7grid import Equi7Grid
 from equi7grid.image2equi7grid import image2equi7grid

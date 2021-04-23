@@ -4,9 +4,9 @@
 import numpy as np
 import scipy as sp
 import logging
-import osr
-import ogr
-import gdal
+from osgeo import osr
+from osgeo import ogr
+from osgeo import gdal
 from shapely.geometry import Polygon
 
 from biopal.agb.processing_AGB import (
