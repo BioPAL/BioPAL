@@ -8,7 +8,7 @@ from shapely.geometry import MultiPoint
 from scipy.interpolate import interp2d
 import scipy.stats
 from osgeo import gdal
-from gdalconst import GA_ReadOnly
+from osgeo.gdalconst import GA_ReadOnly
 from equi7grid.equi7grid import Equi7Grid
 from biopal.utility.utility_functions import choose_equi7_sampling
 from collections import namedtuple

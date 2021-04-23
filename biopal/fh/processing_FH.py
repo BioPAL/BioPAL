@@ -7,7 +7,7 @@ import logging
 from numpy import linalg as LA
 from scipy.signal import medfilt2d
 from osgeo import gdal
-from gdalconst import GA_ReadOnly
+from osgeo.gdalconst import GA_ReadOnly
 
 from biopal.statistics.utility_statistics import (
     main_correlation_estimation_SR,

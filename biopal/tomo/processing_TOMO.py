@@ -5,7 +5,7 @@ import os
 import logging
 import numpy as np
 from scipy.signal import medfilt2d
-from gdalconst import GA_ReadOnly
+from osgeo.gdalconst import GA_ReadOnly
 from osgeo import gdal
 from matplotlib import pylab as plt
 from biopal.statistics.utility_statistics import (
