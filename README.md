@@ -83,7 +83,7 @@ Installation procedure described here makes use of the open-source package manag
 
 ##### BioPAL package installation into the created environment (users)
 
-If you are a *developer* you should not install the package: skip this part. You should refer to the section [Run the processor for developers](#-run-the-processor-for-developers). If you are a basic *user* follow this procedure. You should refer to the section [Run the processor for users](#-run-the-processor-for-users).
+If you are a *developer* you should not install the package: skip this part. You should refer to the section [Run the processor for developers](#run-the-processor-for-developers). If you are a basic *user* follow this procedure. You should refer to the section [Run the processor for users](#run-the-processor-for-users).
 
 *NOTE: the installation procedure here described is not yet working, work in progress.*
 
