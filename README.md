@@ -232,7 +232,7 @@ Read carefully also contributor\'s guides before getting started.
 
 # Documentation
 
-For more details on processing configuration, refer to the initial release [user manual](https://github.com/BioPAL/BioPAL/doc/ARE-017082_BIOMASS_L2_User_Manual.pdf) version 1.1.
+For more details on processing configuration, refer to the initial release [user manual](doc/ARE-017082_BIOMASS_L2_User_Manual.pdf) version 1.1.
 
 # History
 
