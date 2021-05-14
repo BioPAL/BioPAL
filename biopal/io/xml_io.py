@@ -102,9 +102,9 @@ lut = namedtuple(
      boundaries \
      progressive",
 )
-core_proc_fh = namedtuple("core_proc_fh", "dummy",)
-core_proc_fd = namedtuple("core_proc_fd", "dummy",)
-core_proc_tomo_fh = namedtuple("core_proc_tomo_fh", "dummy",)
+core_processing_fh = namedtuple("core_proc_fh", "data_equi7_fnames mask_equi7_fnames")
+core_processing_fd = namedtuple("core_proc_fd", "dummy",)
+core_processing_tomo_fh = namedtuple("core_proc_tomo_fh", "dummy",)
 # main_input_params "L1c_date" sub-fields:
 L1c_date = namedtuple(
     "L1c_date_params",
@@ -292,7 +292,7 @@ def write_input_file(input_params_obj, input_file_xml):
         - stack_based_processing (internally the presence or not of specific 
                                   elements vary on the chain, AGB,FH,FD,TOMO_FH)
         - core_processing_agb
-        - core_processing_fh (place holder, to be filled in future version if needed)
+        - core_processing_fh
         - core_processing_fd (place holder, to be filled in future version if needed)
         - core_processing_tomo_fh (place holder, to be filled in future version if needed)
     
@@ -469,8 +469,29 @@ def write_core_processing_agb_section(father_item, core_proc_agb_obj):
     write_lut_section(core_agb_item, core_proc_agb_obj.lut_stacks, "stacks")
 
 
-def write_core_processing_fh_section():
-    pass
+def write_core_processing_fh_section(father_item, core_proc_fh_obj):
+    
+    core_fh_item = SubElement(father_item, "core_processing_fh")
+
+    equi7_products_paths_item = SubElement(core_fh_item, "equi7_products_paths")
+
+    for stack_id, path_data_fnames in core_proc_fh_obj.data_equi7_fnames.items():
+        
+        equi7_product_item = SubElement(equi7_products_paths_item, "equi7_product")
+        equi7_product_item.set("unique_stack_id", stack_id)
+        
+        # each stack contains n-equi7 tiles
+        for tile_idx, path_mask_tile in enumerate(core_proc_fh_obj.mask_equi7_fnames[stack_id]):
+            
+            path_data_tile = path_data_fnames[tile_idx]
+            
+            tile_item = SubElement(equi7_product_item, "equi7_tile")
+            
+            path_data_item = SubElement(tile_item, "path_data")
+            path_data_item.text = path_data_tile
+            
+            path_mask_item = SubElement(tile_item, "path_mask")
+            path_mask_item.text = path_mask_tile
 
 
 def write_core_processing_fd_section():
@@ -814,10 +835,28 @@ def parse_core_proc_agb_section(root):
 
 
 def parse_core_proc_fh_section(root):
-    """
-       place older function to be developed yet 
-    """
-    core_proc_fh_obj = None
+
+    core_proc_fh_item = root.find("core_processing_fh")
+
+    if core_proc_fh_item:
+        equi7_products_paths_item = core_proc_fh_item.find("equi7_products_paths")
+        
+        data_equi7_fnames = {}
+        mask_equi7_fnames = {}
+        for equi7_product_item in equi7_products_paths_item.findall("equi7_product"):
+            stack_id = equi7_product_item.attrib["unique_stack_id"]
+            data_equi7_fnames[stack_id] = []
+            mask_equi7_fnames[stack_id] = []
+            
+            for equi7_tile_item in equi7_product_item.findall("equi7_tile"):
+                
+                data_equi7_fnames[stack_id].append( equi7_tile_item.find("path_data").text )
+                mask_equi7_fnames[stack_id].append( equi7_tile_item.find("path_mask").text )
+            
+        core_proc_fh_obj = core_processing_fh(data_equi7_fnames, mask_equi7_fnames)
+
+    else:
+        core_proc_fh_obj = None
 
     return core_proc_fh_obj
 
