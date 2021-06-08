@@ -29,6 +29,7 @@ from biopal.utility.utility_functions import (
     set_gdal_paths,
     format_folder_name,
     decode_unique_acquisition_id_string,
+    collect_stacks_to_be_merged,
 )
 from biopal.io.xml_io import parse_input_file, parse_configuration_file
 from biopal.dataset_query.dataset_query import dataset_query
@@ -107,18 +108,15 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     conf_params_obj = parse_configuration_file(configuration_file)
     set_gdal_paths(conf_params_obj.gdal.gdal_path, conf_params_obj.gdal.gdal_environment_path)
 
-    # additional input needed to FH and TOMO_FH (in future version those will be moved ti input file)
-    if input_params_obj.L2_product == "FH" or input_params_obj.L2_product == "TOMO_FH":
-        stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition)
-
     # Execute the activated chain
     if input_params_obj.L2_product == "AGB":
         chain_obj = AboveGroundBiomass(configuration_file)
 
     if input_params_obj.L2_product == "FH":
-        chain_obj = ForestHeight(configuration_file, stacks_to_merge_dict)
+        chain_obj = ForestHeight(configuration_file)
 
     if input_params_obj.L2_product == "TOMO_FH":
+        stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition) # to be deprecated
         chain_obj = TomoForestHeight(configuration_file, stacks_to_merge_dict)
 
     if input_params_obj.L2_product == "FD":
@@ -137,32 +135,6 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     logging.info("BIOMASS L2 Processor ended: see the above log messages for more info.")
 
     return True
-
-
-def collect_stacks_to_be_merged(stack_composition):
-
-    stacks_to_merge_dict = {}
-    for unique_stack_id in stack_composition.keys():
-
-        (
-            global_cycle_idx,
-            heading_deg,
-            rg_swath_idx,
-            rg_sub_swath_idx,
-            az_swath_idx,
-            baseline_idx,
-        ) = decode_unique_acquisition_id_string(stack_composition[unique_stack_id][0], output_format="string")
-
-        unique_merged_stack_id = (
-            "GC_" + global_cycle_idx + "_RGSW_" + rg_swath_idx + "_RGSBSW_" + rg_sub_swath_idx + "_AZSW_" + az_swath_idx
-        )
-
-        if unique_merged_stack_id in stacks_to_merge_dict.keys():
-            stacks_to_merge_dict[unique_merged_stack_id].append(unique_stack_id)
-        else:
-            stacks_to_merge_dict[unique_merged_stack_id] = [unique_stack_id]
-
-    return stacks_to_merge_dict
 
 
 def main():

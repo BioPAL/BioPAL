@@ -521,3 +521,40 @@ def get_foss_cal_names(reference_agb_folder):
             cal_names.append(os.path.join(reference_agb_folder, tiff_name))
 
     return cal_names
+
+
+def collect_stacks_to_be_merged(stack_composition):
+    """
+    The stack_composition contains the IDs of all the stacks and 
+    for each of the stacks contains all the acquisition IDs.
+    
+    This function collects togeter all the stacks which have all in common except the heading:
+    the resulting stacks_to_merge_dict is a dictionary containing 
+        as keys,   all the unique_merged_stack_id (stack IDs with missing headings) 
+        as values, the list of the stack_ids to be merged (same stacks, all headings)
+
+    """
+    stacks_to_merge_dict = {}
+    for unique_stack_id in stack_composition.keys():
+        
+        #1) read the acquisition ID of first acquisition in the current stack
+        (
+            global_cycle_idx,
+            heading_deg,
+            rg_swath_idx,
+            rg_sub_swath_idx,
+            az_swath_idx,
+            baseline_idx,
+        ) = decode_unique_acquisition_id_string(stack_composition[unique_stack_id][0], output_format="string")
+
+        # 2) create a new ID which is a stack_id without the heading
+        unique_merged_stack_id = (
+            "GC_" + global_cycle_idx + "_RGSW_" + rg_swath_idx + "_RGSBSW_" + rg_sub_swath_idx + "_AZSW_" + az_swath_idx
+        )
+
+        if unique_merged_stack_id in stacks_to_merge_dict.keys():
+            stacks_to_merge_dict[unique_merged_stack_id].append(unique_stack_id)
+        else:
+            stacks_to_merge_dict[unique_merged_stack_id] = [unique_stack_id]
+
+    return stacks_to_merge_dict
