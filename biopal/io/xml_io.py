@@ -103,7 +103,7 @@ lut = namedtuple(
      progressive",
 )
 core_processing_fh = namedtuple("core_proc_fh", "data_equi7_fnames mask_equi7_fnames")
-core_processing_fd = namedtuple("core_proc_fd", "dummy",)
+core_processing_fd = namedtuple("core_proc_fd", "cycles_composition",)
 core_processing_tomo_fh = namedtuple("core_proc_tomo_fh", "dummy",)
 # main_input_params "L1c_date" sub-fields:
 L1c_date = namedtuple(
@@ -293,7 +293,7 @@ def write_input_file(input_params_obj, input_file_xml):
                                   elements vary on the chain, AGB,FH,FD,TOMO_FH)
         - core_processing_agb
         - core_processing_fh
-        - core_processing_fd (place holder, to be filled in future version if needed)
+        - core_processing_fd
         - core_processing_tomo_fh (place holder, to be filled in future version if needed)
     
     Only the sections avalable into the input_params_obj structure will be written 
@@ -494,10 +494,28 @@ def write_core_processing_fh_section(father_item, core_proc_fh_obj):
             path_mask_item.text = path_mask_tile
 
 
-def write_core_processing_fd_section():
-    pass
+def write_core_processing_fd_section(father_item, core_proc_fd_obj):
+    
+    core_fd_item = SubElement(father_item, "core_processing_fd")
 
-
+    cycles_composition_item = SubElement(core_fd_item, "cycles_composition")
+    # dict which groupes togheter all the differente global cycles for stacks with same nominal geometry
+    # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
+        
+    for stack_idx, (nominal_geometry_stack_id, global_cycle_dict) in enumerate(core_proc_fd_obj.cycles_composition.items() ):
+        
+        nominal_geometry_item = SubElement(cycles_composition_item, "nominal_geometry")
+        nominal_geometry_item.set("stack_id", nominal_geometry_stack_id)
+        
+        for cycle_number, acquisitions_list in global_cycle_dict.items():
+            
+            global_cycle_item = SubElement(nominal_geometry_item, "global_cycle")    
+            global_cycle_item.set("cycle_number", str(cycle_number)  )
+            
+            for acquisition_id in acquisitions_list:
+                acquisition_id_item = SubElement(global_cycle_item, "acquisition")     
+                acquisition_id_item.text = acquisition_id
+                
 def write_core_processing_tomo_fh_section():
     pass
 
@@ -865,8 +883,36 @@ def parse_core_proc_fd_section(root):
     """
        place older function to be developed yet 
     """
-    core_proc_fd_obj = None
-
+    
+    core_proc_fd_item = root.find("core_processing_fd")
+    
+    if core_proc_fd_item:
+        cycles_composition = (
+            {}
+        )  # dict which groupes togheter all the differente global cycles for s
+        #tacks with same nominal geometry
+        # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
+        cycles_composition_item = core_proc_fd_item.find("cycles_composition")
+        
+        for nominal_geometry_item in cycles_composition_item.findall("nominal_geometry"):
+            
+            nominal_geometry_stack_id = nominal_geometry_item.attrib["stack_id"]
+            cycles_composition[nominal_geometry_stack_id] = {}
+            
+            for global_cycle_item in nominal_geometry_item.findall("global_cycle"):
+            
+                global_cycle_idx = int(global_cycle_item.attrib["cycle_number"])
+                
+                cycles_composition[nominal_geometry_stack_id][global_cycle_idx] = []
+                
+                for acquisition_item in global_cycle_item.findall("acquisition"):
+                    cycles_composition[nominal_geometry_stack_id][global_cycle_idx].append(acquisition_item.text)
+                    
+        core_proc_fd_obj = core_processing_fd(cycles_composition)
+    else:
+        
+        core_proc_fd_obj = None
+    
     return core_proc_fd_obj
 
 
