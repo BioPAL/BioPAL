@@ -116,8 +116,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         chain_obj = ForestHeight(configuration_file)
 
     if input_params_obj.L2_product == "TOMO_FH":
-        stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition) # to be deprecated
-        chain_obj = TomoForestHeight(configuration_file, stacks_to_merge_dict)
+        chain_obj = TomoForestHeight(configuration_file)
 
     if input_params_obj.L2_product == "FD":
         chain_obj = ForestDisturbance(configuration_file)
