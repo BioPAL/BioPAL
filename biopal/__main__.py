@@ -49,7 +49,7 @@ class InvalidInputError(ValueError):
 
 
 # main biopal
-def biomassL2_processor_run(input_file_xml, conf_folder=None):
+def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
 
     if conf_folder is None:
         configuration_file = pkg_resources.resource_filename("biopal", "conf", "Configuration_File.xml")
@@ -59,7 +59,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
         configuration_file = os.path.join(default_configuration_folder, "Configuration_File.xml")
 
     # parse the input file
-    input_params_obj = parse_input_file(input_file_xml)
+    input_params_obj = parse_input_file(input_file_processor_xml)
     if (
         input_params_obj.L2_product is None
         or input_params_obj.output_specification is None
@@ -98,7 +98,7 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     try:
 
         dataset_query_obj = dataset_query()
-        (input_file, stack_composition, geographic_boundaries) = dataset_query_obj.run(input_params_obj)
+        (input_file_for_stack_based, stack_composition, geographic_boundaries) = dataset_query_obj.run(input_params_obj)
 
     except Exception as e:
         logging.error(e, exc_info=True)
@@ -122,11 +122,11 @@ def biomassL2_processor_run(input_file_xml, conf_folder=None):
     if input_params_obj.L2_product == "FD":
         chain_obj = ForestDisturbance(configuration_file)
 
-    chain_obj.run(input_file)
+    chain_obj.run(input_file_for_stack_based)
 
     # copy the configuration file to output
     input_file_name_out = os.path.join(os.path.dirname(log_file_name), "Input_File.xml")
-    copyfile(input_file, input_file_name_out)
+    copyfile(input_file_processor_xml, input_file_name_out)
 
     conf_file_name_out = os.path.join(os.path.dirname(log_file_name), "Configuration_File.xml")
     copyfile(configuration_file, conf_file_name_out)
@@ -143,11 +143,11 @@ def main():
     args = docopt(__doc__, version="0.0.1")
 
     # Input file:
-    input_file_xml = args["INPUTFILEXML"]
+    input_file_processor_xml = args["INPUTFILEXML"]
     conf_folder = args["--conf"]
 
     # run processor:
-    biomassL2_processor_run(input_file_xml, conf_folder)
+    biomassL2_processor_run(input_file_processor_xml, conf_folder)
 
 
 if __name__ == "__main__":
