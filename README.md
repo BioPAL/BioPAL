@@ -35,7 +35,7 @@ Here the required environment and dependencies are listed, as well as installati
 
 ## Requirements
 
-Python 3.6 is a minimum requirement. The packages required are specified in the file [requirements.txt](https://github.com/BioPAL/BioPAL/blob/main/requirements.txt).
+Python 3.7.1 is a minimum requirement. The packages required are specified in the file [requirements.txt](https://github.com/BioPAL/BioPAL/blob/main/requirements.txt).
 
 ## Installation
 
@@ -44,7 +44,7 @@ Installation procedure described here makes use of the open-source package manag
 ##### Prerequisites
 
 - Conda should be already installed
-- Python 3.6 or above should be already installed
+- Python 3.7.1 or above should be already installed
 - In case you are a developer
   - [git](https://git-scm.com/downloads) should be already installed
   - [tortoisegit](https://tortoisegit.org/), optional, a git GUI for Windows
@@ -67,33 +67,33 @@ Installation procedure described here makes use of the open-source package manag
 
 1. If you are a user, download and unzip the current [BioPAL distribution](https://github.com/BioPAL/BioPAL) to your local hard drive.
 
-##### Python environment preparation and activation
+##### BioPAL installation option 1: manual by conda
 
-1.  In a conda command window, type the following instruction, which creates a biopal environment ( `environment.yml` is present into the BioPAL distribution ):
+In a conda command window, type the following instruction, which creates a biopal environment containing 
+all the needed packages installed and ready. ( `environment.yml` is present into the BioPAL distribution ):
 	
         conda env create --file environment.yml
 
-2.  In the same conda command window, type the following instruction, which activates the created biopal environment:
+
+##### BioPAL installation option 2: pip install (developers)
+
+In a conda command window, type the following instruction, which creates an empty biopal environment with
+the correct python version installed
 	
+        conda create --name biopal python==3.7.1
+		
+Before executing PIP, there is the need to manual install GDAL library, by executing following commands:
         conda activate biopal
+        conda install GDAL
 
-3.  *Only for developers*: In the same conda command window, install your favorite python IDE with a command as (in the following, *spyder* IDE is an example):
-	
-        conda install spyder
+Finally, from inside the /BioPAL folder, install the package by executing following command:		
 
-##### BioPAL package installation into the created environment (users)
+	pip install -e .
 
-If you are a *developer* you should not install the package: skip this part. You should refer to the section [Run the processor for developers](#run-the-processor-for-developers). If you are a basic *user* follow this procedure. You should refer to the section [Run the processor for users](#run-the-processor-for-users).
 
-*NOTE: the installation procedure here described is not yet working, work in progress.*
+##### BioPAL installation option 3: pip install (users)
+Feature not teady yet.
 
-In a conda command window, be sure to have the biopal environment active, otherwise digit
-
-        conda activate biopal
-        
-then type the following instruction:
-
-        pip install biopal
 
 ## Setup Configuration
 Open the `inputs/Input_File.xml` and update following sections withj absolute paths:
@@ -167,10 +167,9 @@ With following command, default configurations are used:
 
         python -m biopal
 
-##### To run the processor from a python IDE (developers only):
-For this run method, a python IDE should be installed in the environment (see section [Python environment preparation and activation](#-python-environment-preparation-and-activation) above).
+##### To run the processor manually (developers only):
 
-4. Create a new *.py* file, with a text editor, with following content (where `yourPath/BioPAL` should be replaced with the folder where the BioPAL distribution has been git-cloned), and save it (i.e. `run_biopal_debug.py`):
+1. Create a new *.py* file, with a text editor, with following content (where `yourPath/BioPAL` should be replaced with the folder where the BioPAL distribution has been git-cloned), and save it (i.e. `run_biopal_debug.py`):
 
         from pathlib import Path
         import sys
@@ -183,7 +182,14 @@ For this run method, a python IDE should be installed in the environment (see se
         conf_folder = biopal_path.joinpath( 'biopal','conf')
         biomassL2_processor_run(input_file_xml_path, conf_folder )
 
-5.  In the same conda command window open the python IDE (i.e. *spyder*) and execute the `run_biopal_debug.py` script with your preferred IDE options (i.e. run, debug, breakpoints enabled....).
+2.  Execute the `run_biopal_debug.py` script within your preferred IDE options (i.e. run, debug, breakpoints enabled....).
+	(The biopal environment should already be enabled inside the IDE)
+	
+	or from command window, with biopal environment enabled, digit:
+	
+	python run_biopal_debug.py
+	
+	
 
 # Call for Contributions
 

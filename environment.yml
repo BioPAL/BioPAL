@@ -1,6 +1,6 @@
 name: biopal
 dependencies:
-  - python=3.6
+  - python=3.7.1
   - pip
   - GDAL
   - lxml
