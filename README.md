@@ -48,7 +48,7 @@ Installation procedure described here makes use of the open-source package manag
 - In case you are a developer
   - [git](https://git-scm.com/downloads) should be already installed
   - [tortoisegit](https://tortoisegit.org/), optional, a git GUI for Windows
-  - Python IDE (i.e. [spyder](https://www.spyder-ide.org/)) to be installed in the environment (see next section for details)
+  - Python IDE (i.e. [spyder](https://www.spyder-ide.org/) or [vs code](https://code.visualstudio.com/))
 
 ##### Make a local clone (developers)
 
@@ -67,32 +67,52 @@ Installation procedure described here makes use of the open-source package manag
 
 1. If you are a user, download and unzip the current [BioPAL distribution](https://github.com/BioPAL/BioPAL) to your local hard drive.
 
-##### BioPAL installation option 1: manual by conda
+##### BioPAL installation option 1: "pip install -e" (developers)
+When installed with pip, the processor can be run with a simple command, from any folder (this is the run for users) or manually with script (run for developers): see after in this guide.
+The code is editable, thanks to the "-e" option (so for users is suggested the installation option 2).
 
-In a conda command window, type the following instruction, which creates a biopal environment containing 
-all the needed packages installed and ready. ( `environment.yml` is present into the BioPAL distribution ):
-	
-        conda env create --file environment.yml
-
-
-##### BioPAL installation option 2: pip install (developers)
-
-In a conda command window, type the following instruction, which creates an empty biopal environment with
-the correct python version installed
+In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
 	
         conda create --name biopal python==3.7.1
 		
-Before executing PIP, there is the need to manual install GDAL library, by executing following commands:
+Before executing pip, install GDAL library with conda, by executing following commands in a conda command window (first activate the created environment, than install GDAL inside):
+
         conda activate biopal
         conda install GDAL
 
-Finally, from inside the /BioPAL folder, install the package by executing following command:		
+Now the "biopal" environment is ready for installation; first enter inside the /BioPAL folder, than install the package by executing following command (the "." after "-e" option means "current folder"):		
 
 	pip install -e .
 
+##### BioPAL installation option 2: "pip install" (users)
+The only difference respect to option 1 is that it is not editable: it can only be run.
+The procedure will be updated when biopal will be available on [pypi](`https://pypi.org/`)
+When installed with pip, the processor can be run with a simple command, from any folder.
 
-##### BioPAL installation option 3: pip install (users)
-Feature not teady yet.
+In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
+	
+        conda create --name biopal python==3.7.1
+		
+Before executing pip, install GDAL library with conda, by executing following commands in a conda command window (first activate the created environment, than install GDAL inside):
+
+        conda activate biopal
+        conda install GDAL
+
+Now the "biopal" environment is ready for installation; install the package by executing following command:		
+
+        pip install BioPAL.zip
+	
+Where BioPAL.zip is the full path of the code package downloaded from github	
+	
+##### BioPAL installation option 3: manual by conda (developers alternative)
+With this option biopal is not installed (digiting "pip list" will not find the package), however a runnable environment wil be created (perfectly fine for a developer); also note that the command window run is a bit different: see after in this guide. This is an anternative respect to installation option #1.
+This installation is simpler, GDAL is automatically installed in this case.
+
+In a conda command window, type the following instruction, which creates a ready biopal environment containing all the needed packages and the correct python version installed. (Execute from inside the /BioPAL folder, or set complete path of `environment.yml`, which is present into the BioPAL distribution ):
+	
+        conda env create --file environment.yml
+
+The created environment name will be "biopal": to customize this, edit the environment.yml "name:" section, before the above command
 
 
 ## Setup Configuration
@@ -104,7 +124,10 @@ Open the `inputs/Input_File.xml` and update following sections withj absolute pa
 
 *NOTE: Sample data (L1C_repository) and auxiliaries (auxiliary_products_folder) can be obtained by writing to* <biopal@esa.int>.
 
-The BioPAL GDAL paths are automatically found by the processor after a correct installation procedure; in case of problems or for particular user cases, it is possible to specify manually such paths, in this case edit `biopal/conf/Configuration_File.xml`, uncomment the "gdal" section and insert your absolute paths for:
+#### GDAL paths configuration
+The BioPAL GDAL paths are automatically found by the processor after a correct installation procedure.
+Also note that, under Windows this only works in CMD and not in PowerShell command window.
+In case of problems or for particular user cases, it is possible to manually specify such paths, in this case edit `biopal/conf/Configuration_File.xml`, uncomment the "gdal" section and insert your absolute paths for:
 -   `gdal_path`: this is the folder containing the GDAL executables, usually in the `/bin` subfolder of GDAL environment (containing e.g., *gdalwarp*, *gdal_translate*,... )
 -   `gdal_enviroment_path`: this is the GDAL_DATA environment variable path
 
@@ -122,31 +145,36 @@ TIP: the above paths depend on your machine environment. GDAL has been automatic
 
 BioPAL gives easy access to several datasets that are used for examples in the documentation and testing. These datasets are hosted on our FTP server and must be downloaded for use. Contact <biopal@esa.int> to receive access to the dataset and for more information.
 
-## Run the processor for users
-*NOTE: The run procedure here described is ready but not usable yet: it will be available once installation procedure described in "BioPAL package installation into the created environment" will be ready*.
-
+## Run the processor
 1.  Set the `inputs/Input_File.xml` as desired, the `dataset_query` section is already filled with default L1C_date and geographic_boundaries_polygon, to be used with the DEMO DataSet from ESA.
 2.  Set the AGB, FH, FD, TOMO_FH configuration sections present in `biopal/conf/Configuration_File.xml` as desired (default configuration parameters alreasy present)
+
+Than the procedure is different (developer, users), depending on the installation option used.
+
+### Run the processor for users
+Folowing run procedure works if the "pip install" procedure has been executed (above installation options #1 and #2).
 3.  In a conda command window, type the following instruction, which activates the biopal environment:
 
         conda activate biopal
 
-4.  In the same conda command window execute:
+4.  In the same conda command window, from any folder, execute:
 
         biopal --conf conffolder inputfilexml
     where:
 -- `inputfilexml`: path of the BioPAL xml input file (i.e. `/inputs` )
 -- `conffolder`:   path of the folder containing BioPAL xml configuration files (i.e. `biopal/conf/`)
-With following command, default configurations are used:
+
+    With following command, default configurations are used:
 
         biopal inputfilexml
+
     With following command, the biopal execution help will be shown:
 
         biopal
 
-## Run the processor for developers
-1.  Set the `inputs/Input_File.xml`as desired
-2.  Set the AGB, FH, FD, TOMO_FH configuration sections present in `biopal/conf/Configuration_File.xml` as desired
+### Run the processor for developers
+Folowing run procedure works with any installation option (with a difference in command window call for option #3)
+
 3.  In a conda command window, type the following instruction, which activates the biopal environment:
 
         conda activate biopal
@@ -154,22 +182,27 @@ With following command, default configurations are used:
     Then there are the following two choices: comand window or IDE.
 ##### To run the processor from command window (developers only):
 
-4.  On the same conda command window enter in the BioPAL folder and execute:
-
-        python -m biopal --conf conffolder inputfilexml
+4.  On the same conda command window execute:
+        
+        biopal --conf conffolder inputfilexml (if installed with option #1 or #2; execute from any folder)
+        python -m biopal --conf conffolder inputfilexml (if installed with option #3; execute from /BioPAL folder)
     where:
     -- `inputfilexml`: path of the BioPAL xml input file (i.e. `/inputs` )
     -- `conffolder`:   path of the folder containing BioPAL xml configuration files (i.e. `/biopal/conf/`)
+
     With the following command, default configurations present in `biopal/conf/` are used:
 
-        python -m biopal inputfilexml
+        biopal inputfilexml (if installed with option #1 or #2; execute from any folder)
+        python -m biopal inputfilexml  (if installed with option #3; execute from /BioPAL folder)
+        
     With the following command, the biopal execution help will be shown:
 
-        python -m biopal
+        biopal (if installed with option #1 or #2; execute from any folder)
+        python -m biopal (if installed with option #3; execute from /BioPAL folder)
 
-##### To run the processor manually (developers only):
+##### To run the processor with a script for debug (developers only):
 
-1. Create a new *.py* file, with a text editor, with following content (where `yourPath/BioPAL` should be replaced with the folder where the BioPAL distribution has been git-cloned), and save it (i.e. `run_biopal_debug.py`):
+4. Create a new *.py* file, with a text editor, with following content (where `yourPath/BioPAL` should be replaced with the folder where the BioPAL distribution has been git-cloned), and save it (i.e. `run_biopal_debug.py`):
 
         from pathlib import Path
         import sys
@@ -182,14 +215,14 @@ With following command, default configurations are used:
         conf_folder = biopal_path.joinpath( 'biopal','conf')
         biomassL2_processor_run(input_file_xml_path, conf_folder )
 
-2.  Execute the `run_biopal_debug.py` script within your preferred IDE options (i.e. run, debug, breakpoints enabled....).
+5.  Execute the `run_biopal_debug.py` script within your preferred IDE options (i.e. run, debug, breakpoints enabled....).
 	(The biopal environment should already be enabled inside the IDE)
 	
 	or from command window, with biopal environment enabled, digit:
 	
-	python run_biopal_debug.py
+        python run_biopal_debug.py
 	
-	
+	Read BioPAL [tutorial](https://www.biopal.org/docs/tutorials/biopal_first_tutorial/) for other examples to insert in the script
 
 # Call for Contributions
 
