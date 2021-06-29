@@ -98,7 +98,7 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
     try:
 
         dataset_query_obj = dataset_query()
-        (input_file_for_stack_based, stack_composition, geographic_boundaries) = dataset_query_obj.run(input_params_obj)
+        input_file_for_stack_based = dataset_query_obj.run(input_params_obj)
 
     except Exception as e:
         logging.error(e, exc_info=True)

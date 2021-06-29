@@ -137,7 +137,7 @@ class StackBasedProcessingAGB(Task):
         # dataset_query APP call if needed:
         >>>from biopal.dataset_query.dataset_query import dataset_query
         >>>dataset_query_obj = dataset_query(),
-        >>>input_file_with_stack_base_proc, _, _ = dataset_query_obj.run( input_file )
+        >>>input_file_with_stack_base_proc = dataset_query_obj.run( input_file )
         
         # StackBasedProcessingAGB APP call with the needed input sections filled:
         >>>from biopal.agb.main_AGB import StackBasedProcessingAGB
@@ -1095,7 +1095,7 @@ class CoreProcessingAGB(Task):
         # dataset_query APP call if needed:
         >>>from biopal.dataset_query.dataset_query import dataset_query
         >>>dataset_query_obj = dataset_query(),
-        >>>input_file_with_stack_base_proc, _, _ = dataset_query_obj.run( input_file )
+        >>>input_file_with_stack_base_proc = dataset_query_obj.run( input_file )
         
         # StackBasedProcessingAGB APP call if needed:
         >>>from biopal.agb.main_AGB import StackBasedProcessingAGB

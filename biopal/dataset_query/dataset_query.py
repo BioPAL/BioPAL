@@ -55,7 +55,7 @@ class dataset_query(Task):
     >>> input_path = BioPAL / "inputs" / "Input_File.xml"
     >>> from biopal.agb.main_AGB import dataset_query
     >>> dataset_query_obj = dataset_query()
-    >>> input_file_up_xml,_,_ = dataset_query.run( input_path )
+    >>> input_file_up_xml = dataset_query.run( input_path )
     >>> print('The Input_File has been updated with the new section "stack_based_processing" and saved to {}'.format(input_file_up_xml))
     """
 
@@ -124,7 +124,7 @@ class dataset_query(Task):
         logging.info(end_message)
         print(end_message)
         
-        return input_file_up_xml, stack_composition, geographic_boundaries
+        return input_file_up_xml
 
 
 def data_select_by_date_and_boundaries(dataset_query_obj):
