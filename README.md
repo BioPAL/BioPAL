@@ -279,9 +279,11 @@ BioPAL was originally written and is currently maintained by Aresys and the BioP
 
 # Citing
 
-If you use BioPAL, please add a citation:
+If you use BioPAL, please add these citations:
 
 -   *BioPAL: BIOMASS Product Algorithm Laboratory, https://github.com/BioPAL/BioPAL*
+
+-   *Banda F, Giudici D, Le Toan T, Mariotti d’Alessandro M, Papathanassiou K, Quegan S, Riembauer G, Scipal K, Soja M, Tebaldini S, Ulander L, Villard L. The BIOMASS Level 2 Prototype Processor: Design and Experimental Results of Above-Ground Biomass Estimation. Remote Sensing. 2020; 12(6):985. https://doi.org/10.3390/rs12060985*
 
 # Affilliations
 
