@@ -98,7 +98,7 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
     try:
 
         dataset_query_obj = dataset_query()
-        (input_file_for_stack_based, stack_composition, geographic_boundaries) = dataset_query_obj.run(input_params_obj)
+        input_file_for_stack_based = dataset_query_obj.run(input_params_obj)
 
     except Exception as e:
         logging.error(e, exc_info=True)
@@ -116,8 +116,7 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
         chain_obj = ForestHeight(configuration_file)
 
     if input_params_obj.L2_product == "TOMO_FH":
-        stacks_to_merge_dict = collect_stacks_to_be_merged(stack_composition) # to be deprecated
-        chain_obj = TomoForestHeight(configuration_file, stacks_to_merge_dict)
+        chain_obj = TomoForestHeight(configuration_file)
 
     if input_params_obj.L2_product == "FD":
         chain_obj = ForestDisturbance(configuration_file)

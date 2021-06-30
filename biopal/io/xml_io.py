@@ -103,8 +103,8 @@ lut = namedtuple(
      progressive",
 )
 core_processing_fh = namedtuple("core_proc_fh", "data_equi7_fnames mask_equi7_fnames")
+core_processing_tomo_fh = namedtuple("core_proc_tomo_fh", "data_equi7_fnames mask_equi7_fnames")
 core_processing_fd = namedtuple("core_proc_fd", "cycles_composition",)
-core_processing_tomo_fh = namedtuple("core_proc_tomo_fh", "dummy",)
 # main_input_params "L1c_date" sub-fields:
 L1c_date = namedtuple(
     "L1c_date_params",
@@ -294,7 +294,7 @@ def write_input_file(input_params_obj, input_file_xml):
         - core_processing_agb
         - core_processing_fh
         - core_processing_fd
-        - core_processing_tomo_fh (place holder, to be filled in future version if needed)
+        - core_processing_tomo_fh
     
     Only the sections avalable into the input_params_obj structure will be written 
     to the file: not all the APPs requires all the sections. 
@@ -469,9 +469,12 @@ def write_core_processing_agb_section(father_item, core_proc_agb_obj):
     write_lut_section(core_agb_item, core_proc_agb_obj.lut_stacks, "stacks")
 
 
-def write_core_processing_fh_section(father_item, core_proc_fh_obj):
+def write_core_processing_fh_section(father_item, core_proc_fh_obj, tomo_fh_flag=False):
     
-    core_fh_item = SubElement(father_item, "core_processing_fh")
+    if tomo_fh_flag:
+        core_fh_item = SubElement(father_item, "core_processing_tomo_fh")
+    else:
+        core_fh_item = SubElement(father_item, "core_processing_fh")
 
     equi7_products_paths_item = SubElement(core_fh_item, "equi7_products_paths")
 
@@ -515,9 +518,12 @@ def write_core_processing_fd_section(father_item, core_proc_fd_obj):
             for acquisition_id in acquisitions_list:
                 acquisition_id_item = SubElement(global_cycle_item, "acquisition")     
                 acquisition_id_item.text = acquisition_id
-                
-def write_core_processing_tomo_fh_section():
-    pass
+
+             
+def write_core_processing_tomo_fh_section(father_item, core_proc_fh_obj):
+   
+    # core processing section for FH and TOMO FH are the same
+    write_core_processing_fh_section(father_item, core_proc_fh_obj, tomo_fh_flag=True)
 
 
 def parse_input_file(input_file_xml):
@@ -852,9 +858,12 @@ def parse_core_proc_agb_section(root):
     return core_proc_agb_obj
 
 
-def parse_core_proc_fh_section(root):
+def parse_core_proc_fh_section(root,tomo_fh_flag=False):
 
-    core_proc_fh_item = root.find("core_processing_fh")
+    if tomo_fh_flag:
+        core_proc_fh_item = root.find("core_processing_tomo_fh")
+    else:
+        core_proc_fh_item = root.find("core_processing_fh")
 
     if core_proc_fh_item:
         equi7_products_paths_item = core_proc_fh_item.find("equi7_products_paths")
@@ -917,10 +926,9 @@ def parse_core_proc_fd_section(root):
 
 
 def parse_core_proc_tomo_fh_section(root):
-    """
-       place older function to be developed yet 
-    """
-    core_proc_tomo_fh_obj = None
+    
+    # core processing section for FH and TOMO FH are the same
+    core_proc_tomo_fh_obj = parse_core_proc_fh_section(root, tomo_fh_flag = True)
 
     return core_proc_tomo_fh_obj
 
