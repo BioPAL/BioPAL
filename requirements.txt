@@ -1,18 +1,18 @@
-equi7grid
 GDAL
 lxml
 matplotlib
-namedlist
 numpy
-progressbar2
 scipy
 shapely
 scikit-image
 pandas
 pyproj
-Pytileproj 
+setuptools
+equi7grid==0.0.11
+Pytileproj
+progressbar2
+namedlist
 pyxb
 docopt
-setuptools
 pytest
 
