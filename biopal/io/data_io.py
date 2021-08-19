@@ -8,6 +8,7 @@ import logging
 import operator
 import numpy as np
 from scipy.interpolate import interp2d
+from matplotlib import pyplot as plt
 from biopal.io.xml_io import raster_info
 from biopal.utility.constants import EPSG_CODE_LLA
 from arepytools.io.productfolder import ProductFolder
@@ -16,6 +17,7 @@ from osgeo import (
     gdal,
     osr,
 )
+from osgeo.gdalconst import GA_ReadOnly
 
 ###############################################################################
 # Fields to write and read the Biomass Header in the Binary Files:#############
@@ -163,6 +165,175 @@ def readBiomassHeader_core(raster_file):
         resolution_m_az,
         sensor_velocity,
     )
+
+
+class BiomassL1cRaster:
+    """Interfaces wrapper: read BIOMASS L1c rasters.
+
+    Simply read biomass L1c raster and metadata from path.
+    It is suitable to manage any L1c slant range / azumuth BIOMASS data as the input SLC stacks, the
+    geometric auxiliaries as the ECEFGRID XYZ map, the OffNadirAngles map and so on.
+
+    See also biopal.io.data_io.biomassL2raster to manage biomass L2 geocoded data
+    See also biopal.utility.plot for available plotting functions:
+        plot, plot_db, plot_abs, plot_angle
+
+    Parameters
+    ----------
+    path_dir :
+        directory conteining the folder of data with metadata to be read
+    channel_to_read (optional):
+        one-based integer to select the channel to read inside the directory (
+            depending on the data, the channel may represent different
+            polarization, baseline, coordinate, etc. as specified in the xml metadata)
+        Default value: 1
+
+    Returns
+    -------
+    object containing following attributes
+        data: is the loaded data matrix itself (numpay array)
+        x_axis: slant range [km] axis
+        y_axis: azimuth [km] axis
+        x_axis_description: string describing x axis
+        y_axis_description: string describing y axis
+
+
+    Examples
+    -------
+    >>> data_obj = BiomassL1cRaster(path_dir)
+    >>> data_obj = BiomassL1cRaster(path_dir, channel_to_read=1)
+
+    """
+
+    def __init__(self, path_dir, channel_to_read=1):
+
+        self._pf = pf = ProductFolder(path_dir, "r")
+        self._data = None  # it is read on the fly, the first time that is requested
+        self._channel_to_read = channel_to_read - 1  # zero-based
+        # (in the help is described as one-based for consistency with biomassL2raster)
+        self._data_type = "SlantRange_Azimuth"  # L1C are the slantrange azimuth slc data
+
+        # axis construction
+        data_channel_obj = pf.get_channel(self._channel_to_read)
+        metadata_obj = data_channel_obj.metadata
+        metadatachannel_obj = metadata_obj.get_metadata_channels(0)
+        ri = metadatachannel_obj.get_element("RasterInfo")
+
+        self._x_axis = (ri.samples_start + np.arange(ri.samples) * ri.samples_step) / 1000
+        self._y_axis = (np.arange(ri.lines) * ri.lines_step) / 1000
+        self._x_axis_description = "slant range [km]"
+        self._y_axis_description = "azimuth [km]"
+
+    @property
+    def data(self):
+        if self._data is None:
+            self._data = self._pf.read_data(self._channel_to_read).transpose()
+        return self._data
+
+    @property
+    def x_axis(self):
+        return self._x_axis
+
+    @property
+    def y_axis(self):
+        return self._y_axis
+
+    @property
+    def x_axis_description(self):
+        return self._x_axis_description
+
+    @property
+    def y_axis_description(self):
+        return self._y_axis_description
+
+
+class BiomassL2Raster:
+    """Interfaces wrapper: read BIOMASS L2 rasters.
+
+    Simply read biomass L2 geocoded rasrters and metadata from tif file.
+    It is suitable to manage:
+        BioPAL L2 geocoded east-north output products tif data (default behavior)
+        BioPAL intermediate geocoded lat-lon tif data (by setting intermediate_latlon_flag to True)
+
+    See also biopal.io.data_io.biomassL1raster to manage biomass L1c data
+    See also biopal.utility.plot for available plotting functions:
+        plot, plot_db, plot_abs, plot_angle
+
+    Parameters
+    ----------
+    path_tif :
+        path of the tif file of the data to be read
+    band_to_read (optional):
+        one-based integer to select the tif band to read inside the file (
+            depending on the data, multiple bands can be present, as in the AGB estimaton)
+        Default value: 1
+    intermediate_latlon_flag (optional): 
+        if not specified or False, data axis are considered L2 east/north (default behavior)
+        if True, data axis are considered latitude/longitude (BioPAL intermediate geocoded products)
+
+    Returns
+    -------
+    object containing following attributes
+        data: is the loaded data matrix itself (numpay array)
+        x_axis: east [km] or longitude [deg] axis
+        y_axis: north [km] or latitude [deg]  axis
+        x_axis_description: string describing x axis
+        y_axis_description: string describing y axis
+
+
+    Examples
+    -------
+    >>> data_obj = BiomassL2Raster(path_tif)
+    >>> data_obj = BiomassL2Raster(path_tif, band_to_read=1)
+    >>> data_obj = BiomassL2Raster(path_tif, intermediate_latlon_flag=True)
+    >>> data_obj = BiomassL2Raster(path_tif, band_to_read=1, intermediate_latlon_flag=True)
+    """
+
+    def __init__(self, path_tif, band_to_read=1, intermediate_latlon_flag=None):
+
+        self._data_driver = data_driver = gdal.Open(path_tif, GA_ReadOnly)
+        self._data = None  # it is read on the fly, the first time that is requested
+        self._band_to_read = band_to_read  # one-based
+        self._data_type = "ground"
+
+        # axis construction
+        geotransform = data_driver.GetGeoTransform()
+        self._x_axis = geotransform[0] + geotransform[1] * np.arange(data_driver.RasterXSize)
+        self._y_axis = geotransform[3] + geotransform[5] * np.arange(data_driver.RasterYSize)
+
+        if intermediate_latlon_flag is None:
+            # Geocoded EQUI7
+            self._x_axis_description = "east [km]"
+            self._y_axis_description = "north [km]"
+            self._x_axis = self._x_axis / 1000
+            self._y_axis = self._y_axis / 1000
+
+        elif intermediate_latlon_flag is True:
+            # Geocoded Lat Lon
+            self._x_axis_description = "longitude [deg]"
+            self._y_axis_description = "latitude [deg]"
+
+    @property
+    def data(self):
+        if self._data is None:
+            self._data = self._data_driver.GetRasterBand(self._band_to_read).ReadAsArray()
+        return self._data
+
+    @property
+    def x_axis(self):
+        return self._x_axis
+
+    @property
+    def y_axis(self):
+        return self._y_axis
+
+    @property
+    def x_axis_description(self):
+        return self._x_axis_description
+
+    @property
+    def y_axis_description(self):
+        return self._y_axis_description
 
 
 def read_data(folder, pf_name):
@@ -464,14 +635,14 @@ def tandemx_fnf_read(fnf_catalogue, geographic_boundaries):
     # geographic_boundaries:
     # is a namedlist with four fields: lon_min, lon_max, lat_min and lat_max
 
-    fnf_string_list, geotransform_list, tile_extent_lonlat_list = tandemx_search_fnf_tiles(geographic_boundaries)
+    (fnf_string_list, geotransform_list, tile_extent_lonlat_list,) = tandemx_search_fnf_tiles(geographic_boundaries)
 
     fnf_tile_loaded_list = []
     fnf_loaded_geotransform_list = []
 
     for tile_idx in np.arange(len(fnf_string_list)):
 
-        fnf_path = os.path.join(fnf_catalogue, fnf_string_list[tile_idx], "FNF", fnf_string_list[tile_idx] + ".tiff")
+        fnf_path = os.path.join(fnf_catalogue, fnf_string_list[tile_idx], "FNF", fnf_string_list[tile_idx] + ".tiff",)
 
         fnf_aux_inf_file_path = os.path.join(
             fnf_catalogue, fnf_string_list[tile_idx], "AUXFILES", fnf_string_list[tile_idx] + "_INF.txt",
@@ -549,13 +720,13 @@ def tandemx_fnf_write(out_fnf_path, fnf_raster, lon_raster, lat_raster):
     lat_raster_max = np.max(lat_raster)
     lon_raster_max = np.max(lon_raster)
 
-    fnf_string_list, geotransform_list, tile_extent_lonlat_list = tandemx_search_fnf_tiles(
+    (fnf_string_list, geotransform_list, tile_extent_lonlat_list,) = tandemx_search_fnf_tiles(
         lon_raster_min, lon_raster_max, lat_raster_min, lat_raster_max
     )
 
     for tile_idx in np.arange(len(fnf_string_list)):
 
-        fnf_path = os.path.join(out_fnf_path, fnf_string_list[tile_idx], "FNF", fnf_string_list[tile_idx] + ".tiff")
+        fnf_path = os.path.join(out_fnf_path, fnf_string_list[tile_idx], "FNF", fnf_string_list[tile_idx] + ".tiff",)
         directory = os.path.dirname(fnf_path)
         if not os.path.exists(directory):
             os.makedirs(directory)
