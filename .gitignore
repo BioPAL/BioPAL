@@ -1,2 +1,8 @@
 .ipynb_checkpoints/
 __pycache__
+.nox
+dist
+build
+*.egg-info
+doc/build
+.vscode

@@ -1,0 +1,4 @@
+include noxfile.py
+global-exclude __pycache__
+global-exclude *.py[co]
+exclude doc/build

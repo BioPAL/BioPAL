@@ -224,6 +224,20 @@ Folowing run procedure works with any installation option (with a difference in 
 	
 	Read BioPAL [tutorial](https://www.biopal.org/docs/tutorials/biopal_first_tutorial/) for other examples to insert in the script
 
+
+##### How to generate a Wheel package for pypi
+1.  Verify not to have a ".nox" folder in BioPAL/.nox, otherwise delete it.
+
+2.  From command window, with biopal environment enabled, digit:
+    pip install nox                          (if not already installed in this environment)
+    nox -s build_wheel -fb conda             (generate the wheel package; -fb conda needed only if anacondaconda is used)
+	nox -s build_sdist -fb conda             (generate the sdist package, if needed)
+	
+	The build_wheel command will produce the wheel file "BioPAL\dist\biopal-0.1-py3-none-any.whl"
+	The build_sdist command will produce the sdist (Software distribution)  file "BioPAL\dist\biopal-0.1.tar.gz"
+    
+	For pypi packages info see also https://python-packaging-tutorial.readthedocs.io/en/latest/uploading_pypi.html
+
 # Call for Contributions
 
 BioPAL is an open source project supported by a community who appreciates help from a wide range of different backgrounds. Large or small, any contribution makes a big difference; and if you\'ve never contributed to an open source project before, we hope you will start with BioPAL!
