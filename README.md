@@ -29,6 +29,11 @@ This repository is organized as follows:
 
 -   **inputs**: contains the XML Input File, to be set by the user before running an instance of the processing.
 
+BioPAL is already used by some ESA sponsored project, however it is still an experimental code.
+This means that there might be still bugs. If you happen to find one, make us happy by filling an issue with all the details to reproduce it the best you can.
+
+You can follow the developement roadmap to version 1.0.0 [here](https://github.com/BioPAL/BioPAL/projects/2).
+
 # Getting Started
 
 Here the required environment and dependencies are listed, as well as installation options available for now.
