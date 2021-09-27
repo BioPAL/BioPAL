@@ -29,6 +29,11 @@ This repository is organized as follows:
 
 -   **inputs**: contains the XML Input File, to be set by the user before running an instance of the processing.
 
+BioPAL is already used by some ESA sponsored project, however it is still an experimental code.
+This means that there might be still bugs. If you happen to find one, make us happy by filling an issue with all the details to reproduce it the best you can.
+
+You can follow the developement roadmap to version 1.0.0 [here](https://github.com/BioPAL/BioPAL/projects/2).
+
 # Getting Started
 
 Here the required environment and dependencies are listed, as well as installation options available for now.
@@ -223,6 +228,20 @@ Folowing run procedure works with any installation option (with a difference in 
         python run_biopal_debug.py
 	
 	Read BioPAL [tutorial](https://www.biopal.org/docs/tutorials/biopal_first_tutorial/) for other examples to insert in the script
+
+
+##### How to generate a Wheel package for pypi
+1.  Verify not to have a ".nox" folder in BioPAL/.nox, otherwise delete it.
+
+2.  From command window, with biopal environment enabled, digit:
+    pip install nox                          (if not already installed in this environment)
+    nox -s build_wheel -fb conda             (generate the wheel package; -fb conda needed only if anacondaconda is used)
+	nox -s build_sdist -fb conda             (generate the sdist package, if needed)
+	
+	The build_wheel command will produce the wheel file "BioPAL\dist\biopal-0.1-py3-none-any.whl"
+	The build_sdist command will produce the sdist (Software distribution)  file "BioPAL\dist\biopal-0.1.tar.gz"
+    
+	For pypi packages info see also https://python-packaging-tutorial.readthedocs.io/en/latest/uploading_pypi.html
 
 # Call for Contributions
 
