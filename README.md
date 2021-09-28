@@ -290,7 +290,9 @@ Read carefully also contributor\'s guides before getting started.
 
 # Documentation
 
-For more details on processing configuration, refer to the initial release [user manual](doc/ARE-017082_BIOMASS_L2_User_Manual.pdf) version 1.1.
+Documentation is work in progress and can be found [here](https://github.com/BioPAL/BioPAL/tree/main/doc).
+
+The user manual of the previous prototype software can be found in [legacy](https://github.com/BioPAL/BioPAL/tree/main/doc/legacy/ARE-017082_BIOMASS_L2_User_Manual_[prototype_legacy].pdf).
 
 # History
 
