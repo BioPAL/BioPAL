@@ -82,12 +82,12 @@ Make a local clone:
 2. Clone the private fork locally by executing the clone command in a conda command window (or use the tortoisegit GUI):
 
         git clone --branch <branchname> <remote-repo-url>
-    where:
--- `<remote-repo-url>` is https://github.com/your_name_here/BioPAL.git (write your specific name)
--- `<branchname>` is the branch to be cloned: currently there is only a branch called `main`
-    so the clone command will be (write your specific name):
+
+   where:
+   - `<remote-repo-url>` is https://github.com/your_name_here/BioPAL.git (write your specific name)
+   - `<branchname>` is the branch to be cloned: currently there is only a branch called `main` so the clone command will be (write your specific name):
     
-        git clone --branch main https://github.com/your_name_here/BioPAL.git
+         git clone --branch main https://github.com/your_name_here/BioPAL.git
 
 
 In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
@@ -143,17 +143,17 @@ BioPAL gives easy access to several datasets that are used for examples in the d
 Than the procedure is different (developer, users), depending on the installation option used.
 
 ### Run the processor for users
-Folowing run procedure works if the "pip install" procedure has been executed (above installation options #1 and #2).
-3.  In a conda command window, type the following instruction, which activates the biopal environment:
+1.  In a conda command window, type the following instruction, which activates the biopal environment:
 
         conda activate biopal
 
-4.  In the same conda command window, from any folder, execute:
+2.  In the same conda command window, from any folder, execute:
 
         biopal --conf conffolder inputfilexml
+
     where:
--- `inputfilexml`: path of the BioPAL xml input file (i.e. `/inputs` )
--- `conffolder`:   path of the folder containing BioPAL xml configuration files (i.e. `biopal/conf/`)
+    - `inputfilexml`: path of the BioPAL xml input file (i.e. `/inputs` )
+    - `conffolder`:   path of the folder containing BioPAL xml configuration files (i.e. `biopal/conf/`)
 
     With following command, default configurations are used:
 
@@ -164,22 +164,23 @@ Folowing run procedure works if the "pip install" procedure has been executed (a
         biopal
 
 ### Run the processor for developers
-Folowing run procedure works with any installation option (with a difference in command window call for option #3)
 
-3.  In a conda command window, type the following instruction, which activates the biopal environment:
+1.  In a conda command window, type the following instruction, which activates the biopal environment:
 
         conda activate biopal
 
     Then there are the following two choices: comand window or IDE.
+
 ##### To run the processor from command window (developers only):
 
-4.  On the same conda command window execute:
+2.  On the same conda command window execute:
         
         biopal --conf conffolder inputfilexml (if installed with option #1 or #2; execute from any folder)
         python -m biopal --conf conffolder inputfilexml (if installed with option #3; execute from /BioPAL folder)
+
     where:
-    -- `inputfilexml`: path of the BioPAL xml input file (i.e. `/inputs` )
-    -- `conffolder`:   path of the folder containing BioPAL xml configuration files (i.e. `/biopal/conf/`)
+    - `inputfilexml`: path of the BioPAL xml input file (i.e. `/inputs` )
+    - `conffolder`:   path of the folder containing BioPAL xml configuration files (i.e. `/biopal/conf/`)
 
     With the following command, default configurations present in `biopal/conf/` are used:
 
@@ -193,12 +194,12 @@ Folowing run procedure works with any installation option (with a difference in 
 
 ##### To run the processor with a script for debug (developers only):
 
-4. Create a new *.py* file, with a text editor, with following content (where `yourPath/BioPAL` should be replaced with the folder where the BioPAL distribution has been git-cloned), and save it (i.e. `run_biopal_debug.py`):
+3. Create a new *.py* file, with a text editor, with following content (where `yourPath/BioPAL` should be replaced with the folder where the BioPAL distribution has been git-cloned), and save it (i.e. `run_biopal_debug.py`):
 
         from pathlib import Path
         import sys
         import os
-        biopal_path = Path( `yourPath/BioPAL' )
+        biopal_path = Path( 'yourPath/BioPAL' )
         sys.path.append( str(biopal_path) )
         os.chdir(biopal_path)
         from biopal.__main__ import biomassL2_processor_run
@@ -206,7 +207,7 @@ Folowing run procedure works with any installation option (with a difference in 
         conf_folder = biopal_path.joinpath( 'biopal','conf')
         biomassL2_processor_run(input_file_xml_path, conf_folder )
 
-5.  Execute the `run_biopal_debug.py` script within your preferred IDE options (i.e. run, debug, breakpoints enabled....).
+4.  Execute the `run_biopal_debug.py` script within your preferred IDE options (i.e. run, debug, breakpoints enabled....).
 	(The biopal environment should already be enabled inside the IDE)
 	
 	or from command window, with biopal environment enabled, digit:
@@ -220,8 +221,10 @@ Folowing run procedure works with any installation option (with a difference in 
 1.  Verify not to have a ".nox" folder in BioPAL/.nox, otherwise delete it.
 
 2.  From command window, with biopal environment enabled, digit:
+
     pip install nox                          (if not already installed in this environment)
     nox -s build_wheel -fb conda             (generate the wheel package; -fb conda needed only if anacondaconda is used)
+    
 	nox -s build_sdist -fb conda             (generate the sdist package, if needed)
 	
 	The build_wheel command will produce the wheel file "BioPAL\dist\biopal-0.1-py3-none-any.whl"
