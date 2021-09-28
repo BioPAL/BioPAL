@@ -49,13 +49,12 @@ Installation procedure described here makes use of the open-source package manag
 ##### Prerequisites
 
 - Conda should be already installed
-- Python 3.7.1 or above should be already installed
 - In case you are a developer
   - [git](https://git-scm.com/downloads) should be already installed
   - [tortoisegit](https://tortoisegit.org/), optional, a git GUI for Windows
   - Python IDE (i.e. [spyder](https://www.spyder-ide.org/) or [vs code](https://code.visualstudio.com/))
 
-##### Make a local clone (developers)
+##### Make a local clone (developers only)
 
 1. Fork the [repository](https://github.com/BioPAL/BioPAL) from the web interface.
 2. Clone the private fork locally by executing the clone command in a conda command window (or use the tortoisegit GUI):
@@ -68,11 +67,7 @@ Installation procedure described here makes use of the open-source package manag
     
         git clone --branch main https://github.com/your_name_here/BioPAL.git
 
-##### Make a local clone (users)
-
-1. If you are a user, download and unzip the current [BioPAL distribution](https://github.com/BioPAL/BioPAL) to your local hard drive.
-
-##### BioPAL installation option 1: "pip install -e" (developers)
+##### BioPAL installation option 1: "pip install -e" (developers only)
 When installed with pip, the processor can be run with a simple command, from any folder (this is the run for users) or manually with script (run for developers): see after in this guide.
 The code is editable, thanks to the "-e" option (so for users is suggested the installation option 2).
 
@@ -85,13 +80,15 @@ Before executing pip, install GDAL library with conda, by executing following co
         conda activate biopal
         conda install GDAL
 
-Now the "biopal" environment is ready for installation; first enter inside the /BioPAL folder, than install the package by executing following command (the "." after "-e" option means "current folder"):		
+Now the "biopal" environment is ready for installation; 
+first enter inside the /BioPAL folder, 
+than install the package by executing following command (the "." after "-e" option means "current folder"):		
 
 	pip install -e .
 
 ##### BioPAL installation option 2: "pip install" (users)
-The only difference respect to option 1 is that it is not editable: it can only be run.
-The procedure will be updated when biopal will be available on [pypi](`https://pypi.org/`)
+The difference respect to option 1 is that it is not editable: it can only be run.
+BioPAL will be automatically downoladed from [pypi](`https://pypi.org/`)
 When installed with pip, the processor can be run with a simple command, from any folder.
 
 In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
@@ -105,11 +102,10 @@ Before executing pip, install GDAL library with conda, by executing following co
 
 Now the "biopal" environment is ready for installation; install the package by executing following command:		
 
-        pip install BioPAL.zip
+        pip install biopal
+		
 	
-Where BioPAL.zip is the full path of the code package downloaded from github	
-	
-##### BioPAL installation option 3: manual by conda (developers alternative)
+##### BioPAL installation option 3: manual by conda (developers only, alternative)
 With this option biopal is not installed (digiting "pip list" will not find the package), however a runnable environment wil be created (perfectly fine for a developer); also note that the command window run is a bit different: see after in this guide. This is an anternative respect to installation option #1.
 This installation is simpler, GDAL is automatically installed in this case.
 
@@ -242,6 +238,7 @@ Folowing run procedure works with any installation option (with a difference in 
 	The build_sdist command will produce the sdist (Software distribution)  file "BioPAL\dist\biopal-0.1.tar.gz"
     
 	For pypi packages info see also https://python-packaging-tutorial.readthedocs.io/en/latest/uploading_pypi.html
+
 
 # Call for Contributions
 
