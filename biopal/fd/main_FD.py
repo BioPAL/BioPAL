@@ -50,7 +50,7 @@ from biopal.geocoding.geocoding import (
 from biopal.io.xml_io import (
     parse_input_file,
     parse_configuration_file,
-    write_input_file, 
+    write_input_file,
     core_processing_fd,
 )
 
@@ -137,10 +137,7 @@ class initializeAlgorithmFD(Task):
             conf_params_obj = parse_configuration_file(self.configuration_file)
         else:
             conf_params_obj = self.configuration_file
-        if (
-            conf_params_obj.processing_flags is None
-            or conf_params_obj.change_detection_fd is None
-        ):
+        if conf_params_obj.processing_flags is None or conf_params_obj.change_detection_fd is None:
             error_message = [
                 "Configuration file for  initializeAlgorithmFD APP should contain at least"
                 ' "processing_flags" and "change_detection_fd" sections'
@@ -156,7 +153,6 @@ class initializeAlgorithmFD(Task):
                 app_name="initializeAlgorithmFD",
             )
         logging.info("FD initialize algorithm APP starting\n")
-
 
         ### managing output folders:
         products_folder = os.path.join(input_params_obj.output_specification.output_folder, "Products")
@@ -194,21 +190,20 @@ class initializeAlgorithmFD(Task):
             )
         )
 
-
         # write the input file with the sections needed by the Core Processing FD APP:
         out_input_file_xml = os.path.join(
             os.path.dirname(input_params_obj.output_specification.output_folder), "Input_File_CoreProcessingFD.xml"
         )
         input_params_obj.core_processing_fd = fill_core_processing_fd_obj(cycles_composition)
         write_input_file(input_params_obj, out_input_file_xml)
-        
+
         ########################## INITIAL STEPS END #############################
 
         return out_input_file_xml
 
 
 class CoreProcessingFD(Task):
-    
+
     """
     Calls the "change detection" algorithm (which is implemented as a function) 
     once for each nominal geometry:
@@ -216,13 +211,13 @@ class CoreProcessingFD(Task):
         calls the change detection function that will cycle over all the global 
         cycles, computing the change detection for the current geometry
     """
-    
+
     def __init__(self, configuration_file):
 
         super().__init__(configuration_file)
 
     def _run(self, input_file):
-        
+
         # parse the input file and check for the needed sections in it:
         if isinstance(input_file, str):
             check_if_path_exists(input_file, "FILE")
@@ -270,22 +265,23 @@ class CoreProcessingFD(Task):
 
         ### initialize the equi7 sampling grid
         equi7_sampling = choose_equi7_sampling(
-            conf_params_obj.change_detection_fd.product_resolution, input_params_obj.output_specification.geographic_grid_sampling
+            conf_params_obj.change_detection_fd.product_resolution,
+            input_params_obj.output_specification.geographic_grid_sampling,
         )
         logging.info("EQUI7 Grid sampling used: {}".format(equi7_sampling))
-        
+
         ### get temporal date time of the input data (get the minimum date from all the stacks)
         time_tag_mjd_initial = get_min_time_stamp_repository(
             input_params_obj.dataset_query.L1C_repository, input_params_obj.stack_based_processing.stack_composition
         )
         # cycle over each nominal geometry stack (containing all its global cycles)
         final_forest_mask_data = {}  # one mask for each equi7 tile, it is updated at each stack-cycle
-        for nominal_geometry_stack_id, global_cycle_dict in input_params_obj.core_processing_fd.cycles_composition.items():
-            
-            (
-                final_forest_mask_data,  # this goes in input to next iteration
-                temp_output_folder,
-            ) = changeDetection(
+        for (
+            nominal_geometry_stack_id,
+            global_cycle_dict,
+        ) in input_params_obj.core_processing_fd.cycles_composition.items():
+
+            (final_forest_mask_data, temp_output_folder,) = changeDetection(  # this goes in input to next iteration
                 self.configuration_file,
                 final_forest_mask_data,
                 nominal_geometry_stack_id,
@@ -295,7 +291,7 @@ class CoreProcessingFD(Task):
                 input_params_obj,
                 conf_params_obj,
             )
-    
+
         # Ending the ForestDisturbance APP
         if conf_params_obj.processing_flags.delete_temporary_files:
             try:
@@ -305,22 +301,21 @@ class CoreProcessingFD(Task):
         logging.info("FD processor ended correctly.\n")
 
 
-
 def changeDetection(
-        configuration_file,
-        final_forest_mask_data,
-        nominal_geometry_stack_id,
-        global_cycle_dict,
-        time_tag_mjd_initial,
-        equi7_sampling,
-        input_params_obj,
-        conf_params_obj,
-        ):
-    
+    configuration_file,
+    final_forest_mask_data,
+    nominal_geometry_stack_id,
+    global_cycle_dict,
+    time_tag_mjd_initial,
+    equi7_sampling,
+    input_params_obj,
+    conf_params_obj,
+):
+
     """
     This is the core of the FD algorithm
     """
-    
+
     # get needed parameters from input and configuration files
     geographic_boundaries = input_params_obj.stack_based_processing.geographic_boundaries
 
@@ -356,9 +351,7 @@ def changeDetection(
     ######################### INITIALIZATIONS END #########################
 
     # cycle over all global cycles of current nominal geometry (current stack)
-    for time_step_idx, (global_cycle_idx, uniqie_acq_ids_all_cycles_list) in enumerate(
-        global_cycle_dict.items()
-    ):
+    for time_step_idx, (global_cycle_idx, uniqie_acq_ids_all_cycles_list) in enumerate(global_cycle_dict.items()):
 
         time_tag_mjd_curr = get_data_time_stamp(
             input_params_obj.dataset_query.L1C_repository, uniqie_acq_ids_all_cycles_list[0]
@@ -553,9 +546,7 @@ def changeDetection(
 
             elif conf_params_obj.processing_flags.DEM_flattening:
                 logging.info("FH: DEM flattening... ")
-                beta0_calibrated = apply_dem_flattening(
-                    beta0_calibrated, kz, reference_height, master_id, raster_info
-                )
+                beta0_calibrated = apply_dem_flattening(beta0_calibrated, kz, reference_height, master_id, raster_info)
                 logging.info("...done.\n")
 
         except Exception as e:
@@ -647,9 +638,7 @@ def changeDetection(
         try:
 
             # initialize the geocoding
-            min_spacing_m = min(
-                subs_F_a * raster_info.pixel_spacing_az, subs_F_r * raster_info.pixel_spacing_slant_rg
-            )
+            min_spacing_m = min(subs_F_a * raster_info.pixel_spacing_az, subs_F_r * raster_info.pixel_spacing_slant_rg)
             min_spacing_m = min(min_spacing_m, equi7_sampling)
 
             logging.info("Geocoding spacing set to {} [m]".format(min_spacing_m))
@@ -1010,7 +999,7 @@ def changeDetection(
             j_idx = 1
             disturbance_matrix = np.zeros((Nrg_equi7, Naz_equi7), dtype=np.bool)
             disturbance_prob_matrix = np.zeros((Nrg_equi7, Naz_equi7), dtype=np.bool)
-
+            disturbance_pixel_validity = np.isnan(np.sum(X_i_6x_vec, 0))
             Nrg_equi7_str = str(Nrg_equi7)
             for rg_idx in np.arange(Nrg_equi7):
 
@@ -1019,7 +1008,7 @@ def changeDetection(
 
                 for az_idx in np.arange(Naz_equi7):
 
-                    if np.any(np.isnan(X_i_6x_vec[:, rg_idx, az_idx])):
+                    if disturbance_pixel_validity[rg_idx, az_idx]:
                         continue
 
                     X_i = covariance_matrix_vec2mat(X_i_6x_vec[:, rg_idx, az_idx])  # X_i is 3x3
@@ -1130,9 +1119,9 @@ def changeDetection(
             )
         )
 
-        equi7_initial_fnf_mask_fname_curr = [
-            name for name in equi7_initial_fnf_mask_fnames if equi7_tile_name in name
-        ][0]
+        equi7_initial_fnf_mask_fname_curr = [name for name in equi7_initial_fnf_mask_fnames if equi7_tile_name in name][
+            0
+        ]
         data_driver = gdal.Open(equi7_initial_fnf_mask_fname_curr, GA_ReadOnly)
         initial_forest_mask_curr = data_driver.GetRasterBand(1).ReadAsArray()
         geotransform_out = data_driver.GetGeoTransform()
@@ -1169,7 +1158,7 @@ def changeDetection(
     return final_forest_mask_data, temp_output_folder
 
 
-def fill_core_processing_fd_obj( cycles_composition ):
+def fill_core_processing_fd_obj(cycles_composition):
 
     """
     Internal function called by the StackBasedProcessingAGB APP:
