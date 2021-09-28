@@ -54,8 +54,30 @@ Installation procedure described here makes use of the open-source package manag
   - [tortoisegit](https://tortoisegit.org/), optional, a git GUI for Windows
   - Python IDE (i.e. [spyder](https://www.spyder-ide.org/) or [vs code](https://code.visualstudio.com/))
 
-##### Make a local clone (developers only)
 
+##### BioPAL installation default option: "pip install" (users)
+User default installation method.
+BioPAL will be automatically downoladed from [pypi](`https://pypi.org/`)
+
+In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
+	
+        conda create --name biopal python==3.7.1
+		
+Before executing pip, install GDAL library with conda, by executing following commands in a conda command window (first activate the created environment, than install GDAL inside):
+
+        conda activate biopal
+        conda install GDAL
+
+Now the "biopal" environment is ready for installation; install the package by executing following command:		
+
+        pip install biopal
+
+
+##### BioPAL installation for developers only: "pip install -e"
+
+The code is editable, thanks to the "-e" option (so for users is suggested the default installation option).
+
+Make a local clone:
 1. Fork the [repository](https://github.com/BioPAL/BioPAL) from the web interface.
 2. Clone the private fork locally by executing the clone command in a conda command window (or use the tortoisegit GUI):
 
@@ -67,9 +89,6 @@ Installation procedure described here makes use of the open-source package manag
     
         git clone --branch main https://github.com/your_name_here/BioPAL.git
 
-##### BioPAL installation option 1: "pip install -e" (developers only)
-When installed with pip, the processor can be run with a simple command, from any folder (this is the run for users) or manually with script (run for developers): see after in this guide.
-The code is editable, thanks to the "-e" option (so for users is suggested the installation option 2).
 
 In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
 	
@@ -85,35 +104,6 @@ first enter inside the /BioPAL folder,
 than install the package by executing following command (the "." after "-e" option means "current folder"):		
 
 	pip install -e .
-
-##### BioPAL installation option 2: "pip install" (users)
-The difference respect to option 1 is that it is not editable: it can only be run.
-BioPAL will be automatically downoladed from [pypi](`https://pypi.org/`)
-When installed with pip, the processor can be run with a simple command, from any folder.
-
-In a conda command window, type the following instruction, which creates an empty biopal environment with no packages but with the correct python version installed (you can customize the environment name, modifying the "biopal" string)
-	
-        conda create --name biopal python==3.7.1
-		
-Before executing pip, install GDAL library with conda, by executing following commands in a conda command window (first activate the created environment, than install GDAL inside):
-
-        conda activate biopal
-        conda install GDAL
-
-Now the "biopal" environment is ready for installation; install the package by executing following command:		
-
-        pip install biopal
-		
-	
-##### BioPAL installation option 3: manual by conda (developers only, alternative)
-With this option biopal is not installed (digiting "pip list" will not find the package), however a runnable environment wil be created (perfectly fine for a developer); also note that the command window run is a bit different: see after in this guide. This is an anternative respect to installation option #1.
-This installation is simpler, GDAL is automatically installed in this case.
-
-In a conda command window, type the following instruction, which creates a ready biopal environment containing all the needed packages and the correct python version installed. (Execute from inside the /BioPAL folder, or set complete path of `environment.yml`, which is present into the BioPAL distribution ):
-	
-        conda env create --file environment.yml
-
-The created environment name will be "biopal": to customize this, edit the environment.yml "name:" section, before the above command
 
 
 ## Setup Configuration
