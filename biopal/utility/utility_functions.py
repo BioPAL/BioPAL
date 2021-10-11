@@ -67,15 +67,14 @@ def start_logging(output_folder, L2_product, log_level, app_name=None):
         log_file_name = os.path.join(output_folder, app_name + "_APP.log")
 
     if os.path.exists(log_file_name):
-        raise RuntimeError( 'output folder {} is not empty.'.format(output_folder))
-       
+        raise RuntimeError("output folder {} is not empty.".format(output_folder))
+
     logging.basicConfig(
         handlers=[logging.FileHandler(log_file_name, mode="w", encoding="utf-8"), logging.StreamHandler(),],
         level=level_to_set,
         format="%(asctime)s - %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    
 
     logging.getLogger("matplotlib.font_manager").disabled = True
 
@@ -172,7 +171,14 @@ def decode_unique_acquisition_id_string(unique_acquisition_id_string, output_for
             'Input output_format = "{}"  not valid, it should be "numeric" or "string"'.format(output_format)
         )
 
-    return global_cycle_idx, heading_deg, rg_swath_idx, rg_sub_swath_idx, az_swath_idx, baseline_idx
+    return (
+        global_cycle_idx,
+        heading_deg,
+        rg_swath_idx,
+        rg_sub_swath_idx,
+        az_swath_idx,
+        baseline_idx,
+    )
 
 
 def check_if_path_exists(path, file_folder_str):
@@ -321,7 +327,9 @@ def convert_rasterinfo_seconds_to_meters(ri_seconds, sensor_velocity):
     samples_step_m = ri_meters.samples_step * LIGHTSPEED / 2
     samples_step_unit = "m"
 
-    ri_meters.set_lines_axis(ri_seconds.lines_start, ri_seconds.lines_start_unit, lines_step_m, lines_step_unit)
+    ri_meters.set_lines_axis(
+        ri_seconds.lines_start, ri_seconds.lines_start_unit, lines_step_m, lines_step_unit,
+    )
     ri_meters.set_samples_axis(samples_start_m, samples_start_unit, samples_step_m, samples_step_unit)
 
     return ri_meters
@@ -525,19 +533,19 @@ def get_foss_cal_names(reference_agb_folder):
 
 def collect_stacks_to_be_merged(stack_composition):
     """
-    The stack_composition contains the IDs of all the stacks and 
+    The stack_composition contains the IDs of all the stacks and
     for each of the stacks contains all the acquisition IDs.
-    
+
     This function collects togeter all the stacks which have all in common except the heading:
-    the resulting stacks_to_merge_dict is a dictionary containing 
-        as keys,   all the unique_merged_stack_id (stack IDs with missing headings) 
+    the resulting stacks_to_merge_dict is a dictionary containing
+        as keys,   all the unique_merged_stack_id (stack IDs with missing headings)
         as values, the list of the stack_ids to be merged (same stacks, all headings)
 
     """
     stacks_to_merge_dict = {}
     for unique_stack_id in stack_composition.keys():
-        
-        #1) read the acquisition ID of first acquisition in the current stack
+
+        # 1) read the acquisition ID of first acquisition in the current stack
         (
             global_cycle_idx,
             heading_deg,
@@ -558,3 +566,4 @@ def collect_stacks_to_be_merged(stack_composition):
             stacks_to_merge_dict[unique_merged_stack_id] = [unique_stack_id]
 
     return stacks_to_merge_dict
+
