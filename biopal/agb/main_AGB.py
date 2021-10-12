@@ -76,28 +76,49 @@ class InvalidInputError(ValueError):
 
 
 class AboveGroundBiomass(Task):
-    """
-    AGB main APP "AboveGroundBiomass" (see BioPAL README.md to launch) is composed by 
-    two sub APPS automatically called in sequence  when standard launch is performed:
-    AboveGroundBiomass -> StackBasedProcessingAGB -> CoreProcessingAGB
-   
-    Details
+    """AGB main APP Above Ground Biomass
+    
+    run this APP to execute the complete Above Ground Biomass (AGB) processing chain.
+    
+    AboveGroundBiomass is composed by two sub APPS automatically called in sequence  
+    when standard launch is performed:
+    StackBasedProcessingAGB -> CoreProcessingAGB
+
+    Refer to dataset_query, StackBasedProcessingAGB and CoreProcessingAGB documentation 
+    and Tutorial section for step by step run.
+
+    Attributes
     ----------
-    AGB chain algorithm can be customized with manual call of the two two sub-APPS:
-    (see each sub APP documentaton for details)
-    
-        "StackBasedProcessingAGB" APP
-            stack-based operations to prepare inputs for the CoreProcessingAGB;
-            can be launched once to prepare inputs for multiple CoreProcessingAGB executions
-    
-        "CoreProcessingAGB" APP
-            core algirithm of the AGB processor; 
-            it needs inputs from "StackBasedProcessingAGB" sub APP or, in general, 
-            from a previous execution of "AboveGroundBiomass" main APP.
-            By default the "CoreProcessingAGB" APP is executed with default configuration file:
-            "BioPAL\biopal\conf\ConfigurationFile_CoreProcessingAGB_Default.xml"
-            In order to customize the processor (for example with a new formula) 
-            the "CoreProcessingAGB" APP should be called manually.  
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the AboveGroundBiomass processing
+    name : str
+        name of the APP
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query: it's the APP to be called before this APP
+    StackBasedProcessingAGB : it's the first of the two sub-APPs called by AboveGroundBiomass preocessor
+    CoreProcessingAGB : it's  the second of the two sub-APPs called by AboveGroundBiomass processor
+
+    Examples
+    --------
+    Manual AGB chain execution
+
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.agb.main_AGB import AboveGroundBiomass
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+    >>> chain_obj = AboveGroundBiomass( configuration_file )
+    >>> chain_obj.run( input_file_up )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up: same of input_file with also the "stack_based_processing" section
+    - configuration_file: path of the BioPAL configuration file
     """
 
     def __init__(
@@ -121,40 +142,50 @@ class AboveGroundBiomass(Task):
 
 
 class StackBasedProcessingAGB(Task):
-    """
-    "StackBasedProcessingAGB" APP performs stack-based operations to prepare 
-    inputs for the "CoreProcessingAGB" APP. It is automatically called from 
-    "AboveGroundBiomass" APP in the default cal (see BioPAL README.md), or can be 
-    manually launched (stand alone) following this documentation.
+    """StackBasedProcessingAGB APP 
+    
+    StackBasedProcessingAGB APP is the first of the two sub-APPs called by AboveGroundBiomass processor.
 
-    Stand alone "StackBasedProcessingAGB" APP launch.
-        The app needs an input file (see BioPAL\inputs\Input_File.xml) containing
-        "L2_product", "output_specification","dataset_query" and "stack_based_processing" sections':
-        The stack_based_processing section is filled by "dataset_query" APP
+    It performs stack-based operations to prepare inputs for the "CoreProcessingAGB" APP. 
+    It is automatically called in the default run (see Getting Started  and Tutorial documentation section),
+    or can be manually launched (stand alone) following this sequence:
+    dataset_query -> StackBasedProcessingAGB -> CoreProcessingAGB
 
-        Prepare a python script with following code:
-          
-        # dataset_query APP call if needed:
-        >>>from biopal.dataset_query.dataset_query import dataset_query
-        >>>dataset_query_obj = dataset_query(),
-        >>>input_file_with_stack_base_proc = dataset_query_obj.run( input_file )
-        
-        # StackBasedProcessingAGB APP call with the needed input sections filled:
-        >>>from biopal.agb.main_AGB import StackBasedProcessingAGB
-        >>>stack_based_processing_obj = StackBasedProcessingAGB(ConfigurationFile),
-        >>>stack_based_processing_obj.run( input_file_with_stack_base_proc )
-        
-        Where:
-        ----------
-        ConfigurationFile : path of the "BioPAL\biopal\conf\ConfigurationFile.xml"
-        input_file: path of the BioPAl input file, containing 
-                    "L2_product", "output_specification", and "dataset_query" and 
-                    "stack_based_processing" sections' (see BioPAL\inputs\Input_File.xml)    
-        
-        input_file_with_stack_base_proc: path of the BioPAl input file, containing 
-                                         "L2_product", "output_specification", "dataset_query" and 
-                                         "stack_based_processing" sections'.
-             
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the StackBasedProcessingAGB APP
+    name : str
+        name of the APP
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query : it's the first APP to be called in the manual sequence
+    CoreProcessingAGB : it's the core APP that follows this APP in the call sequence
+
+    Examples
+    --------
+    Manual AGB chain execution
+
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.AGB.main_AGB import StackBasedProcessingAGB, CoreProcessingAGB
+    >>> dq_obj = dataset_query()
+    >>> input_file_up1 = dq_obj.run( input_file )
+    >>> sbp_obj = StackBasedProcessingAGB( config_file )
+    >>> input_file_up2, config_file_up = sbp_obj.run( input_file_up1 )
+    >>> agbp_obj = CoreProcessingAGB( config_file_up )
+    >>> agbp_obj.run( input_file_up2 )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_agb" section
+    - config_file: path of the BioPAL configuration file
+    - config_file_up: same of config_file, with paths updated      
     """
 
     def __init__(self, configuration_file):
@@ -1073,52 +1104,61 @@ class StackBasedProcessingAGB(Task):
 
 
 class CoreProcessingAGB(Task):
-    """
-    "CoreProcessingAGB" APP computes the AGB product starting from stack inputs generated by 
-    "StackBasedProcessingAGB" APP. It is automatically called from 
-    "AboveGroundBiomass" APP in the default cal (see BioPAL README.md), or can be 
-    manually launched (stand alone) following this documentation.
+    """CoreProcessingAGB APP
+
+    CoreProcessingAGB is the second of the two sub-APPs called by AboveGroundBiomass processor.
+
+    It computes the AGB product starting from stack inputs generated by "StackBasedProcessingAGB" APP.
+    It is automatically called in the default run (see Getting Started  and Tutorial documentation sections),
+    or can be manually launched (stand alone) following sequence:
+    dataset_query -> StackBasedProcessingAGB -> CoreProcessingAGB
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+        
+    Methods
+    -------
+    run( input_file_path )
+        run the CoreProcessingAGB APP
+    name : str
+        name of the APP
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query : it's the first APP to be called in the manual sequence
+    StackBasedProcessingAGB : it's the APP which prepares the input for this APP
+
+    Notes
+    -----
+    Stand alone "CoreProcessingAGB" APP launch. 
+    It is possible to launch many istances of "CoreProcessingAGB" APP without need to re launch all the processor.
     
-    Stand alone "CoreProcessingAGB" APP launch.
-        
-        Once the "StackBasedProcessingAGB" outputs are ready, it is possible to launch 
-        many istances of "CoreProcessingAGB" APP without need to re launch all the processor.
-        
-        The app needs an input file (see BioPAL\inputs\Input_File.xml) containing
-        "L2_product", "output_specification", "dataset_query" and "core_processing_agb" sections'
-        The core_processing_agb section is filled by "StackBasedProcessingAGB" APP
-        It also need an updated configuration file (see BioPAL\biopal\conf\Configuration_File.xml), 
-        where the section "core_processing_agb" is updated with object paths
-        
-        Prepare a python script with following code:
-        
-        # dataset_query APP call if needed:
-        >>>from biopal.dataset_query.dataset_query import dataset_query
-        >>>dataset_query_obj = dataset_query(),
-        >>>input_file_with_stack_base_proc = dataset_query_obj.run( input_file )
-        
-        # StackBasedProcessingAGB APP call if needed:
-        >>>from biopal.agb.main_AGB import StackBasedProcessingAGB
-        >>>stack_based_processing_obj = StackBasedProcessingAGB(ConfigurationFile),
-        >>>input_file_with_core_processing_agb, ConfigurationFile_updated = stack_based_processing_obj.run( input_file_with_stack_base_proc )
-        
-        >>>from biopal.agb.main_AGB import CoreProcessingAGB
-        >>>agb_processing_obj = CoreProcessingAGB(ConfigurationFile_updated)
-        >>>agb_processing_obj.run(input_file_with_core_processing_agb)
-        
-        Where:
-        ----------
-        ConfigurationFile : path of the "BioPAL\biopal\conf\ConfigurationFile.xml"
-        ConfigurationFile_updated: the section "core_processing_agb" has been updated with full paths, from StackBasedProcessingAGB APP
-        input_file: path of the BioPAl input file, containing 
-                    "L2_product", "output_specification", and "dataset_query" and 
-                    "stack_based_processing" sections' (see BioPAL\inputs\Input_File.xml) 
-        input_file_with_stack_base_proc: path of the BioPAl input file, containing 
-                                         "L2_product", "output_specification", "dataset_query" and 
-                                         "stack_based_processing" sections'.
-        input_file_with_core_processing_agb: path of the BioPAl input file, containing 
-                                         "L2_product", "output_specification", "dataset_query" and 
-                                         "input_file_with_core_processing_agb" sections'.                            
+    The app needs a configuration file updated with object paths (updated during "StackBasedProcessingAGB" APP run)
+    and can be customized to run different core processings with same stack based pre processing from StackBasedProcessingAGB.
+
+    Examples
+    --------
+    Manual AGB chain execution
+
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.AGB.main_AGB import StackBasedProcessingAGB, CoreProcessingAGB
+    >>> dq_obj = dataset_query()
+    >>> input_file_up1 = dq_obj.run( input_file )
+    >>> sbp_obj = StackBasedProcessingAGB( config_file )
+    >>> input_file_up2, config_file_up = sbp_obj.run( input_file_up1 )
+
+    At this point, the CoreProcessingAGB can be launched with different configuration parameters, modifying config_file_up
+
+    >>> agbp_obj = CoreProcessingAGB( config_file_up )
+    >>> agbp_obj.run( input_file_up2 )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_agb" section
+    - config_file: path of the BioPAL configuration file 
+    - config_file_up: same of config_file, with paths updated
     """
 
     def __init__(self, configuration_file):
@@ -1976,11 +2016,11 @@ class CoreProcessingAGB(Task):
                                 parameter_name, current_merged_file_path
                             )
                         )
-                        
-            end_message = ("AGB core-processing APP ended correctly.\n")
+
+            end_message = "AGB core-processing APP ended correctly.\n"
             logging.info(end_message)
             print(end_message)
-            
+
         except Exception as e:
             logging.error(
                 "AGB: core-processing APP error during creation of wall-to-wall maps." + str(e), exc_info=True,

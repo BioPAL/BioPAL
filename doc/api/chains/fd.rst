@@ -7,5 +7,5 @@ Forest Disturbance
     :toctree: reference
 
     ForestDisturbance
-    initializeAlgorithmFD
+    InitializeAlgorithmFD
     CoreProcessingFD

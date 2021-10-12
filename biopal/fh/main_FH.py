@@ -55,13 +55,51 @@ from biopal.geometry.utility_geometry import compute_and_oversample_geometry_aux
 
 
 class ForestHeight(Task):
-    """
-    FH main APP "ForestHeight" (see BioPAL README.md to launch) is composed by 
-    two sub APPS: 
+    """FH main APP ForestHeight"
+    
+    run this APP to execute the complete Forest Height estimation processing chain.
+
+    ForestHeight is composed by two sub APPS automatically called in sequence  
+    when standard launch is performed:
+    StackBasedProcessingFH -> CoreProcessingFH
    
+    Refer to dataset_query, StackBasedProcessingFH and CoreProcessingFH documentation for step by step run.
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+        
+    Methods
+    -------
+    run( input_file_path )
+        run the ForestHeight processing
+    name : str
+        name of the APP
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query: it's the APP to be called before this APP
+    StackBasedProcessingFH : it's the first of the two sub-APPs called by ForestHeight preocessor
+    CoreProcessingFH : it's  the second of the two sub-APPs called by ForestHeight processor
+    
+    Examples
+    --------
+    Manual FH chain execution
+
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.fh.main_FH import ForestHeight
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+    >>> chain_obj = ForestHeight( configuration_file )
+    >>> chain_obj.run( input_file_up )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up: same of input_file with also the "stack_based_processing" section
+    - configuration_file: path of the BioPAL configuration file
     """
 
-    def __init__( self, configuration_file ):
+    def __init__(self, configuration_file):
         super().__init__(configuration_file)
 
     def _run(self, input_file):
@@ -73,13 +111,55 @@ class ForestHeight(Task):
         input_file_updated = stack_based_processing_obj.run(input_file)
 
         # Main APP #2: Core Processing
-        fh_processing_obj = CoreProcessingFH( self.configuration_file )
-        
+        fh_processing_obj = CoreProcessingFH(self.configuration_file)
+
         # Run Main APP #2: AGB Core Processing
         fh_processing_obj.run(input_file_updated)
-        
+
 
 class StackBasedProcessingFH(Task):
+    """StackBasedProcessingFH APP 
+    
+    StackBasedProcessingFH APP is the first of the two sub-APPs called by ForestHeight processor.
+    
+    It performs the stack-based forest height estimation.
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+        
+    Methods
+    -------
+    run( input_file_path )
+        run the StackBasedProcessingFH APP
+    name : str
+        name of the APP        
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query : it's the first APP to be called in the manual sequence
+    CoreProcessingFH : it's the core APP that follows this APP in the call sequence
+
+    Examples
+    --------
+    Manual FH chain execution
+        
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.fh.main_FH import StackBasedProcessingFH
+    >>> dq_obj = dataset_query()
+    >>> input_file_up1 = dq_obj.run( input_file )
+    >>> sbp_obj = StackBasedProcessingFH( config_file )
+    >>> input_file_up2 = sbp_obj.run( input_file_up1 )
+    >>> fhcp_obj = CoreProcessingFH( config_file )
+    >>> fhcp_obj.run( input_file_up2 )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_fh" section
+    - config_file: path of the BioPAL configuration file
+    """
+
     def __init__(self, configuration_file):
         super().__init__(configuration_file)
 
@@ -110,7 +190,8 @@ class StackBasedProcessingFH(Task):
 
         ### initialize the equi7 sampling grid
         equi7_sampling = choose_equi7_sampling(
-            conf_params_obj.estimate_fh.product_resolution, input_params_obj.output_specification.geographic_grid_sampling
+            conf_params_obj.estimate_fh.product_resolution,
+            input_params_obj.output_specification.geographic_grid_sampling,
         )
         e7g = Equi7Grid(equi7_sampling)
         logging.info("EQUI7 Grid sampling used: {}".format(equi7_sampling))
@@ -378,7 +459,8 @@ class StackBasedProcessingFH(Task):
             # a third map which is the forest non forest mask
             delta_kz = np.maximum.reduce(kz_list_temp) - np.minimum.reduce(kz_list_temp)
             condition_curr = np.logical_and(
-                delta_kz > conf_params_obj.estimate_fh.kz_thresholds[0], delta_kz < conf_params_obj.estimate_fh.kz_thresholds[1]
+                delta_kz > conf_params_obj.estimate_fh.kz_thresholds[0],
+                delta_kz < conf_params_obj.estimate_fh.kz_thresholds[1],
             )
             kz_mask = np.where(condition_curr, True, False)
             kz_mask[kz_nan_mask] = False
@@ -613,7 +695,8 @@ class StackBasedProcessingFH(Task):
             try:
 
                 equi7_sampling = choose_equi7_sampling(
-                    conf_params_obj.estimate_fh.product_resolution, input_params_obj.output_specification.geographic_grid_sampling
+                    conf_params_obj.estimate_fh.product_resolution,
+                    input_params_obj.output_specification.geographic_grid_sampling,
                 )
                 e7g = Equi7Grid(equi7_sampling)
                 logging.info("    EQUI7 Grid sampling used: {}".format(equi7_sampling))
@@ -662,7 +745,9 @@ class StackBasedProcessingFH(Task):
                 ### prepare the forest non forest mask
                 # it is loaded if equi7, or converted to equi7 if TANDEM-X
                 # it is a list containing all the loaded FNF-FTILES
-                fnf_format = check_fnf_folder_format(input_params_obj.stack_based_processing.forest_mask_catalogue_folder)
+                fnf_format = check_fnf_folder_format(
+                    input_params_obj.stack_based_processing.forest_mask_catalogue_folder
+                )
                 if fnf_format == "TANDEM-X":
                     logging.info("Initial Forest mask is in TANDEM-X format, converting to equi7...")
 
@@ -699,7 +784,6 @@ class StackBasedProcessingFH(Task):
 
             logging.info("...done.\n")
 
-
         # write the input file with the sections needed by the Core Processing FH APP:
         out_input_file_xml = os.path.join(
             os.path.dirname(input_params_obj.output_specification.output_folder), "Input_File_CoreProcessingFH.xml"
@@ -708,13 +792,56 @@ class StackBasedProcessingFH(Task):
             input_params_obj, data_equi7_fnames, mask_equi7_fnames,
         )
         write_input_file(input_params_obj, out_input_file_xml)
-        
+
         ######################## STACK BASED STEPS END. ###########################
         return out_input_file_xml
-    
+
 
 class CoreProcessingFH(Task):
-    def __init__( self, configuration_file ):
+    """CoreProcessingFH APP 
+    
+    CoreProcessingFH APP is the second of the two sub-APPs called by AboveGroundBiomass processor.
+
+    It performs merging ascending with descending processed stacks and
+    mosaiking together differtent processed tiles of the output grid
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+        
+    Methods
+    -------
+    run( input_file_path )
+        run the CoreProcessingFH APP
+    name : str
+        name of the APP
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query : it's the first APP to be called in the manual sequence
+    StackBasedProcessingFH : it’s the APP which prepares the input for this APP
+
+    Examples
+    --------
+    Manual FH chain execution
+        
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.fh.main_FH import StackBasedProcessingFH
+    >>> dq_obj = dataset_query()
+    >>> input_file_up1 = dq_obj.run( input_file )
+    >>> sbp_obj = StackBasedProcessingFH( config_file )
+    >>> input_file_up2 = sbp_obj.run( input_file_up1 )
+    >>> fhp_obj = CoreProcessingFH( config_file )
+    >>> fhp_obj.run( input_file_up2 )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_fh" section
+    - config_file: path of the BioPAL configuration file
+    """
+
+    def __init__(self, configuration_file):
 
         super().__init__(configuration_file)
 
@@ -731,18 +858,17 @@ class CoreProcessingFH(Task):
         temp_output_folder = os.path.join(products_folder, "temp")
 
         ######################## NOT STACK BASED STEPS ############################
-        
-        stacks_to_merge_dict = collect_stacks_to_be_merged(
-           input_params_obj.stack_based_processing.stack_composition)
-        
+
+        stacks_to_merge_dict = collect_stacks_to_be_merged(input_params_obj.stack_based_processing.stack_composition)
+
         try:
 
             logging.info("FH: merging ascending with descending stacks....\n")
 
             merged_data_fnames, merging_folder = heigths_masking_and_merging(
-                input_params_obj.core_processing_fh.data_equi7_fnames, 
-                input_params_obj.core_processing_fh.mask_equi7_fnames, 
-                stacks_to_merge_dict
+                input_params_obj.core_processing_fh.data_equi7_fnames,
+                input_params_obj.core_processing_fh.mask_equi7_fnames,
+                stacks_to_merge_dict,
             )
 
             logging.info("...done.\n")
@@ -772,8 +898,8 @@ class CoreProcessingFH(Task):
                 pass
 
         logging.info("FH: Forest Height estimation ended correctly.\n")
-        
-        
+
+
 def fill_core_processing_fh_obj(input_params_obj, data_equi7_fnames, mask_equi7_fnames):
 
     """
