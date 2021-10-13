@@ -26,6 +26,7 @@ import os
 import pkg_resources
 import logging
 import importlib
+from biopal import __version__
 from shutil import copyfile
 from biopal.utility.utility_functions import (
     start_logging,
@@ -141,7 +142,7 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
 def main():
     from docopt import docopt
 
-    args = docopt(__doc__, version="0.0.1")
+    args = docopt(__doc__, version=__version__)
 
     # Input file:
     input_file_processor_xml = args["INPUTFILEXML"]
