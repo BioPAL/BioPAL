@@ -16,20 +16,23 @@ Details:
     processor can execute a single chain for each run;
     possible chains are AGB, FH, FD, TOMO_FH;
     the chain is set from INPUTFILEXML -> L2_product section
+
+    If CONFFOLDER is not specified, default configurations are used
+    
+    Input and configuration can be generated with "biopal-quickstart"
 """
 
 import os
 import pkg_resources
 import logging
 import importlib
+from biopal import __version__
 from shutil import copyfile
 from biopal.utility.utility_functions import (
     start_logging,
     check_if_path_exists,
     set_gdal_paths,
     format_folder_name,
-    decode_unique_acquisition_id_string,
-    collect_stacks_to_be_merged,
 )
 from biopal.io.xml_io import parse_input_file, parse_configuration_file
 from biopal.dataset_query.dataset_query import dataset_query
@@ -52,7 +55,7 @@ class InvalidInputError(ValueError):
 def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
 
     if conf_folder is None:
-        configuration_file = pkg_resources.resource_filename("biopal", "conf", "Configuration_File.xml")
+        configuration_file = pkg_resources.resource_filename("biopal", "_package_data/conf/Configuration_File.xml")
     else:
         default_configuration_folder = conf_folder
         check_if_path_exists(default_configuration_folder, "FOLDER")
@@ -87,7 +90,7 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
     # start the main logging
     log_file_name = start_logging(output_folder, input_params_obj.L2_product, "DEBUG")
 
-    logging.debug("Configuration   folder is {}".format(conf_folder))
+    logging.debug("Configuration file is {}".format(configuration_file))
     logging.info("Auxiliary data folder is {}".format(input_params_obj.dataset_query.L1C_aux_repository))
     logging.info("Results will be saved into output folder {}".format(output_folder))
 
@@ -139,7 +142,7 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
 def main():
     from docopt import docopt
 
-    args = docopt(__doc__, version="0.0.1")
+    args = docopt(__doc__, version=__version__)
 
     # Input file:
     input_file_processor_xml = args["INPUTFILEXML"]
