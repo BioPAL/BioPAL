@@ -50,31 +50,52 @@ from biopal.tomo.processing_TOMO import BiomassForestHeightSKPD
 
 
 class TomoForestHeight(Task):
+    """TOMO FH main APP TomoForestHeight
+
+    run this APP to execute the complete Tomographic Forest Height estimation processing chain.
     
-    """
-    TOMO FH main APP "TomoForestHeight" (see BioPAL README.md to launch) is composed by 
-    two sub APPS automatically called in sequence  when standard launch is performed:
-    TomoForestHeight -> StackBasedProcessingTOMOFH -> CoreProcessingTOMOFH
+    TomoForestHeight is composed by two sub APPS automatically called in sequence  when standard launch is performed:
+    StackBasedProcessingTOMOFH -> CoreProcessingTOMOFH
    
-    Details
+    Refer to dataset_query, StackBasedProcessingTOMOFH and CoreProcessingTOMOFH documentation for step by step run.
+
+    Attributes
     ----------
-    TOMO FH chain algorithm can be customized with manual call of the two two sub-APPS:
-    (see each sub APP documentaton for details)
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the TomoForestHeight processing
+    name : str
+        name of the APP
+        
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query: it's the APP to be called before this APP
+    StackBasedProcessingTOMOFH : it's the first of the two sub-APPs called by TomoForestHeight preocessor
+    CoreProcessingTOMOFH : it's  the second of the two sub-APPs called by TomoForestHeight processor
+
+    Examples
+    --------
+    Manual TOMO FH chain execution
     
-        "StackBasedProcessingTOMOFH" APP
-            stack-based operations to prepare inputs for the CoreProcessingTOMOFH;
-            can be launched once to prepare inputs for multiple CoreProcessingTOMOFH executions
-    
-        "CoreProcessingTOMOFH" APP
-            core algirithm of the TOMO FH processor; 
-            it needs inputs from "StackBasedProcessingTOMOFH" sub APP or, in general, 
-            from a previous execution of "TomoForestHeight" main APP.
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+    >>> chain_obj = TomoForestHeight( configuration_file )
+    >>> chain_obj.run( input_file_up )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up: same of input_file with also the "stack_based_processing" section
+    - configuration_file: path of the BioPAL configuration file
     """
-    
-    def __init__( self, configuration_file ):     
-        
+
+    def __init__(self, configuration_file):
+
         super().__init__(configuration_file)
-        
 
     def _run(self, input_file):
 
@@ -83,16 +104,57 @@ class TomoForestHeight(Task):
 
         # Run Main APP #1: Stack Based Processing
         input_file_updated = stack_based_processing_obj.run(input_file)
-        
+
         # Main APP #2: Core Processing
-        tomo_fh_processing_obj = CoreProcessingTOMOFH( self.configuration_file )
-        
+        tomo_fh_processing_obj = CoreProcessingTOMOFH(self.configuration_file)
+
         # Run Main APP #2: AGB Core Processing
         tomo_fh_processing_obj.run(input_file_updated)
 
 
 class StackBasedProcessingTOMOFH(Task):
+    """StackBasedProcessingTOMOFH APP 
     
+    StackBasedProcessingTOMOFH APP is the first of the two sub-APPs called by TomoForestHeight processor.
+    
+    It performs the stack-based tomographic forest height estimation.
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+        
+    Methods
+    -------
+    run( input_file_path )
+        run the StackBasedProcessingFH APP
+    name : str
+        name of the APP
+        
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query : it's the first APP to be called in the manual sequence
+    CoreProcessingTOMOFH : it's the core APP that follows this APP in the call sequence
+
+    Examples
+    --------
+    Manual TOMO FH chain execution
+        
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.tomo_fh.main_TOMO_FH import StackBasedProcessingTOMOFH
+    >>> dq_obj = dataset_query()
+    >>> input_file_up1 = dq_obj.run( input_file )
+    >>> sbp_obj = StackBasedProcessingTOMOFH( config_file )
+    >>> input_file_up2 = sbp_obj.run( input_file_up1 )
+    >>> fhcp_obj = CoreProcessingTOMOFH( config_file )
+    >>> fhcp_obj.run( input_file_up2 )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_tomo_fh" section
+    - config_file: path of the BioPAL configuration file
+    """
+
     def __init__(self, configuration_file):
         super().__init__(configuration_file)
 
@@ -117,7 +179,8 @@ class StackBasedProcessingTOMOFH(Task):
         os.makedirs(temp_output_folder)
 
         equi7_sampling = choose_equi7_sampling(
-            conf_params_obj.estimate_tomo_fh.product_resolution, input_params_obj.output_specification.geographic_grid_sampling
+            conf_params_obj.estimate_tomo_fh.product_resolution,
+            input_params_obj.output_specification.geographic_grid_sampling,
         )
         e7g = Equi7Grid(equi7_sampling)
         logging.info("    EQUI7 Grid sampling used: {}".format(equi7_sampling))
@@ -562,8 +625,7 @@ class StackBasedProcessingTOMOFH(Task):
                 raise
 
             logging.info("...done.\n")
-         
-            
+
         # write the input file with the sections needed by the Core Processing FH APP:
         out_input_file_xml = os.path.join(
             os.path.dirname(input_params_obj.output_specification.output_folder), "Input_File_CoreProcessingFH.xml"
@@ -572,41 +634,83 @@ class StackBasedProcessingTOMOFH(Task):
             input_params_obj, data_equi7_fnames, mask_equi7_fnames,
         )
         write_input_file(input_params_obj, out_input_file_xml)
-            
+
         ######################## STACK BASED STEPS END. ###########################
         return out_input_file_xml
 
 
 class CoreProcessingTOMOFH(Task):
-    def __init__(  self, configuration_file ):
+    """CoreProcessingTOMOFH APP 
+    
+    CoreProcessingTOMOFH APP is the second of the two sub-APPs called by TomoForestHeight processor.
+
+    It performs merging ascending with descending processed stacks and
+    mosaiking together differtent processed tiles of the output grid
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the CoreProcessingTOMOFH APP
+    name : str
+        name of the APP
         
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query : it's the first APP to be called in the manual sequence
+    StackBasedProcessingTOMOFH : it’s the APP which prepares the input for this APP
+
+    Examples
+    -------- 
+    Manual TOMO FH chain execution
+        
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.tomo_fh.main_TOMO_FH import StackBasedProcessingTOMOFH
+    >>> dq_obj = dataset_query()
+    >>> input_file_up1 = dq_obj.run( input_file )
+    >>> sbp_obj = StackBasedProcessingTOMOFH( config_file )
+    >>> input_file_up2 = sbp_obj.run( input_file_up1 )
+    >>> fhcp_obj = CoreProcessingTOMOFH( config_file )
+    >>> fhcp_obj.run( input_file_up2 )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_tomo_fh" section
+    - config_file: path of the BioPAL configuration file
+    """
+
+    def __init__(self, configuration_file):
+
         super().__init__(configuration_file)
 
     def _run(self, input_file):
-        
+
         # FH: Reading chains configuration files
         logging.info("TOMO FH: Reading chains configuration files")
         check_if_path_exists(self.configuration_file, "FILE")
         conf_params_obj = parse_configuration_file(self.configuration_file)
         input_params_obj = parse_input_file(input_file)
-        
+
         # managing folders
         products_folder = os.path.join(input_params_obj.output_specification.output_folder, "Products")
         temp_output_folder = os.path.join(products_folder, "temp")
-        
+
         ######################## NOT STACK BASED STEPS ############################
-        
-        stacks_to_merge_dict = collect_stacks_to_be_merged(
-           input_params_obj.stack_based_processing.stack_composition)
-        
+
+        stacks_to_merge_dict = collect_stacks_to_be_merged(input_params_obj.stack_based_processing.stack_composition)
+
         try:
 
             logging.info("TOMO FH: merging ascending with descending stacks....\n")
 
             merged_data_fnames, merging_folder = heigths_masking_and_merging(
-                input_params_obj.core_processing_tomo_fh.data_equi7_fnames, 
-                input_params_obj.core_processing_tomo_fh.mask_equi7_fnames, 
-                stacks_to_merge_dict
+                input_params_obj.core_processing_tomo_fh.data_equi7_fnames,
+                input_params_obj.core_processing_tomo_fh.mask_equi7_fnames,
+                stacks_to_merge_dict,
             )
 
             logging.info("...done.\n")
@@ -633,8 +737,8 @@ class CoreProcessingTOMOFH(Task):
             shutil.rmtree(temp_output_folder)
 
         logging.info("TOMO FH: Forest Height estimation ended correctly.\n")
-        
-        
+
+
 def fill_core_processing_tomo_fh_obj(input_params_obj, data_equi7_fnames, mask_equi7_fnames):
 
     """

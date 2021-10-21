@@ -168,41 +168,51 @@ def readBiomassHeader_core(raster_file):
 
 
 class BiomassL1cRaster:
-    """Interfaces wrapper: read BIOMASS L1c rasters.
+    """Interfaces wrapper for reading BIOMASS L1c rasters (BioPAL inputs).
 
-    Simply read biomass L1c raster and metadata from path.
-    It is suitable to manage any L1c slant range / azumuth BIOMASS data as the input SLC stacks, the
+    It reads BIOMASS L1c (BioPAL inputs) raster and metadata from path.
+    It is suitable to manage any L1c slant range / azumuth BIOMASS data as the BioPAL input SLC stacks, the
     geometric auxiliaries as the ECEFGRID XYZ map, the OffNadirAngles map and so on.
-
-    See also biopal.io.data_io.biomassL2raster to manage biomass L2 geocoded data
-    See also biopal.utility.plot for available plotting functions:
-        plot, plot_db, plot_abs, plot_angle
 
     Parameters
     ----------
-    path_dir :
-        directory conteining the folder of data with metadata to be read
-    channel_to_read (optional):
-        one-based integer to select the channel to read inside the directory (
-            depending on the data, the channel may represent different
-            polarization, baseline, coordinate, etc. as specified in the xml metadata)
-        Default value: 1
+    path_dir : str
+        path of the directory containing binary data and xml metadata
+    channel_to_read : int, default 1
+        one-based integer to select the channel to read inside the directory;
+        depending on the data, the channel may represent different polarization, baseline, 
+        coordinate, etc. as specified in the xml metadata
+
+    Attributes
+    ----------
+    data : 2D numpy array
+        is the loaded data matrix itself
+    x_axis : numpy array
+        slant range [km] axis
+    y_axis : numpy array
+        azimuth [km] axis
+    x_axis_description : str
+        x axis description
+    y_axis_description : str
+        y axis description
 
     Returns
     -------
-    object containing following attributes
-        data: is the loaded data matrix itself (numpay array)
-        x_axis: slant range [km] axis
-        y_axis: azimuth [km] axis
-        x_axis_description: string describing x axis
-        y_axis_description: string describing y axis
+    BiomassL1cRaster : BiomassL1cRaster object
 
+    See Also
+    --------
+    BiomassL2Raster : used to read biomass L2 and intermediate (geocoded) data
+    biopal.utility.plot.plot
+    biopal.utility.plot.plot_db
+    biopal.utility.plot.plot_abs
+    biopal.utility.plot.plot_angle
+    biopal.utility.plot.plot_rad2deg : functions to plot BiomassL1cRaster and BiomassL2Raster objects
 
     Examples
-    -------
+    --------
     >>> data_obj = BiomassL1cRaster(path_dir)
     >>> data_obj = BiomassL1cRaster(path_dir, channel_to_read=1)
-
     """
 
     def __init__(self, path_dir, channel_to_read=1):
@@ -248,45 +258,59 @@ class BiomassL1cRaster:
 
 
 class BiomassL2Raster:
-    """Interfaces wrapper: read BIOMASS L2 rasters.
+    """Interfaces wrapper for reading BIOMASS L2 rasters (BioPAL outputs).
 
-    Simply read biomass L2 geocoded rasrters and metadata from tif file.
+    It reads BioPAL L2 geocoded rasrters and metadata from tif file.
     It is suitable to manage:
-        BioPAL L2 geocoded east-north output products tif data (default behavior)
-        BioPAL intermediate geocoded lat-lon tif data (by setting intermediate_latlon_flag to True)
-
-    See also biopal.io.data_io.biomassL1raster to manage biomass L1c data
-    See also biopal.utility.plot for available plotting functions:
-        plot, plot_db, plot_abs, plot_angle
+    BioPAL L2 geocoded east-north output products tif data (default behavior)
+    BioPAL intermediate geocoded lat-lon tif data (by setting intermediate_latlon_flag to True)
 
     Parameters
     ----------
-    path_tif :
-        path of the tif file of the data to be read
-    band_to_read (optional):
-        one-based integer to select the tif band to read inside the file (
-            depending on the data, multiple bands can be present, as in the AGB estimaton)
-        Default value: 1
-    intermediate_latlon_flag (optional): 
-        if not specified or False, data axis are considered L2 east/north (default behavior)
-        if True, data axis are considered latitude/longitude (BioPAL intermediate geocoded products)
+    path_tif : str
+        path of the tif file
+    band_to_read : int, default 1
+        one-based integer to select the tif band to read inside the file;
+        depending on the data, multiple bands can be present, as in the AGB estimaton
+    intermediate_latlon_flag : bool, default False 
+        - False: data axis are considered L2 east/north (default behavior)
+        - True:  data axis are considered latitude/longitude (for BioPAL intermediate geocoded products)
+
+    Attributes
+    ----------
+    data : 2D numpy array
+        is the loaded data matrix itself
+    x_axis : numpy array
+        slant range [km] axis
+    y_axis : numpy array
+        azimuth [km] axis
+    x_axis_description : str
+        x axis description
+    y_axis_description : str
+        y axis description
 
     Returns
     -------
-    object containing following attributes
-        data: is the loaded data matrix itself (numpay array)
-        x_axis: east [km] or longitude [deg] axis
-        y_axis: north [km] or latitude [deg]  axis
-        x_axis_description: string describing x axis
-        y_axis_description: string describing y axis
+    BiomassL2Raster : BiomassL2Raster object
 
+    See Also
+    --------
+    BiomassL1cRaster : used to read biomass L1c data
+    biopal.utility.plot.plot
+    biopal.utility.plot.plot_db
+    biopal.utility.plot.plot_abs
+    biopal.utility.plot.plot_angle
+    biopal.utility.plot.plot_rad2deg : functions to plot BiomassL1cRaster and BiomassL2Raster objects
 
     Examples
-    -------
+    --------
     >>> data_obj = BiomassL2Raster(path_tif)
-    >>> data_obj = BiomassL2Raster(path_tif, band_to_read=1)
+
+    >>> data_obj = BiomassL2Raster(path_tif, band_to_read=2)
+
     >>> data_obj = BiomassL2Raster(path_tif, intermediate_latlon_flag=True)
-    >>> data_obj = BiomassL2Raster(path_tif, band_to_read=1, intermediate_latlon_flag=True)
+
+    >>> data_obj = BiomassL2Raster(path_tif, band_to_read=2, intermediate_latlon_flag=True)
     """
 
     def __init__(self, path_tif, band_to_read=1, intermediate_latlon_flag=None):

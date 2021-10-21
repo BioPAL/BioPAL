@@ -5,60 +5,49 @@ import numpy as np
 import logging
 
 
-def ground_cancellation(
-        data_stack, 
-        kz_stack, 
-        multi_master_flag, 
-        z_emph, 
-        eq_flag, 
-        pho_r, 
-        theta_look, 
-        ground_slope
-        ):
-    """
-     "ground_cancellation" APP:
-         Computes the ground cancellation from input data stack.
+def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag, pho_r, theta_look, ground_slope):
+    """Ground Cancellation APP
+    
+    Computes the ground cancellation from input data stack.
     
     Parameters
     ----------
-    data_stack
-        Stack of calibrated, ground steered SLC images.
-        It is a dictionary of two nested dictionaries where:
-        each data_stack[ acquisition_name_string ][ polarization_name_string ] 
-        is an array of shape [Nrg x Naz].
-    kz_stack
-        Array of phase-to-height conversion factors. Needed if num_acq > 2.
+    data_stack : dict of dicts containing 2D numpy arrays
+        stack of calibrated, ground steered SLC images;
+        it is a dictionary of two nested dictionaries (acquisitions->polarizations) where
+        each data_stack[ acquisition_name_string ][ polarization_name_string ] is an array of shape [Nrg x Naz]
+    kz_stack : dict of numpy arrays or double
+        phase-to-height conversion factors; needed if num_acq > 2.
         It is a dictionary where kz_stack[acquisition_name_string] is an array 
-        of shape [Nrg x Naz] or a scalar for constant geometries.
-    multi_master_flag
-        If true  average notch is computed with all possible masters;
-        if false average notch is computed automatically selecting the best master.
-        In both cases, only if more than two acquisitions are present.
-    z_emph
-        Can be a scalar value for forest height in meters used in the processing 
-        to determine the vertical wavenumber for which the ground cancelled data 
-        is generated (only with more than two acquisitions).
-        Can be a 2D map of shape [Nrg x Naz] and in this case the space varying 
-        feature is enabled.
-    eq_flag
-        backscatter equalization, with possible values (strings) '1','2' or '3' where:
-        1: equalization OFF
-        2: equalization ON
-        3: if just two acquisitions are present in each of the used stacks is ON,
-           otherwise is OFF
-    pho_r
-        Slant range resolution in meters.
-    theta_look
-        off-nadir angles map, in radiants, it is an array of shape [Nrg x Naz].
-    ground_slope
-        Terrain slope map, in radiants, it is an array of shape [Nrg x Naz].
+        of shape [Nrg x Naz] or a scalar for constant geometries
+    multi_master_flag : bool 
+        manage master:
+        
+        - if true  average notch is computed with all possible masters
+        - if false average notch is computed automatically selecting the best master
+        - in both cases, only if more than two acquisitions are present
+    z_emph : double or 2D numpy array
+        two choices:
+
+        - can be a scalar value for forest height [m] used in the processing to determine the vertical wavenumber for which the ground cancelled data is generated; only with more than two acquisitions
+        - can be a 2D map of shape [Nrg x Naz] and in this case the space varying feature is enabled
+    eq_flag : str
+        backscatter equalization, with possible values "1","2"' or "3" where:
+
+        - "1" equalization OFF
+        - "2" equalization ON
+        - "3" if just two acquisitions are present in each of the used stacks is ON, otherwise is OFF
+    pho_r : double
+        slant range resolution [m]
+    theta_look : 2D numpy array
+        off-nadir angles map [rad], it is an array of shape [Nrg x Naz]
+    ground_slope : 2D numpy array
+        terrain slope map [rad], it is an array of shape [Nrg x Naz]
         
     Returns
     -------
-    GroundNotchedSLC
-        Dictionary containing three polarizations, each composed by 
-        an [Nrg x Naz] ground notched SLC image.
-    
+    GroundNotchedSLC : dict containing 2D numpy arrays
+        dictionary containing three polarizations, each composed by an [Nrg x Naz] ground notched SLC image.
     """
 
     if not eq_flag == "1" and not eq_flag == "2" and not eq_flag == "3":

@@ -4,5 +4,5 @@ __pycache__
 dist
 build
 *.egg-info
-doc/build
+doc/_build
 .vscode

@@ -65,16 +65,48 @@ class InvalidInputError(ValueError):
 
 
 class ForestDisturbance(Task):
-    """
-    FD main APP "ForestDisturbance" (see BioPAL README.md to launch) is composed by 
-    two sub APPS: 
-        
-    the first APP "initializeAlgorithmFD"  organizes the input dataSet by 
-    grouping all the different temporal global cycles of each stack with same 
-    nominal geometry
+    """FD main APP ForestDisturbance
     
-    the second APP "CoreProcessingFD" performs the change  detection 
-    algorithmis for each nominal geometry and all its global cycles    
+    run this APP to execute the complete Forest Disturbance processing chain. 
+
+    ForestDisturbance is composed by two sub APPS automatically called in sequence  
+    when standard launch is performed:
+    InitializeAlgorithmFD -> CoreProcessingFD
+
+    Refer to dataset_query, InitializeAlgorithmFD and CoreProcessingFD documentation for step by step run.
+    
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the ForestDisturbance processing
+    name : str
+        name of the APP
+        
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query: it's the APP to be called before this APP
+    InitializeAlgorithmFD : it's the first of the two sub-APPs called by ForestDisturbance preocessor
+    CoreProcessingFD : it's the second of the two sub-APPs called by ForestDisturbance processor
+
+    Examples
+    --------
+    Manual FD chain execution
+
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.fd.main_FD import ForestDisturbance
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+    >>> chain_obj = ForestDisturbance( configuration_file )
+    >>> chain_obj.run( input_file_up )
+
+    - input_file: path of the BioPAL input file
+    - input_file_up: same of input_file with also the "stack_based_processing" section
+    - configuration_file: path of the BioPAL configuration file
     """
 
     def __init__(
@@ -86,7 +118,7 @@ class ForestDisturbance(Task):
 
         # Main APP #1: Prepare initialization APP
         #              organize the input dataSet by grouping all the temporal global cycles of each stack
-        initialize_fd_obj = initializeAlgorithmFD(self.configuration_file)
+        initialize_fd_obj = InitializeAlgorithmFD(self.configuration_file)
 
         # Run Main APP #1: the FD initialization APP
         input_file_updated = initialize_fd_obj.run(input_file)
@@ -98,11 +130,52 @@ class ForestDisturbance(Task):
         fd_processing_obj.run(input_file_updated)
 
 
-class initializeAlgorithmFD(Task):
-    """
-    Organizes the input dataSet by grouping all the different temporal global 
+class InitializeAlgorithmFD(Task):
+    """InitializeAlgorithmFD APP
+
+    InitializeAlgorithmFD APP is the first of the two sub-APPs called by ForestDisturbance processor.
+
+    It organizes the input dataSet by grouping all the different temporal global 
     cycles of each stack with same nominal geometry, preparing the inputs for 
-    the "CoreProcessingFD" APP
+    the "CoreProcessingFD" APP.
+    It is automatically called in the default run (see Getting Started section), 
+    or can be manually launched (stand alone) following this sequence: 
+    dataset_query -> InitializeAlgorithmFD -> CoreProcessingFD
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the InitializeAlgorithmFD process
+    name : str
+        name of the APP
+
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query: it's the APP to be called before this APP
+    CoreProcessingFD : it's the second of the two sub-APPs called by ForestDisturbance processor
+
+    Examples
+    --------
+    Manual FD chain execution
+        
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.fd.main_FD import InitializeAlgorithmFD, CoreProcessingFD
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+    >>> init_fd_obj = InitializeAlgorithmFD( config_file )
+    >>> input_file_up2 = init_fd_obj.run( input_file_up )
+    >>> fdp_obj = CoreProcessingFD( config_file )
+    >>> fdp_obj.run( input_file_up2 )
+    
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_fd" section
+    - config_file: path of the BioPAL configuration file
     """
 
     def __init__(self, configuration_file):
@@ -126,7 +199,7 @@ class initializeAlgorithmFD(Task):
             or input_params_obj.stack_based_processing is None
         ):
             error_message = [
-                "initializeAlgorithmFD APP input file should contain at least"
+                "InitializeAlgorithmFD APP input file should contain at least"
                 ' "L2_product", "output_specification", "dataset_query" and "stack_based_processing" sections'
             ]
             raise InvalidInputError(error_message)
@@ -139,7 +212,7 @@ class initializeAlgorithmFD(Task):
             conf_params_obj = self.configuration_file
         if conf_params_obj.processing_flags is None or conf_params_obj.change_detection_fd is None:
             error_message = [
-                "Configuration file for  initializeAlgorithmFD APP should contain at least"
+                "Configuration file for  InitializeAlgorithmFD APP should contain at least"
                 ' "processing_flags" and "change_detection_fd" sections'
             ]
             raise InvalidInputError(error_message)
@@ -150,7 +223,7 @@ class initializeAlgorithmFD(Task):
                 os.path.dirname(input_params_obj.output_specification.output_folder),
                 input_params_obj.L2_product,
                 "DEBUG",
-                app_name="initializeAlgorithmFD",
+                app_name="InitializeAlgorithmFD",
             )
         logging.info("FD initialize algorithm APP starting\n")
 
@@ -203,13 +276,56 @@ class initializeAlgorithmFD(Task):
 
 
 class CoreProcessingFD(Task):
+    """CoreProcessingFD APP
 
-    """
-    Calls the "change detection" algorithm (which is implemented as a function) 
+    CoreProcessingFD is the second of the two sub-APPs called by ForestDisturbance processor.
+
+    It calls the "change detection" algorithm (which is implemented as a function) 
     once for each nominal geometry:
-        this app will cycle over each nominal geometry and for each of them it 
-        calls the change detection function that will cycle over all the global 
-        cycles, computing the change detection for the current geometry
+    this app will cycle over each nominal geometry and for each of them it calls the change detection 
+    function that will cycle over all the global cycles, computing the change detection for the current geometry.
+    It is automatically called in the default run (see Getting Started section), 
+    or can be manually launched (stand alone) following this sequence: 
+    dataset_query -> InitializeAlgorithmFD -> CoreProcessingFD
+
+    Attributes
+    ----------
+    configuration_file : str
+        path of the Configuration_File.xml file
+
+    Methods
+    -------
+    run( input_file_path )
+        run the InitializeAlgorithmFD process
+    name : str
+        name of the APP
+                
+    See Also
+    --------
+    biopal.dataset_query.dataset_query.dataset_query: it’s the first APP to be called in the manual sequence
+    InitializeAlgorithmFD : it’s the APP which prepares the input for this APP
+
+    Notes
+    -----
+    It is possible to launch many istances of "CoreProcessingFD" APP without need to re launch all the processor.
+    
+    Examples
+    --------
+    Manual FD chain execution
+        
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> from biopal.fd.main_FD import InitializeAlgorithmFD, CoreProcessingFD
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+    >>> init_fd_obj = InitializeAlgorithmFD( config_file )
+    >>> input_file_up2 = init_fd_obj.run( input_file_up )
+    >>> fdp_obj = CoreProcessingFD( config_file )
+    >>> fdp_obj.run( input_file_up2 )
+    
+    - input_file: path of the BioPAL input file
+    - input_file_up1: same of input_file with also the "stack_based_processing" section   
+    - input_file_up2: same of input_file_up1 with also the "core_processing_fd" section
+    - config_file: path of the BioPAL configuration file          
     """
 
     def __init__(self, configuration_file):
@@ -1163,7 +1279,7 @@ def fill_core_processing_fd_obj(cycles_composition):
     """
     Internal function called by the StackBasedProcessingAGB APP:
         
-        the initializeAlgorithmFD APP fills the structure
+        the InitializeAlgorithmFD APP fills the structure
         to be written into the xml input file for the next APP, which is the 
         core processing for the FD (change detection).
         

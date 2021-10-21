@@ -22,41 +22,31 @@ class InvalidInputError(ValueError):
 
 
 class dataset_query(Task):
-    """
-    Performs a query on the BioPAL dataSet: the query rule is specified 
+    """Query over input dataSet
+    
+    Performs a query on the BioPAL input dataSet: the query rule is specified 
     into the input file "dataset_query" section to get stacks from a 
     specified geographical and temporal region.
     Writes in output an updated input file, filled with new section 
     "stack_based_processing"
-    
-    Parameters
-    ----------
-    input_file : BioPAL xml input file path, or input file object
-        The input file shoud contain mandatory following sections:
-        L2_product, output_specification, dataset_query.
-        See as an example: BioPAL\inputs\Input_File.xml.
-        input_file can alternatively be an object, parsed from an xml file as:
-            from biopal.io.xml_io import parse_input_file
-            input_file = parse_input_file(input_file_xml)
-        
-    Returns
+
+    Methods
     -------
-    input_file_up_xml
-        BioPAL xml input file path, updated with "stack_based_processing" new section
-    stack_composition
-        dictionary containing, for each stack ID key, its acquisition names;
-        info contained also on the stack_based_processing new section
-    geographic_boundaries
-        Minimum and maximum latitudes and longitudes box which contains all the queried stacks;
-        info contained also on the stack_based_processing new section
-        
+    run( input_file_path )
+        run the dataSet query
+    name : str
+        name of the APP
+
     Examples
-    -------
-    >>> input_path = BioPAL / "inputs" / "Input_File.xml"
-    >>> from biopal.agb.main_AGB import dataset_query
-    >>> dataset_query_obj = dataset_query()
-    >>> input_file_up_xml = dataset_query.run( input_path )
-    >>> print('The Input_File has been updated with the new section "stack_based_processing" and saved to {}'.format(input_file_up_xml))
+    --------
+    To ececute it, use its run method after initialization:
+
+    >>> from biopal.dataset_query.dataset_query import dataset_query
+    >>> dq_obj = dataset_query()
+    >>> input_file_up = dq_obj.run( input_file )
+
+    - input_file: path of the input file containing "dataset_query" section
+    - input_file_up: path of the input file, updated with "stack_based_processing" section
     """
 
     def __init__(self):
@@ -120,10 +110,10 @@ class dataset_query(Task):
         input_params_obj.stack_based_processing = stack_based_proc_obj
         write_input_file(input_params_obj, input_file_up_xml)
 
-        end_message = ("Query completed.")
+        end_message = "Query completed."
         logging.info(end_message)
         print(end_message)
-        
+
         return input_file_up_xml
 
 
