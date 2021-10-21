@@ -129,7 +129,9 @@ From FOLDER (see *quickstart* section), open the *Input_File.xml* and verify/upd
 * *dataset_query->auxiliary_products_folder*: path of the *auxiliary_data_pf* folder with parameters related to the data stacks specified in *L1C_repository*
 * *dataset_query->L1C_date* and *->geographic_boundaries_polygon* : those fields are already filled with default values ready to be used with the currently available demo dataSets from ESA.
 
-*NOTE: Sample data (L1C_repository dataSets) and auxiliaries (auxiliary_products_folder) can be obtained by writing to* <biopal@esa.int>.
+IMPORTANT: all the paths in the Input_File.xml should be ABSOLUTE paths
+
+NOTE: Sample data (L1C_repository dataSets) and auxiliaries (auxiliary_products_folder) can be obtained by writing to <biopal@esa.int>.
 
 Set *Configuration_File.xml* present in FOLDER (see *quickstart*), as desired:
 the AGB, FH, FD, TOMO_FH configuration sections have ready default configuration parameters.
@@ -199,7 +201,10 @@ uncomment the *gdal* section and insert your absolute paths for
 * *gdal_path*: this is the folder containing the GDAL executables, usually in the */bin* subfolder of GDAL environment (containing e.g., *gdalwarp*, *gdal_translate*,... )
 * *gdal_enviroment_path*: this is the GDAL_DATA environment variable path
 
+IMPORTANT: all the gdal paths, if specified in the Configuration_File.xml, should be ABSOLUTE paths
+
 TIP: the above paths depend on your machine environment. 
+
 GDAL has been automatically installed during the above procedure of conda environment creation; 
 for a standard installation with conda, the paths should be found in paths similar to the following (where *xxx* is an alphanumeric string depending on the GDAL version installed)
 
