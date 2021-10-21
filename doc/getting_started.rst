@@ -19,6 +19,15 @@ The needed python packages are specified in the file `requirements`_.
 .. _requirements: https://github.com/BioPAL/BioPAL/blob/main/requirements.txt
 
 
+System requirements
+-------------------
+CPU, no restrictions; suggested at least an Intel Core i5 10th gen 64bit processor or equivanent.
+
+20 GB of free RAM
+
+Windows 10 or Linux, 64bit
+
+
 Installation
 ------------
 
