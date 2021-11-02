@@ -20,7 +20,7 @@ BIOMASS is ESA's (European Space Agency) seventh Earth Explorer mission, current
 
 The BIOMASS Product Algorithm Laboratory (BioPAL) is an evolution of the software developed for the [BIOMASS prototype processor](https://www.mdpi.com/2072-4292/12/6/985) into an open source library to be used and contributed by the scientific community.
 
-This repository collects the software routines for processing Level 1 SAR products to generate Level 2 forest products of Above Ground Biomass (AGB) and Forest Heigth (FH). More details about these products and BIOMASS can be found [here](https://www.mdpi.com/2072-4292/12/6/985).
+This repository collects the software routines for processing Level 1 SAR products to generate Level 2 forest products of Above Ground Biomass (AGB), Forest Heigth (FH) and Forest Disturbance (FD). More details about these products and BIOMASS can be found [here](https://www.mdpi.com/2072-4292/12/6/985).
 
 # Structure of the Project
 
@@ -142,6 +142,9 @@ The user manual of the previous prototype software can be found in [legacy](http
 
 BioPAL was originally written and is currently maintained by Aresys and the BioPAL team on behalf of ESA.
 
+BioPAL team includes reperesentatives of several european research institutions, see [website about section](https://www.biopal.org/about/).
+
+
 # Citing
 
 If you use BioPAL, please add these citations:
@@ -149,7 +152,3 @@ If you use BioPAL, please add these citations:
 -   *BioPAL: BIOMASS Product Algorithm Laboratory, https://github.com/BioPAL/BioPAL*
 
 -   *Banda F, Giudici D, Le Toan T, Mariotti d’Alessandro M, Papathanassiou K, Quegan S, Riembauer G, Scipal K, Soja M, Tebaldini S, Ulander L, Villard L. The BIOMASS Level 2 Prototype Processor: Design and Experimental Results of Above-Ground Biomass Estimation. Remote Sensing. 2020; 12(6):985. https://doi.org/10.3390/rs12060985*
-
-# Affilliations
-
-TBD
