@@ -540,23 +540,23 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
                                 I1 = D[acq_id_n][pol_id_i].astype("complex128")
                                 I2 = (D[acq_id_m][pol_id_j]).astype("complex128")
 
-                    # Demodulation to baseband
-                    I1 = I1 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_n])
-                    I2 = I2 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
+                        # Demodulation to baseband
+                        I1 = I1 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_n])
+                        I2 = I2 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
 
-                    # Spectral shift filtering
-                    offnadir = np.zeros((look_angles[acq_id_m].shape[0], look_angles[acq_id_m].shape[1], 2))
-                    offnadir[:, :, 0] = look_angles[acq_id_n]
-                    offnadir[:, :, 1] = look_angles[acq_id_m]
-                    [I1, I2] = SpectralShiftFiltering(I1, I2, offnadir, ground_slope, ssf_opt_str)
+                        # Spectral shift filtering
+                        offnadir = np.zeros((look_angles[acq_id_m].shape[0], look_angles[acq_id_m].shape[1], 2))
+                        offnadir[:, :, 0] = look_angles[acq_id_n]
+                        offnadir[:, :, 1] = look_angles[acq_id_m]
+                        [I1, I2] = SpectralShiftFiltering(I1, I2, offnadir, ground_slope, ssf_opt_str)
 
-                    # Modulation
-                    I1 = I1 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_n])
-                    I2 = I2 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
+                        # Modulation
+                        I1 = I1 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_n])
+                        I2 = I2 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
 
-                    temp = Fr_normalized @ (I1 * np.conjugate(I2))
-                    temp = temp @ Fa_normalized_transposed
-                    I[n_idx, m_idx, :, :] = temp.astype("complex64")
+                        temp = Fr_normalized @ (I1 * np.conjugate(I2))
+                        temp = temp @ Fa_normalized_transposed
+                        I[n_idx, m_idx, :, :] = temp.astype("complex64")
 
                 Cov_MPMB[ind_i[:, np.newaxis], ind_j[np.newaxis, :], :, :] = I
 
