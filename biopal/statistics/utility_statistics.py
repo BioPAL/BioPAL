@@ -150,7 +150,7 @@ def covariance_options_struct_filler(
     first_level_key = next(iter(data_stack.keys()))
 
     if first_level_key == "hh" or first_level_key == "hv" or first_level_key == "vh" or first_level_key == "vv":
-        # notched stack, has not acquisitions dict
+        # if data_stack contais ground cancelled data, there is not an acquisitions dict
         pol_names = list(data_stack.keys())
         Num_of_pols = len(pol_names)
 
@@ -254,7 +254,7 @@ def main_correlation_estimation_GR(
     )
 
     # Normalizing covariance matrix
-    MPMB_correlation, norm_diag = Covariance4D2Correlation4D(MPMB_covariance)
+    MPMB_correlation, _ = Covariance4D2Correlation4D(MPMB_covariance)
 
     return MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
 
@@ -284,7 +284,7 @@ def main_correlation_estimation_SSF_GR(
     )
 
     # Normalizing covariance matrix
-    MPMB_correlation, norm_diag = Covariance4D2Correlation4D(MPMB_covariance)
+    MPMB_correlation, _ = Covariance4D2Correlation4D(MPMB_covariance)
 
     return MPMB_correlation, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
 
@@ -296,7 +296,7 @@ def MPMBCovarianceEstimation(D_in, opt_str):
         D_in: can be a:
                   dictionary with acquisition keys (Num_Baselines) each containing a dictionary with hh hv vh and vv
                   polarization keys containing arrays with dimensions [Nrg x Naz]
-            or (in case of ground notched input) :
+            or (in case of ground cancelled input) :
                   dictionary with hh hv vh and vv
                   polarization keys containing arrays with dimensions [Nrg x Naz]
         opt_str:
@@ -317,7 +317,8 @@ def MPMBCovarianceEstimation(D_in, opt_str):
     first_level_key = next(iter(D_in.keys()))
 
     if first_level_key == "hh" or first_level_key == "hv" or first_level_key == "vh" or first_level_key == "vv":
-        # notched stack, has not acquisitions dict, so we need to encapsulate the input in an external dummy dictionary
+        # if D_in contais ground cancelled data, there is not an acquisitions dict:,
+        # need to encapsulate the input in an external dummy dictionary
         D = {"single_acq": D_in}
     else:
         D = D_in
@@ -358,10 +359,9 @@ def MPMBCovarianceEstimation(D_in, opt_str):
 
     # Init
     Cov_MPMB = np.zeros((num_pols * N_imm, num_pols * N_imm, N_rg_out, N_az_out), dtype=np.complex64)
+    nan_mask = np.zeros((N_rg, N_az, N_imm), dtype=bool)
 
     logging.info("    MPMB covariance estimation...")
-    # nan_mask = np.zeros( D[0].shape , dtype=bool) N_rg, N_az
-    nan_mask = np.zeros((N_rg, N_az, N_imm), dtype=bool)
 
     for pol_name_curr in pol_names:
         all_acq_data = np.zeros((N_rg, N_az, N_imm), dtype=complex)
@@ -369,7 +369,6 @@ def MPMBCovarianceEstimation(D_in, opt_str):
             all_acq_data[:, :, acq_idx_curr] = D[acq_curr][pol_name_curr]
         nan_mask = nan_mask + np.isnan(all_acq_data)
 
-    # this has been moved from the innner cycle (referring to PM9)
     for acq_idx_curr, acq_curr in enumerate(acq_names):
         for pol_name_curr in pol_names:
             D[acq_curr][pol_name_curr][nan_mask[:, :, acq_idx_curr]] = 0
@@ -501,7 +500,6 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
             all_acq_data[:, :, acq_idx_curr] = D[acq_curr][pol_name_curr]
         nan_mask = nan_mask + np.isnan(all_acq_data)
 
-    # this has been moved from the innner cycle (referring to PM9)
     for acq_idx_curr, acq_curr in enumerate(acq_names):
         for pol_name_curr in pol_names:
             D[acq_curr][pol_name_curr][nan_mask[:, :, acq_idx_curr]] = 0
@@ -540,9 +538,9 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
                                 I1 = D[acq_id_n][pol_id_i].astype("complex128")
                                 I2 = (D[acq_id_m][pol_id_j]).astype("complex128")
 
-                        # Demodulation to baseband
-                        I1 = I1 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_n])
-                        I2 = I2 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
+                        # Demodulation
+                        # Note: inputs are supposed to already be baseband: applying a relative demodulation of I2 respect to I1
+                        I2 = I2 * np.exp(-1j * 4 * np.pi / opt_str.wavelenght * (R[acq_id_n] - R[acq_id_m]))
 
                         # Spectral shift filtering
                         offnadir = np.zeros((look_angles[acq_id_m].shape[0], look_angles[acq_id_m].shape[1], 2))
@@ -551,8 +549,7 @@ def MPMBCovarianceEstimationSSF(D, opt_str, R, look_angles, ground_slope):
                         [I1, I2] = SpectralShiftFiltering(I1, I2, offnadir, ground_slope, ssf_opt_str)
 
                         # Modulation
-                        I1 = I1 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_n])
-                        I2 = I2 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * R[acq_id_m])
+                        I2 = I2 * np.exp(1j * 4 * np.pi / opt_str.wavelenght * (R[acq_id_n] - R[acq_id_m]))
 
                         temp = Fr_normalized @ (I1 * np.conjugate(I2))
                         temp = temp @ Fa_normalized_transposed
@@ -590,7 +587,12 @@ def SpectralShiftFiltering(I1, I2, look_angles, ground_slope, opt_str):
         I2_filt: [Nr x Nc] baseband spectral shift filtered SLC"""
 
     # Spectral shift (Hz)
-    Df = opt_str.f0 * np.squeeze(np.diff(look_angles, axis=2)) / np.tan(np.mean(look_angles, axis=2) - ground_slope)
+    Df = -opt_str.f0 * np.squeeze(np.diff(look_angles, axis=2)) / np.tan(np.mean(look_angles, axis=2) - ground_slope)
+
+    # Averaging Df, after removing invalid Df values due to the content of look angles or ground slope auxiliaries
+    Df_temp = Df
+    Df_temp[np.isnan(Df_temp)] = 0
+    Df_mean = np.mean(np.abs(Df_temp))  # for the filter
 
     # Space-varying demodulation phases (half)
     phi_half = np.pi * np.cumsum(Df * opt_str.dt, axis=0)
@@ -602,8 +604,7 @@ def SpectralShiftFiltering(I1, I2, look_angles, ground_slope, opt_str):
     # Building filter
     if not (hasattr(opt_str, "Nfilter")):
         opt_str.Nfilter = int(np.round(I1.shape[0] / 4))
-
-    curr_filter = firwin(numtaps=opt_str.Nfilter, cutoff=opt_str.B * opt_str.dt)
+    curr_filter = firwin(numtaps=opt_str.Nfilter, cutoff=(opt_str.B - Df_mean) * opt_str.dt)
     curr_filter = curr_filter / np.sqrt(np.sum(np.abs(curr_filter) ** 2))
     curr_filter = curr_filter.reshape(opt_str.Nfilter, 1)
 
@@ -624,7 +625,7 @@ def MPMBshuffle(MPMB_correlation, rg_vec_subs, az_vec_subs, Npol, N):
     Naz_subs = az_vec_subs.size
     MBMP_correlation = np.zeros((Npol * N, Npol * N, Nrg_subs, Naz_subs), dtype=np.complex64)
     r = MPMB_correlation.shape[0]
-    I = np.eye(r)  # Identity matrix
+    I = np.eye(r)
     S = I * 0
     for i in np.arange(N):
         S[i * Npol : Npol + i * Npol, :] = I[i:r:N, :]
