@@ -24,8 +24,6 @@ def main_covariance_estimation_SR(
     pixel_spacing_grd_x = pixel_spacing_slant_rg / np.sin(incidence_angle_rad)
     pixel_spacing_grd_y = pixel_spacing_az
 
-    slant_range_spacing_s = pixel_spacing_slant_rg / LIGHTSPEED
-
     (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_GR(
         data_stack,
         cov_est_window_size,
@@ -33,7 +31,6 @@ def main_covariance_estimation_SR(
         pixel_spacing_grd_y,
         carrier_frequency_hz,
         range_bandwidth_hz,
-        slant_range_spacing_s,
     )
 
     return MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
@@ -58,7 +55,7 @@ def main_covariance_estimation_SSF_SR(
     pixel_spacing_grd_x = pixel_spacing_slant_rg / np.sin(incidence_angle_rad)
     pixel_spacing_grd_y = pixel_spacing_az
 
-    slant_range_spacing_s = pixel_spacing_slant_rg / LIGHTSPEED
+    slant_range_spacing_s = 2 * pixel_spacing_slant_rg / LIGHTSPEED
 
     (MPMB_covariance, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_SSF_GR(
         data_stack,
