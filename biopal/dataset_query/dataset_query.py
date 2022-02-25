@@ -393,25 +393,7 @@ def fill_stack_based_processing_obj(
 
         stack_composition_TOMO = {}
         for stack_id, acquisitions_list in stack_composition.items():
-            if len(acquisitions_list) >= 3:
-                stack_composition_TOMO[stack_id] = stack_composition[stack_id]
-
-        len_stacks_all = stack_composition.keys()
-        len_stacks_tomo = stack_composition_TOMO.keys()
-        if len_stacks_tomo:
-            if len_stacks_tomo < len_stacks_all:
-                logging.info(
-                    "The stacks with less than #3 acquisitions cannot be used to perform TOMO FH estimation \
-                     and they will be removed: #{} stacks among #{} totaL, have been removed".format(
-                        len_stacks_tomo, len_stacks_all
-                    )
-                )
-        else:
-            error_message = (
-                "cannot find any stack with more than #2 acquisitions: TOMO FH estimation cannot be executed"
-            )
-            logging.error(error_message)
-            raise InvalidInputError(error_message)
+            stack_composition_TOMO[stack_id] = stack_composition[stack_id]
 
         stack_composition = stack_composition_TOMO
         reference_agb_folder = None
