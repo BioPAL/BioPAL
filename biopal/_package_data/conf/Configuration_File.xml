@@ -397,7 +397,7 @@
 			<min>5</min>
 			<max>100</max>
 		</estimation_valid_values_limits>
-		<enable_super_resolution>False</enable_super_resolution>
+		<enable_super_resolution>True</enable_super_resolution>
 		<regularization_noise_factor>1e-3</regularization_noise_factor>
 		<power_threshold>0.8</power_threshold>
 		<median_factor>5</median_factor>
