@@ -504,7 +504,7 @@ class StackBasedProcessingAGB(Task):
                             / np.sin(off_nadir_angle_rad[master_id] - ellipsoid_slope)
                         )
                         kz_ground_slope[swath_id] = kz[swath_id] / (
-                            1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id] - ellipsoid_slope)
+                            1 - np.tan(slope) / np.tan(off_nadir_angle_rad[master_id] - ellipsoid_slope)
                         )
                     off_nadir_angle_rad[master_id] = off_nadir_angle_rad[master_id] - ellipsoid_slope
                     del ellipsoid_slope
@@ -546,7 +546,7 @@ class StackBasedProcessingAGB(Task):
                     kz_ground_slope = kz.copy()
                     for swath_id in kz.keys():
                         kz_ground_slope[swath_id] = kz[swath_id] / (
-                            1 + np.tan(slope) / np.tan(off_nadir_angle_rad[master_id])
+                            1 - np.tan(slope) / np.tan(off_nadir_angle_rad[master_id])
                         )
                     logging.info("AGB: ...geometry auxiliaries loading done.")
 
