@@ -137,6 +137,7 @@ conf_flags = namedtuple(
 	 apply_calibration_screen \
 	 DEM_flattening \
 	 multilook_heading_correction \
+     input_data_type \
 	 save_breakpoints \
 	 delete_temporary_files",
 )
@@ -470,7 +471,7 @@ def write_core_processing_agb_section(father_item, core_proc_agb_obj):
 
 
 def write_core_processing_fh_section(father_item, core_proc_fh_obj, tomo_fh_flag=False):
-    
+
     if tomo_fh_flag:
         core_fh_item = SubElement(father_item, "core_processing_tomo_fh")
     else:
@@ -479,49 +480,51 @@ def write_core_processing_fh_section(father_item, core_proc_fh_obj, tomo_fh_flag
     equi7_products_paths_item = SubElement(core_fh_item, "equi7_products_paths")
 
     for stack_id, path_data_fnames in core_proc_fh_obj.data_equi7_fnames.items():
-        
+
         equi7_product_item = SubElement(equi7_products_paths_item, "equi7_product")
         equi7_product_item.set("unique_stack_id", stack_id)
-        
+
         # each stack contains n-equi7 tiles
         for tile_idx, path_mask_tile in enumerate(core_proc_fh_obj.mask_equi7_fnames[stack_id]):
-            
+
             path_data_tile = path_data_fnames[tile_idx]
-            
+
             tile_item = SubElement(equi7_product_item, "equi7_tile")
-            
+
             path_data_item = SubElement(tile_item, "path_data")
             path_data_item.text = path_data_tile
-            
+
             path_mask_item = SubElement(tile_item, "path_mask")
             path_mask_item.text = path_mask_tile
 
 
 def write_core_processing_fd_section(father_item, core_proc_fd_obj):
-    
+
     core_fd_item = SubElement(father_item, "core_processing_fd")
 
     cycles_composition_item = SubElement(core_fd_item, "cycles_composition")
     # dict which groupes togheter all the differente global cycles for stacks with same nominal geometry
     # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
-        
-    for stack_idx, (nominal_geometry_stack_id, global_cycle_dict) in enumerate(core_proc_fd_obj.cycles_composition.items() ):
-        
+
+    for stack_idx, (nominal_geometry_stack_id, global_cycle_dict) in enumerate(
+        core_proc_fd_obj.cycles_composition.items()
+    ):
+
         nominal_geometry_item = SubElement(cycles_composition_item, "nominal_geometry")
         nominal_geometry_item.set("stack_id", nominal_geometry_stack_id)
-        
+
         for cycle_number, acquisitions_list in global_cycle_dict.items():
-            
-            global_cycle_item = SubElement(nominal_geometry_item, "global_cycle")    
-            global_cycle_item.set("cycle_number", str(cycle_number)  )
-            
+
+            global_cycle_item = SubElement(nominal_geometry_item, "global_cycle")
+            global_cycle_item.set("cycle_number", str(cycle_number))
+
             for acquisition_id in acquisitions_list:
-                acquisition_id_item = SubElement(global_cycle_item, "acquisition")     
+                acquisition_id_item = SubElement(global_cycle_item, "acquisition")
                 acquisition_id_item.text = acquisition_id
 
-             
+
 def write_core_processing_tomo_fh_section(father_item, core_proc_fh_obj):
-   
+
     # core processing section for FH and TOMO FH are the same
     write_core_processing_fh_section(father_item, core_proc_fh_obj, tomo_fh_flag=True)
 
@@ -858,7 +861,7 @@ def parse_core_proc_agb_section(root):
     return core_proc_agb_obj
 
 
-def parse_core_proc_fh_section(root,tomo_fh_flag=False):
+def parse_core_proc_fh_section(root, tomo_fh_flag=False):
 
     if tomo_fh_flag:
         core_proc_fh_item = root.find("core_processing_tomo_fh")
@@ -867,19 +870,19 @@ def parse_core_proc_fh_section(root,tomo_fh_flag=False):
 
     if core_proc_fh_item:
         equi7_products_paths_item = core_proc_fh_item.find("equi7_products_paths")
-        
+
         data_equi7_fnames = {}
         mask_equi7_fnames = {}
         for equi7_product_item in equi7_products_paths_item.findall("equi7_product"):
             stack_id = equi7_product_item.attrib["unique_stack_id"]
             data_equi7_fnames[stack_id] = []
             mask_equi7_fnames[stack_id] = []
-            
+
             for equi7_tile_item in equi7_product_item.findall("equi7_tile"):
-                
-                data_equi7_fnames[stack_id].append( equi7_tile_item.find("path_data").text )
-                mask_equi7_fnames[stack_id].append( equi7_tile_item.find("path_mask").text )
-            
+
+                data_equi7_fnames[stack_id].append(equi7_tile_item.find("path_data").text)
+                mask_equi7_fnames[stack_id].append(equi7_tile_item.find("path_mask").text)
+
         core_proc_fh_obj = core_processing_fh(data_equi7_fnames, mask_equi7_fnames)
 
     else:
@@ -892,43 +895,41 @@ def parse_core_proc_fd_section(root):
     """
        place older function to be developed yet 
     """
-    
+
     core_proc_fd_item = root.find("core_processing_fd")
-    
+
     if core_proc_fd_item:
-        cycles_composition = (
-            {}
-        )  # dict which groupes togheter all the differente global cycles for s
-        #tacks with same nominal geometry
+        cycles_composition = {}  # dict which groupes togheter all the differente global cycles for s
+        # tacks with same nominal geometry
         # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
         cycles_composition_item = core_proc_fd_item.find("cycles_composition")
-        
+
         for nominal_geometry_item in cycles_composition_item.findall("nominal_geometry"):
-            
+
             nominal_geometry_stack_id = nominal_geometry_item.attrib["stack_id"]
             cycles_composition[nominal_geometry_stack_id] = {}
-            
+
             for global_cycle_item in nominal_geometry_item.findall("global_cycle"):
-            
+
                 global_cycle_idx = int(global_cycle_item.attrib["cycle_number"])
-                
+
                 cycles_composition[nominal_geometry_stack_id][global_cycle_idx] = []
-                
+
                 for acquisition_item in global_cycle_item.findall("acquisition"):
                     cycles_composition[nominal_geometry_stack_id][global_cycle_idx].append(acquisition_item.text)
-                    
+
         core_proc_fd_obj = core_processing_fd(cycles_composition)
     else:
-        
+
         core_proc_fd_obj = None
-    
+
     return core_proc_fd_obj
 
 
 def parse_core_proc_tomo_fh_section(root):
-    
+
     # core processing section for FH and TOMO FH are the same
-    core_proc_tomo_fh_obj = parse_core_proc_fh_section(root, tomo_fh_flag = True)
+    core_proc_tomo_fh_obj = parse_core_proc_fh_section(root, tomo_fh_flag=True)
 
     return core_proc_tomo_fh_obj
 
@@ -994,6 +995,8 @@ def write_proc_flags_section(father_item, proc_flags_obj):
     DEM_flattening.text = str(proc_flags_obj.DEM_flattening)
     multilook_heading_correction = SubElement(proc_flags_item, "multilook_heading_correction")
     multilook_heading_correction.text = str(proc_flags_obj.multilook_heading_correction)
+    input_data_type = SubElement(proc_flags_item, "input_data_type")
+    input_data_type.text = str(proc_flags_obj.input_data_type)
     save_breakpoints = SubElement(proc_flags_item, "save_breakpoints")
     save_breakpoints.text = str(proc_flags_obj.save_breakpoints)
     delete_temporary_files = SubElement(proc_flags_item, "delete_temporaryFiles")
@@ -1282,6 +1285,7 @@ def parse_proc_flags_section(father_item):
     apply_calibration_screen = bool_from_string(proc_flags_item.find("apply_calibration_screen").text)
     DEM_flattening = bool_from_string(proc_flags_item.find("DEM_flattening").text)
     multilook_heading_correction = bool_from_string(proc_flags_item.find("multilook_heading_correction").text)
+    input_data_type = proc_flags_item.find("input_data_type").text
     save_breakpoints = bool_from_string(proc_flags_item.find("save_breakpoints").text)
     delete_temporary_files = bool_from_string(proc_flags_item.find("delete_temporaryFiles").text)
 
@@ -1291,6 +1295,7 @@ def parse_proc_flags_section(father_item):
         apply_calibration_screen,
         DEM_flattening,
         multilook_heading_correction,
+        input_data_type,
         save_breakpoints,
         delete_temporary_files,
     )

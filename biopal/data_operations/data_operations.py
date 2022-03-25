@@ -96,7 +96,7 @@ def data_oversample(data, oversampling_factor, raster_info_obj):
 
                 else:
 
-                    # Beta0 case (input data is a dict of dict with values)
+                    # slc case (input data is a dict of dict with values)
                     for pol_key, data_pol in data_extracted.items():
 
                         if rg_oversampling_flag:
@@ -151,12 +151,12 @@ def read_and_oversample_data(L1c_repository, acquisitions_pf_names, enable_resam
     # this function calls the read_data followed by the data_oversample
     # (which oversamples only when needed and if enabled )
 
-    beta0_calibrated = {}
+    data_SLC = {}
     for pf_name in acquisitions_pf_names:
         logging.info("    loading " + pf_name + "...")
         # every data in the current stack has same spacing, same resolution and same number of samples and lines
         (
-            beta0_calibrated[pf_name],
+            data_SLC[pf_name],
             num_samples,
             num_lines,
             pixel_spacing_slant_rg,
@@ -188,8 +188,8 @@ def read_and_oversample_data(L1c_repository, acquisitions_pf_names, enable_resam
 
     if enable_resampling:
 
-        (beta0_calibrated, num_samples, pixel_spacing_slant_rg, num_lines, pixel_spacing_az,) = data_oversample(
-            beta0_calibrated, OVERSAMPLING_FACTOR, raster_info_orig,
+        (data_SLC, num_samples, pixel_spacing_slant_rg, num_lines, pixel_spacing_az,) = data_oversample(
+            data_SLC, OVERSAMPLING_FACTOR, raster_info_orig,
         )
 
         logging.info("all data loaded.\n")
@@ -207,7 +207,7 @@ def read_and_oversample_data(L1c_repository, acquisitions_pf_names, enable_resam
         lines_start_utc,
     )
 
-    return beta0_calibrated, master_id, raster_info_os, raster_info_orig
+    return data_SLC, master_id, raster_info_os, raster_info_orig
 
 
 def read_and_oversample_aux_data(
@@ -913,12 +913,12 @@ def mosaiking(equi7_main_full_folder, mosaiking_out_folder):
     return out_mosaiked_equi7_tiff_names
 
 
-def apply_dem_flattening(beta0_calibrated, kz_in, reference_height, master_id, raster_info):
+def apply_dem_flattening(data_slc, kz_in, reference_height, master_id, raster_info):
 
-    for pf_name in beta0_calibrated.keys():
-        for pol_id in beta0_calibrated[pf_name]:
-            beta0_calibrated[pf_name][pol_id] = np.multiply(
-                beta0_calibrated[pf_name][pol_id], np.exp(-1j * np.multiply(kz_in[pf_name], reference_height)),
+    for pf_name in data_slc.keys():
+        for pol_id in data_slc[pf_name]:
+            data_slc[pf_name][pol_id] = np.multiply(
+                data_slc[pf_name][pol_id], np.exp(-1j * np.multiply(kz_in[pf_name], reference_height)),
             )
 
-    return beta0_calibrated
+    return data_slc

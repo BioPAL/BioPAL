@@ -567,3 +567,8 @@ def collect_stacks_to_be_merged(stack_composition):
 
     return stacks_to_merge_dict
 
+
+def radiometric_correction_beta_to_sigma(beta_nought, theta):
+
+    return beta_nought * np.sin(theta)
+

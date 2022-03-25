@@ -9,6 +9,7 @@
 		<apply_calibration_screen>False</apply_calibration_screen>
 		<DEM_flattening>False</DEM_flattening>
 		<multilook_heading_correction>True</multilook_heading_correction>
+		<input_data_type types="beta_nought, sigma_nought">beta_nought</input_data_type>
 		<save_breakpoints>True</save_breakpoints>
 		<delete_temporaryFiles>False</delete_temporaryFiles>
 	</processing_flags>

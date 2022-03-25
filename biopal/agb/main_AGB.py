@@ -39,6 +39,7 @@ from biopal.utility.utility_functions import (
     decode_unique_acquisition_id_string,
     save_breakpoints,
     set_gdal_paths,
+    radiometric_correction_beta_to_sigma,
 )
 from biopal.geocoding.geocoding import (
     geocoding,
@@ -377,8 +378,8 @@ class StackBasedProcessingAGB(Task):
         lut_stacks_boundaries = np.zeros((number_of_stacks, 4))
         lut_stacks_paths = []
 
-        # sigma0 and theta initialization
-        sigma0_equi7_fnames = {}
+        # sigma nought  and theta initialization
+        sigma_nought_equi7_fnames = {}
         theta_equi7_fnames = {}
         # cycle for each stack
         # for stack_key, scene_dict in proc_inputs.stacks_scenes_fnames_orders.items():
@@ -415,7 +416,7 @@ class StackBasedProcessingAGB(Task):
             try:
                 logging.info("AGB: Data loading for stack " + unique_stack_id + "; this may take a while:")
 
-                (beta0_calibrated, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
+                (data_SLC, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
                     input_params_obj.dataset_query.L1C_repository,
                     acquisitions_pf_names,
                     conf_params_obj.processing_flags.enable_resampling,
@@ -594,16 +595,14 @@ class StackBasedProcessingAGB(Task):
             try:
                 if conf_params_obj.processing_flags.apply_calibration_screen:
                     logging.info("AGB: applying calibration screen...")
-                    beta0_calibrated = apply_calibration_screens(
-                        beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id,
+                    data_SLC = apply_calibration_screens(
+                        data_SLC, raster_info, cal_screens, cal_screens_raster_info, master_id,
                     )
                     logging.info("...done.\n")
 
                 elif conf_params_obj.processing_flags.DEM_flattening:
                     logging.info("AGB: DEM flattening... ")
-                    beta0_calibrated = apply_dem_flattening(
-                        beta0_calibrated, kz, reference_height, master_id, raster_info
-                    )
+                    data_SLC = apply_dem_flattening(data_SLC, kz, reference_height, master_id, raster_info)
                     logging.info("...done.\n")
 
             except Exception as e:
@@ -612,7 +611,7 @@ class StackBasedProcessingAGB(Task):
                 )
                 raise
 
-            ### ground notching
+            ### ground cancellation
             try:
 
                 if space_varying_ground_cancellation:
@@ -624,8 +623,8 @@ class StackBasedProcessingAGB(Task):
                     current_enhanced_forest_height.fill(conf_params_obj.ground_cancellation.enhanced_forest_height)
 
                     logging.info("AGB: space-varying ground contribute cancellation...:")
-                    DN_beta0_notched = ground_cancellation(
-                        beta0_calibrated,
+                    SLC_ground_cancelled = ground_cancellation(
+                        data_SLC,
                         kz_ground_slope,
                         conf_params_obj.ground_cancellation.multi_master_flag,
                         current_enhanced_forest_height,
@@ -633,14 +632,14 @@ class StackBasedProcessingAGB(Task):
                         raster_info.resolution_m_slant_rg,
                         off_nadir_angle_rad[master_id],
                         slope,
-                    )  # beta0_calibrated: 3 pol (nrg x Naz  x N images); DN_beta0_notched: 3 pol (Nrg x Naz x 1 image)
-                    del beta0_calibrated, kz, kz_ground_slope, current_enhanced_forest_height
+                    )  # data_SLC: 3 pol (nrg x Naz  x N images); SLC_ground_cancelled: 3 pol (Nrg x Naz x 1 image)
+                    del data_SLC, kz, kz_ground_slope, current_enhanced_forest_height
                 else:
 
                     logging.info("AGB: ground contribute cancellation...:")
 
-                    DN_beta0_notched = ground_cancellation(
-                        beta0_calibrated,
+                    SLC_ground_cancelled = ground_cancellation(
+                        data_SLC,
                         kz,
                         conf_params_obj.ground_cancellation.multi_master_flag,
                         conf_params_obj.ground_cancellation.enhanced_forest_height,
@@ -648,9 +647,9 @@ class StackBasedProcessingAGB(Task):
                         raster_info.resolution_m_slant_rg,
                         off_nadir_angle_rad[master_id],
                         slope,
-                    )  # beta0_calibrated: 3 pol (nrg x Naz  x images); DN_beta0_notched: 3 pol (Nrg x Naz x 1 image)
+                    )  # data_SLC: 3 pol (nrg x Naz  x images); SLC_ground_cancelled: 3 pol (Nrg x Naz x 1 image)
 
-                    del beta0_calibrated, kz
+                    del data_SLC, kz
 
             except Exception as e:
                 logging.error("AGB: error during ground cancellation: " + str(e), exc_info=True)
@@ -667,7 +666,7 @@ class StackBasedProcessingAGB(Task):
             ):
                 sigma_ground_res_m = conf_params_obj.estimate_agb.product_resolution / 2
                 logging.warning(
-                    '"intermediate_ground_averaging" cannot be greater than "product_resolution/2", setting it to {}'.format(
+                    '"intermediate ground averaging" cannot be greater than "product resolution/2", setting it to {}'.format(
                         sigma_ground_res_m
                     )
                 )
@@ -694,26 +693,38 @@ class StackBasedProcessingAGB(Task):
             theta_multi_looked_sr = theta_multi_looked_sr[::sub_factor_y, ::sub_factor_x]
             logging.info("...done.\n")
 
-            sigma0_sr = {}
-            for pol_name in DN_beta0_notched.keys():
+            sigma_nought_sr = {}
+            for pol_name in SLC_ground_cancelled.keys():
 
                 logging.info("AGB: multilooking of ground notched for polarization {}...".format(pol_name))
-                beta0_notched_multi_looked = convolve2d(
-                    np.absolute(DN_beta0_notched[pol_name]) ** 2,
+                SLC_ground_cancelled_multi_look = convolve2d(
+                    np.absolute(SLC_ground_cancelled[pol_name]) ** 2,
                     np.ones((windtm_y, windtm_x)) / windtm_y / windtm_x,
                     mode="same",
                 )
 
-                logging.info("AGB: sigma0 computation for polarization {}...".format(pol_name))
-                sigma0_sr[pol_name] = beta0_notched_multi_looked[::sub_factor_y, ::sub_factor_x] * np.sin(
-                    theta_multi_looked_sr
-                )
+                # It's not important that data SLC data is a beta or sigma nought: it's important to be proportional to beta or sigma nought.
+                if conf_params_obj.processing_flags.input_data_type == "beta_nought":
+                    # Data SLC is proportional to beta nought: convert to sigma nought (while subsampling)
+                    sigma_nought_sr[pol_name] = radiometric_correction_beta_to_sigma(
+                        SLC_ground_cancelled_multi_look[::sub_factor_y, ::sub_factor_x], theta_multi_looked_sr
+                    )
+                elif conf_params_obj.processing_flags.input_data_type == "sigma_nought":
+                    # Data SLC is already proportional to sigma nought: just subsampling
+                    sigma_nought_sr[pol_name] = SLC_ground_cancelled_multi_look[::sub_factor_y, ::sub_factor_x]
 
-                sigma0_sr[pol_name][sigma0_sr[pol_name] < 0] = np.NaN
+                else:
+                    error_message = "Input data type should be a string called beta_nought or sigma_nought; found {} instead. Check configuration file.".format(
+                        conf_params_obj.processing_flags.input_data_type
+                    )
+                    logging.error(error_message)
+                    raise RuntimeError(error_message)
+
+                sigma_nought_sr[pol_name][sigma_nought_sr[pol_name] < 0] = np.NaN
 
                 logging.info("...done.\n")
 
-            del beta0_notched_multi_looked
+            del SLC_ground_cancelled_multi_look
 
             ### saving breakpoints
             if conf_params_obj.processing_flags.save_breakpoints:
@@ -722,8 +733,10 @@ class StackBasedProcessingAGB(Task):
 
                 breakpoint_names = ["ground_cancelled" + post_string]
 
-                save_breakpoints(breakpoints_output_folder, breakpoint_names, [DN_beta0_notched])
+                save_breakpoints(breakpoints_output_folder, breakpoint_names, [SLC_ground_cancelled])
                 logging.info("...done.\n")
+
+            del SLC_ground_cancelled
 
             az_vec_subs = np.arange(0, raster_info.num_lines, sub_factor_x)
             rg_vec_subs = np.arange(0, raster_info.num_samples, sub_factor_y)
@@ -753,18 +766,18 @@ class StackBasedProcessingAGB(Task):
                     used_lat_step,
                 ) = geocoding_init(ecef_grid, rg_vec_subs, az_vec_subs, min_spacing_m)
 
-                # geocode the sigma0 (three polarizations)
-                sigma0_gr = {}
-                for pol_name in sigma0_sr.keys():
+                # geocode the sigma nought (three polarizations)
+                sigma_nought_gr = {}
+                for pol_name in sigma_nought_sr.keys():
 
-                    logging.info("AGB: geocoding the sigma0 for polarization {}...".format(pol_name))
-                    sigma0_gr[pol_name] = geocoding(
-                        sigma0_sr[pol_name], lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask,
+                    logging.info("AGB: geocoding the sigma nought for polarization {}...".format(pol_name))
+                    sigma_nought_gr[pol_name] = geocoding(
+                        sigma_nought_sr[pol_name], lon_in, lat_in, lonMeshed_out, latMeshed_out, valid_values_mask,
                     )
 
                     logging.info("...done.\n")
 
-                del sigma0_sr
+                del sigma_nought_sr
 
                 # geocode the theta incidence angle
                 logging.info("AGB: Geocoding of incidence angle...")
@@ -797,19 +810,21 @@ class StackBasedProcessingAGB(Task):
                     sampling_step_north_south,
                 ]
 
-                # geotiff of the sigma0 (three polarizations)
-                sigma0_ground_fnames = {}
-                for pol_name in sigma0_gr.keys():
-                    sigma0_ground_fnames[pol_name] = os.path.join(temp_output_folder_gr, "sigma0_" + pol_name + ".tif",)
+                # geotiff of the sigma nought (three polarizations)
+                sigma_nought_ground_fnames = {}
+                for pol_name in sigma_nought_gr.keys():
+                    sigma_nought_ground_fnames[pol_name] = os.path.join(
+                        temp_output_folder_gr, "sigma_nought_" + pol_name + ".tif",
+                    )
 
                     tiff_formatter(
-                        sigma0_gr[pol_name],
-                        sigma0_ground_fnames[pol_name],
+                        sigma_nought_gr[pol_name],
+                        sigma_nought_ground_fnames[pol_name],
                         geotransform,
                         gdal_data_format=gdal.GDT_Float32,
                     )
 
-                del sigma0_gr
+                del sigma_nought_gr
 
                 # geotiff of the theta
                 theta_ground_fname = os.path.join(temp_output_folder_gr, "theta.tif")
@@ -829,19 +844,22 @@ class StackBasedProcessingAGB(Task):
             logging.info(unique_stack_id + ": formatting into EQUI7 grid...")
             try:
 
-                sigma0_equi7_fnames[unique_stack_id] = {}
-                # equi7 of the sigma0 (three polarizations)
-                for pol_name in sigma0_ground_fnames.keys():
+                sigma_nought_equi7_fnames[unique_stack_id] = {}
+                # equi7 of the sigma nought (three polarizations)
+                for pol_name in sigma_nought_ground_fnames.keys():
 
-                    equi7_sigma0_outdir = os.path.join(temp_output_folder_e7, "sigma0_" + pol_name)
+                    equi7_sigma_nought_outdir = os.path.join(temp_output_folder_e7, "sigma_nought_" + pol_name)
 
                     logging.info(
-                        "image2equi7grid IN: " + sigma0_ground_fnames[pol_name] + " , OUT:" + equi7_sigma0_outdir
+                        "image2equi7grid IN: "
+                        + sigma_nought_ground_fnames[pol_name]
+                        + " , OUT:"
+                        + equi7_sigma_nought_outdir
                     )
-                    sigma0_equi7_fnames[unique_stack_id][pol_name] = image2equi7grid(
+                    sigma_nought_equi7_fnames[unique_stack_id][pol_name] = image2equi7grid(
                         e7g_intermediate,
-                        sigma0_ground_fnames[pol_name],
-                        equi7_sigma0_outdir,
+                        sigma_nought_ground_fnames[pol_name],
+                        equi7_sigma_nought_outdir,
                         gdal_path=gdal_path,
                         inband=None,
                         subgrid_ids=None,
@@ -923,7 +941,7 @@ class StackBasedProcessingAGB(Task):
                 if name == "neg_sigma0_hh_db":
                     pol_name = "hh"
                     stack_list = []
-                    for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
+                    for index_stack, sigma0_pols_dict in enumerate(sigma_nought_equi7_fnames.values()):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
@@ -947,7 +965,7 @@ class StackBasedProcessingAGB(Task):
                 elif name == "neg_sigma0_hv_db":
                     pol_name = "vh"
                     stack_list = []
-                    for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
+                    for index_stack, sigma0_pols_dict in enumerate(sigma_nought_equi7_fnames.values()):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):
@@ -971,7 +989,7 @@ class StackBasedProcessingAGB(Task):
                 elif name == "neg_sigma0_vv_db":
                     pol_name = "vv"
                     stack_list = []
-                    for index_stack, sigma0_pols_dict in enumerate(sigma0_equi7_fnames.values()):
+                    for index_stack, sigma0_pols_dict in enumerate(sigma_nought_equi7_fnames.values()):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
                         file_list = []
                         for index_file, sigma0_file_name in enumerate(sigma0_file_names_list):

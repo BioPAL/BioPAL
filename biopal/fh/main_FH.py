@@ -221,7 +221,7 @@ class StackBasedProcessingFH(Task):
             try:
                 logging.info("FH: Data loading for stack " + unique_stack_id + "; this may take a while:")
 
-                (beta0_calibrated, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
+                (data_SLC, master_id, raster_info, raster_info_orig,) = read_and_oversample_data(
                     input_params_obj.dataset_query.L1C_repository,
                     acquisitions_pf_names,
                     conf_params_obj.processing_flags.enable_resampling,
@@ -390,16 +390,14 @@ class StackBasedProcessingFH(Task):
             try:
                 if conf_params_obj.processing_flags.apply_calibration_screen:
                     logging.info("FH: applying calibration screen...")
-                    beta0_calibrated = apply_calibration_screens(
-                        beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id,
+                    data_SLC = apply_calibration_screens(
+                        data_SLC, raster_info, cal_screens, cal_screens_raster_info, master_id,
                     )
                     logging.info("...done.\n")
 
                 elif conf_params_obj.processing_flags.DEM_flattening:
                     logging.info("FH: DEM flattening... ")
-                    beta0_calibrated = apply_dem_flattening(
-                        beta0_calibrated, kz, reference_height, master_id, raster_info
-                    )
+                    data_SLC = apply_dem_flattening(data_SLC, kz, reference_height, master_id, raster_info)
                     logging.info("...done.\n")
 
             except Exception as e:
@@ -497,7 +495,7 @@ class StackBasedProcessingFH(Task):
                         subs_F_a,
                         MBMP_correlation,
                     ) = estimate_height(
-                        beta0_calibrated,
+                        data_SLC,
                         cov_est_window_size,
                         raster_info.pixel_spacing_slant_rg,
                         raster_info.pixel_spacing_az,
@@ -525,7 +523,7 @@ class StackBasedProcessingFH(Task):
                         subs_F_a,
                         MBMP_correlation,
                     ) = estimate_height(
-                        beta0_calibrated,
+                        data_SLC,
                         cov_est_window_size,
                         raster_info.pixel_spacing_slant_rg,
                         raster_info.pixel_spacing_az,
@@ -543,7 +541,7 @@ class StackBasedProcessingFH(Task):
                 logging.error("FH: error during height estimation: " + str(e), exc_info=True)
                 raise
 
-            del beta0_calibrated, slope, slope_filtered, off_nadir_angle_rad
+            del data_SLC, slope, slope_filtered, off_nadir_angle_rad
 
             ### Placemark for the quality estimation to be defined
             try:

@@ -362,6 +362,7 @@ class BiomassL2Raster:
 
 def read_data(folder, pf_name):
     # reads a data:
+    # input data is supposed to be an slc in radiometrically calibrated as beta nought or sigma nought
     # it is supposed to contain one or more polarizations (the "SwathInfo" is read to retrive it)
     # it returns a dictionary with keys = polarizations
     # it returns also the dimensions of data

@@ -515,7 +515,7 @@ def changeDetection(
         try:
             logging.info("FD: input data reading:...")
 
-            beta0_calibrated, master_id, raster_info, raster_info_orig = read_and_oversample_data(
+            data_SLC, master_id, raster_info, raster_info_orig = read_and_oversample_data(
                 input_params_obj.dataset_query.L1C_repository,
                 uniqie_acq_ids_all_cycles_list,
                 conf_params_obj.processing_flags.enable_resampling,
@@ -655,14 +655,14 @@ def changeDetection(
         try:
             if conf_params_obj.processing_flags.apply_calibration_screen:
                 logging.info("FH: applying calibration screen...")
-                beta0_calibrated = apply_calibration_screens(
-                    beta0_calibrated, raster_info, cal_screens, cal_screens_raster_info, master_id
+                data_SLC = apply_calibration_screens(
+                    data_SLC, raster_info, cal_screens, cal_screens_raster_info, master_id
                 )
                 logging.info("...done.\n")
 
             elif conf_params_obj.processing_flags.DEM_flattening:
                 logging.info("FH: DEM flattening... ")
-                beta0_calibrated = apply_dem_flattening(beta0_calibrated, kz, reference_height, master_id, raster_info)
+                data_SLC = apply_dem_flattening(data_SLC, kz, reference_height, master_id, raster_info)
                 logging.info("...done.\n")
 
         except Exception as e:
@@ -677,8 +677,8 @@ def changeDetection(
         try:
             logging.info("FD: ground contribute cancellation...:")
 
-            beta0_notched = ground_cancellation(
-                beta0_calibrated,
+            SLC_ground_cancelled = ground_cancellation(
+                data_SLC,
                 kz,
                 conf_params_obj.ground_cancellation.multi_master_flag,
                 conf_params_obj.ground_cancellation.enhanced_forest_height,
@@ -686,9 +686,9 @@ def changeDetection(
                 raster_info.resolution_m_slant_rg,
                 off_nadir_angle_rad[master_id],
                 slope,
-            )  # beta0_calibrated: 3 pol (nrg x Naz  x Nimmagini); beta0_notched: 3 pol (Nrg x Naz x 1 immagine)
+            )  # data_SLC: 3 pol (nrg x Naz  x Nimmagini); SLC_ground_cancelled: 3 pol (Nrg x Naz x 1 immagine)
 
-            del beta0_calibrated, kz
+            del data_SLC, kz
 
         except Exception as e:
             logging.error("FD: error during ground cancellation: " + str(e), exc_info=True)
@@ -702,7 +702,7 @@ def changeDetection(
 
             breakpoint_names = ["ground_cancelled" + post_string]
 
-            save_breakpoints(breakpoints_output_folder, breakpoint_names, [beta0_notched])
+            save_breakpoints(breakpoints_output_folder, breakpoint_names, [SLC_ground_cancelled])
             logging.info("...done.\n")
 
         # covariance estimation window size, it may be modified by an internal flag in case of air-plane geometry
@@ -718,7 +718,7 @@ def changeDetection(
         try:
             logging.info("FD: disturbance covariance matrix computation...")
             (MPMB_covariance_sr, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = main_covariance_estimation_SR(
-                deepcopy(beta0_notched),
+                deepcopy(SLC_ground_cancelled),
                 cov_est_window_size,
                 raster_info.pixel_spacing_slant_rg,
                 raster_info.pixel_spacing_az,
@@ -727,7 +727,7 @@ def changeDetection(
                 raster_info.range_bandwidth_hz,
             )
 
-            del beta0_notched
+            del SLC_ground_cancelled
 
             MPMB_covariance_sr = covariance_matrix_mat2vec(
                 MPMB_covariance_sr
