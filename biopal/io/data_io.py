@@ -412,11 +412,11 @@ def read_data(folder, pf_name):
         sc = metadatachannel_obj.get_element("SamplingConstants")
         range_bandwidth_hz = sc.brg_hz
 
-        # hv and vh data are mean togheter, ew save only a vh polarization, that will be a "vh_used = (vh+hv)/2"
+        # hv and vh data are mean togheter: save only a vh polarization, that will be a "data_read["vh"] = (vh+hv)/2"
         if pol_id == "hv" or pol_id == "vh":
             if "vh" in data_read.keys():
                 # data (vh or hv) already saved in the dict, add the other data
-                data_read["vh"] = (data_read["vh"] + pf.read_data(pol_channel_idx).transpose()) / np.sqrt(2)
+                data_read["vh"] = (data_read["vh"] + pf.read_data(pol_channel_idx).transpose()) / 2
             else:
                 # nor vh nor vv have been saved to dict yet, add first one
                 data_read["vh"] = pf.read_data(pol_channel_idx).transpose()
@@ -424,16 +424,16 @@ def read_data(folder, pf_name):
 
             data_read[pol_id] = pf.read_data(pol_channel_idx).transpose()
 
-    if len(polid_found) < 4:
+    if len(polid_found) < 3:
         raise ValueError(
-            "Input data stack {} should contain #4 polarizations, hh, hv, vh, vv, only {} found ".format(
-                pf_name, len(polid_found)
+            "Input data stack {} should contain #3 or #4 polarizations: hh + hv + vh + vv or hh + hv + vv or hh + vh + vv, found {} instead ".format(
+                pf_name, polid_found
             )
         )
-    elif not "hh" in polid_found or not "hv" in polid_found or not "vh" in polid_found or not "vv" in polid_found:
+    if not "hh" in polid_found or not "vv" in polid_found or not ("hv" in polid_found or "vh" in polid_found):
         raise ValueError(
-            "Input data stack {} should contain #4 polarizations, hh, hv, vh, vv, only {} found ".format(
-                pf_name, len(polid_found)
+            "Input data stack {} should contain #3 or #4 polarizations: hh + hv + vh + vv or hh + hv + vv or hh + vh + vv, found {} instead ".format(
+                pf_name, polid_found
             )
         )
 
