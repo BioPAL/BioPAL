@@ -481,6 +481,21 @@ class StackBasedProcessingFH(Task):
 
                 if conf_params_obj.estimate_fh.spectral_shift_filtering:
 
+                    # Check over auxiliary inputs:
+                    len_r = len(R.keys())
+                    len_SLC = len(data_SLC.keys())
+                    len_offnad = len(off_nadir_angle_rad.keys())
+                    if len_r < len_SLC or len_offnad < len_SLC:
+                        raise ValueError(
+                            (
+                                """When Spectral Shift Filtering for FH is enabled, it is mandatory to have (into auxiliary_data_pf folder) 
+                                   the SlantRangeDistances and OffnadirAngles for all the baselines. We have:
+                                   #{} baseline(s) present in this processing
+                                   #{} baseline(s) inside SlantRangeDistances
+                                   #{} baseline(s) inside OffnadirAngles)"""
+                            ).format(len_SLC, len_r, len_offnad)
+                        )
+
                     (
                         estimated_height,
                         extinctionmap,
