@@ -501,7 +501,7 @@ def fnf_tandemx_load_filter_equi7format(
         logging.error(error_msg)
         raise ValueError(error_msg)
 
-    # conversion step 2: fnf mask geotiff formatting: one single layer geotiff for each fnf "tamdem-x tile" (they will be merged togheter after equi7 conversion )
+    # conversion step 2: fnf mask geotiff formatting: one single layer geotiff for each fnf "tamdem-x tile" (they will be merged together after equi7 conversion )
     fnf_mask_ground_dir_name = os.path.join(output_folder, "fnf_ground")
     fnf_mask_ground_dir_names = tiff_formatter(
         fnf_mask_list,
@@ -688,7 +688,7 @@ def fnf_equi7_masks_merging(fnf_mask_equi7_fnames_whole, temp_output_folder):
             temp_output_folder, "equi7_fnf_tiles_merged", equi7_subgrid_name, equi7_tile_name, "fnf.tif",
         )
 
-        # search all the equi7 tile name in each fnf tile and sum togheter
+        # search all the equi7 tile name in each fnf tile and sum together
         for fnf_tiff_full_path_curr in fnf_mask_equi7_fnames_whole:
             if equi7_tile_name in fnf_tiff_full_path_curr:
 
@@ -755,7 +755,7 @@ def fnf_and_validity_masks_merging(merged_fnf_equi7_names, validity_mask_equi7_f
         if not curr_equi7_tile_name in equi7_tile_names:
             equi7_tile_names.append(curr_equi7_tile_name)
 
-    # search all the equi7 tile name in each fnf tile and sum togheter
+    # search all the equi7 tile name in each fnf tile and sum together
     for equi7_tile_name in equi7_tile_names:
         fnf_mask_name = [name for name in merged_fnf_equi7_names if equi7_tile_name in name]
         validity_mask_name = [name for name in validity_mask_equi7_fnames if equi7_tile_name in name]

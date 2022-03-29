@@ -503,7 +503,7 @@ def write_core_processing_fd_section(father_item, core_proc_fd_obj):
     core_fd_item = SubElement(father_item, "core_processing_fd")
 
     cycles_composition_item = SubElement(core_fd_item, "cycles_composition")
-    # dict which groupes togheter all the differente global cycles for stacks with same nominal geometry
+    # dict which groupes together all the differente global cycles for stacks with same nominal geometry
     # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
 
     for stack_idx, (nominal_geometry_stack_id, global_cycle_dict) in enumerate(
@@ -899,7 +899,7 @@ def parse_core_proc_fd_section(root):
     core_proc_fd_item = root.find("core_processing_fd")
 
     if core_proc_fd_item:
-        cycles_composition = {}  # dict which groupes togheter all the differente global cycles for s
+        cycles_composition = {}  # dict which groupes together all the differente global cycles for s
         # tacks with same nominal geometry
         # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
         cycles_composition_item = core_proc_fd_item.find("cycles_composition")

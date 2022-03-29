@@ -242,9 +242,9 @@ class InitializeAlgorithmFD(Task):
         ### grouping temoral global cycles for each stack
         cycles_composition = (
             {}
-        )  # dict which groupes togheter all the differente global cycles for stacks with same nominal geometry
+        )  # dict which groupes together all the differente global cycles for stacks with same nominal geometry
         # cycles_composition[nominal_geometry_stack_id][global_cycle_number]
-        logging.info('FD: grouping togheter the stacks which have same "nominal geometry" in different global cycles:')
+        logging.info('FD: grouping together the stacks which have same "nominal geometry" in different global cycles:')
         for idx, (unique_stack_id, unique_acq_pf_names) in enumerate(
             input_params_obj.stack_based_processing.stack_composition.items()
         ):

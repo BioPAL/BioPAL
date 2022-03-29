@@ -354,7 +354,7 @@ def heigths_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
     # for each stack:
     # 1) check if it is alone, of if there is a couple ASC+DES stacks
     # 2) if alone, gust apply the mask
-    # 3) if it is not alone, merge it togheter with its companion data, also applying the mask
+    # 3) if it is not alone, merge it together with its companion data, also applying the mask
 
     # the asc_des_string is formatted as it follow:
     # XXX:SELF,YYY:STACK_ID

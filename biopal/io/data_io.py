@@ -413,7 +413,7 @@ def read_data(folder, pf_name):
         sc = metadatachannel_obj.get_element("SamplingConstants")
         range_bandwidth_hz = sc.brg_hz
 
-        # hv and vh data are mean togheter: save only a vh polarization, that will be a "data_read["vh"] = (vh+hv)/2"
+        # hv and vh data (if both are present) are averaged together as (vh+hv)/2"
         if pol_id == "hv" or pol_id == "vh":
             if "vh" in data_read.keys():
                 # data (vh or hv) already saved in the dict, add the other data
