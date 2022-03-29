@@ -78,13 +78,13 @@ def ground_cancellation(data_stack, kz_stack, multi_master_flag, z_emph, eq_flag
 
     # Ground cancellation parameters
     if opt_str.space_varying_cancellation:
-        logging.info("AGB: (ground_cancellation) z_emph suitable 2D map...:")
+        logging.info("     Ground cancellation: z_emph suitable 2D map...:")
         opt_str.z_demod_map = z_emph / 2  # [m]
         opt_str.kz0_map = np.pi / opt_str.z_demod_map / 2
         opt_str.z_demod = np.mean(opt_str.z_demod_map)
         opt_str.kz0 = np.pi / opt_str.z_demod / 2
     else:
-        logging.info("AGB: (ground_cancellation) z_emph not suitable 2D map...:")
+        logging.info("     Ground cancellation: z_emph not suitable 2D map...:")
         opt_str.z_demod = z_emph / 2  # [m]
         opt_str.kz0 = np.pi / opt_str.z_demod / 2
 
@@ -232,10 +232,10 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
     # Checking whether space-varying cancellation should run. It has already
     # been checked by ground_cancellation method, trust it.
     if hasattr(opt_str, "space_varying_cancellation") and opt_str.space_varying_cancellation:
-        logging.info("AGB: (core) opt_str.space_varying_cancellation = True...:")
+        logging.info("     opt_str.space_varying_cancellation = True...:")
         space_varying_cancellation = True
     else:
-        logging.info("AGB: (core) opt_str.space_varying_cancellation = False...:")
+        logging.info("     opt_str.space_varying_cancellation = False...:")
         space_varying_cancellation = False
 
     if num_acq == 2:
@@ -249,15 +249,15 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
     else:
         # Checking opt_str
         if not hasattr(opt_str, "kz0"):
-            logging.error("Ground cancellation module: missing opt_str.kz0 input.")
+            logging.error("    Ground cancellation: missing opt_str.kz0 input.")
             raise
 
         if not hasattr(opt_str, "z_demod"):
-            logging.error("Ground cancellation module: missing opt_str.z_demod input.")
+            logging.error("    Ground cancellation: missing opt_str.z_demod input.")
             raise
 
         if not hasattr(opt_str, "master_id"):
-            logging.error("Ground cancellation module: missing opt_str.master_id input.")
+            logging.error("    Ground cancellation: missing opt_str.master_id input.")
             raise
 
         # Check if it is better to generate +kz0 or -kz0
