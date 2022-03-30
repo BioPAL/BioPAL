@@ -939,7 +939,7 @@ class StackBasedProcessingAGB(Task):
             if not conf_params_obj.estimate_agb.residual_function.formula_observables.source_paths[index_obs]:
 
                 if name == "neg_sigma0_hh_db":
-                    pol_name = "hh"
+                    pol_name = "HH"
                     stack_list = []
                     for index_stack, sigma0_pols_dict in enumerate(sigma_nought_equi7_fnames.values()):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
@@ -963,7 +963,7 @@ class StackBasedProcessingAGB(Task):
                     conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
                 elif name == "neg_sigma0_hv_db":
-                    pol_name = "vh"
+                    pol_name = "VH"
                     stack_list = []
                     for index_stack, sigma0_pols_dict in enumerate(sigma_nought_equi7_fnames.values()):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]
@@ -987,7 +987,7 @@ class StackBasedProcessingAGB(Task):
                     conf_params_obj.estimate_agb.residual_function.formula_observables.source_unit[index_obs] = "none"
 
                 elif name == "neg_sigma0_vv_db":
-                    pol_name = "vv"
+                    pol_name = "VV"
                     stack_list = []
                     for index_stack, sigma0_pols_dict in enumerate(sigma_nought_equi7_fnames.values()):
                         sigma0_file_names_list = sigma0_pols_dict[pol_name]

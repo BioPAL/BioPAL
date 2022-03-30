@@ -406,34 +406,34 @@ def read_data(folder, pf_name):
         si = metadatachannel_obj.get_element("SwathInfo")
         if not si:
             raise ValueError("data product folder should contain the SwathInfo to retrive the polarization")
-        pol_id = si.polarization.name
+        pol_id = si.polarization.name.upper()
 
         polid_found.append(pol_id)
         # Sampling constants
         sc = metadatachannel_obj.get_element("SamplingConstants")
         range_bandwidth_hz = sc.brg_hz
 
-        # hv and vh data (if both are present) are averaged together as (vh+hv)/2"
-        if pol_id == "hv" or pol_id == "vh":
-            if "vh" in data_read.keys():
-                # data (vh or hv) already saved in the dict, add the other data
-                data_read["vh"] = (data_read["vh"] + pf.read_data(pol_channel_idx).transpose()) / 2
+        # HV and VH polarizations data (if both are present) are averaged together as (VH+HV)/2"
+        if pol_id == "HV" or pol_id == "VH":
+            if "VH" in data_read.keys():
+                # data (VH or HV) already saved in the dict, add the other data
+                data_read["VH"] = (data_read["VH"] + pf.read_data(pol_channel_idx).transpose()) / 2
             else:
-                # nor vh nor vv have been saved to dict yet, add first one
-                data_read["vh"] = pf.read_data(pol_channel_idx).transpose()
+                # nor VH nor VV have been saved to dict yet, add first one
+                data_read["VH"] = pf.read_data(pol_channel_idx).transpose()
         else:
 
             data_read[pol_id] = pf.read_data(pol_channel_idx).transpose()
 
     if len(polid_found) < 3:
         raise ValueError(
-            "Input data stack {} should contain #3 or #4 polarizations: hh + hv + vh + vv or hh + hv + vv or hh + vh + vv, found {} instead ".format(
+            "Input data stack {} should contain #3 or #4 polarizations: HH + HV + VH + VV or HH + HV + VV or HH + VH + VV, found {} instead ".format(
                 pf_name, polid_found
             )
         )
-    if not "hh" in polid_found or not "vv" in polid_found or not ("hv" in polid_found or "vh" in polid_found):
+    if not "HH" in polid_found or not "VV" in polid_found or not ("HV" in polid_found or "VH" in polid_found):
         raise ValueError(
-            "Input data stack {} should contain #3 or #4 polarizations: hh + hv + vh + vv or hh + hv + vv or hh + vh + vv, found {} instead ".format(
+            "Input data stack {} should contain #3 or #4 polarizations: HH + HV + VH + VV or HH + HV + VV or HH + VH + VV, found {} instead ".format(
                 pf_name, polid_found
             )
         )

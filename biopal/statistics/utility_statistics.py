@@ -146,7 +146,7 @@ def covariance_options_struct_filler(
 
     first_level_key = next(iter(data_stack.keys()))
 
-    if first_level_key == "hh" or first_level_key == "hv" or first_level_key == "vh" or first_level_key == "vv":
+    if first_level_key == "HH" or first_level_key == "HV" or first_level_key == "VH" or first_level_key == "VV":
         # if data_stack contais ground cancelled data, there is not an acquisitions dict
         pol_names = list(data_stack.keys())
         Num_of_pols = len(pol_names)
@@ -291,10 +291,10 @@ def MPMBCovarianceEstimation(D_in, opt_str):
 
     INPUTS:
         D_in: can be a:
-                  dictionary with acquisition keys (Num_Baselines) each containing a dictionary with hh hv vh and vv
+                  dictionary with acquisition keys (Num_Baselines) each containing a dictionary with HH HV VH and VV
                   polarization keys containing arrays with dimensions [Nrg x Naz]
             or (in case of ground cancelled input) :
-                  dictionary with hh hv vh and vv
+                  dictionary with HH HV VH and VV
                   polarization keys containing arrays with dimensions [Nrg x Naz]
         opt_str:
             NWmono_r: One-sided range average window [pixel]
@@ -313,7 +313,7 @@ def MPMBCovarianceEstimation(D_in, opt_str):
 
     first_level_key = next(iter(D_in.keys()))
 
-    if first_level_key == "hh" or first_level_key == "hv" or first_level_key == "vh" or first_level_key == "vv":
+    if first_level_key == "HH" or first_level_key == "HV" or first_level_key == "VH" or first_level_key == "VV":
         # if D_in contais ground cancelled data, there is not an acquisitions dict:,
         # need to encapsulate the input in an external dummy dictionary
         D = {"single_acq": D_in}

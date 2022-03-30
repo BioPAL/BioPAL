@@ -192,7 +192,7 @@ def ground_cancellation_core(data_stack, pol_name, kz_stack, opt_str):
         It is a dictionary where kz_stack[acquisition_name_string] is an array 
         of shape [Nrg x Naz] or a scalar for constant geometries.          
     pol_name
-        string, possible values are 'hh','vh','vv': polarization to be processed 
+        string, possible values are 'HH','VH','VV': polarization to be processed 
         from the ones into the data_stack dictionary.
     opt_str
         class object containing folllowing attributes:
@@ -323,7 +323,7 @@ def kzInterp(data_stack_in, kz_stack_in, kz0, pol_name):
     kz0
         scalar or [Nrg x Naz]: desired phase-to-height.
     pol_name
-        string, possible values are 'hh','vh','vv': polarization to be processed 
+        string, possible values are 'HH','VH','VV': polarization to be processed 
         from the ones into the data_stack dictionary.
         
     Returns
