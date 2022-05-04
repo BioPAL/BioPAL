@@ -45,6 +45,8 @@ if not importlib.util.find_spec("biopal.tomo_fh.main_TOMO_FH") is None:
     from biopal.tomo_fh.main_TOMO_FH import TomoForestHeight
 if not importlib.util.find_spec("biopal.fd.main_FD") is None:
     from biopal.fd.main_FD import ForestDisturbance
+if not importlib.util.find_spec("biopal.fnf.main_FNF") is None:
+    from biopal.fnf.main_FNF import ForestNonForestMap
 
 
 class InvalidInputError(ValueError):
@@ -123,6 +125,9 @@ def biomassL2_processor_run(input_file_processor_xml, conf_folder=None):
 
     if input_params_obj.L2_product == "FD":
         chain_obj = ForestDisturbance(configuration_file)
+        
+    if input_params_obj.L2_product == "FNF":
+        chain_obj = ForestNonForestMap(configuration_file)
 
     chain_obj.run(input_file_for_stack_based)
 

@@ -55,7 +55,8 @@ input_params = namedlist(
  core_processing_agb \
  core_processing_fh \
  core_processing_fd \
- core_processing_tomo_fh",
+ core_processing_tomo_fh \
+ core_processing_fnf",
 )
 
 output_specification = namedlist(
@@ -105,6 +106,7 @@ lut = namedtuple(
 core_processing_fh = namedtuple("core_proc_fh", "data_equi7_fnames mask_equi7_fnames")
 core_processing_tomo_fh = namedtuple("core_proc_tomo_fh", "data_equi7_fnames mask_equi7_fnames")
 core_processing_fd = namedtuple("core_proc_fd", "cycles_composition",)
+core_processing_fnf = namedtuple("core_proc_fnf", "pforest_equi7_fnames mask_equi7_fnames")
 # main_input_params "L1c_date" sub-fields:
 L1c_date = namedtuple(
     "L1c_date_params",
@@ -123,7 +125,8 @@ conf_params = namedtuple(
      estimate_agb \
      estimate_fh \
      estimate_tomo_fh \
-     change_detection_fd",
+     change_detection_fd \
+     estimate_fnf",
 )
 conf_gdal = namedtuple(
     "conf_gdal",
@@ -278,6 +281,12 @@ vertical_range_params = namedtuple(
      minimum_height \
      sampling",
 )
+# configuration_params "FNF" sub-fields:
+conf_fnf_est = namedtuple(
+    "conf_fnf_est",
+    "product_resolution \
+    logreg_coeffs_fname",
+)
 ###############################################################################
 
 
@@ -296,6 +305,7 @@ def write_input_file(input_params_obj, input_file_xml):
         - core_processing_fh
         - core_processing_fd
         - core_processing_tomo_fh
+        - core_processing_fnf
     
     Only the sections avalable into the input_params_obj structure will be written 
     to the file: not all the APPs requires all the sections. 
@@ -341,6 +351,10 @@ def write_input_file(input_params_obj, input_file_xml):
     # write stack_based_processing section
     if input_params_obj.core_processing_tomo_fh:
         write_core_processing_tomo_fh_section(root_item, input_params_obj.core_processing_tomo_fh)
+        
+    # write stack_based_processing section
+    if input_params_obj.core_processing_fnf:
+        write_core_processing_fnf_section(root_item, input_params_obj.core_processing_fnf)
 
     # write to file
     output_dir = os.path.dirname(input_file_xml)
@@ -497,6 +511,30 @@ def write_core_processing_fh_section(father_item, core_proc_fh_obj, tomo_fh_flag
             path_mask_item = SubElement(tile_item, "path_mask")
             path_mask_item.text = path_mask_tile
 
+def write_core_processing_fnf_section(father_item, core_proc_fnf_obj):
+    
+    core_fnf_item = SubElement(father_item, "core_processing_fnf")
+
+    equi7_products_paths_item = SubElement(core_fnf_item, "equi7_products_paths")
+
+    for stack_id, path_data_fnames in core_proc_fnf_obj.pforest_equi7_fnames.items():
+        
+        equi7_product_item = SubElement(equi7_products_paths_item, "equi7_product")
+        equi7_product_item.set("unique_stack_id", stack_id)
+        
+        # each stack contains n-equi7 tiles
+        for tile_idx, path_mask_tile in enumerate(core_proc_fnf_obj.mask_equi7_fnames[stack_id]):
+            
+            path_data_tile = path_data_fnames[tile_idx]
+            
+            tile_item = SubElement(equi7_product_item, "equi7_tile")
+            
+            path_data_item = SubElement(tile_item, "path_data")
+            path_data_item.text = path_data_tile
+            
+            path_mask_item = SubElement(tile_item, "path_mask")
+            path_mask_item.text = path_mask_tile
+
 
 def write_core_processing_fd_section(father_item, core_proc_fd_obj):
 
@@ -586,6 +624,9 @@ def parse_input_file(input_file_xml):
 
     # core_processing_tomo_fh section
     core_proc_tomo_fh_obj = parse_core_proc_tomo_fh_section(root)
+    
+    # core_processing_fnf section
+    core_proc_fnf_obj = parse_core_proc_fnf_section(root)
 
     # output structures filling
     input_params_obj = input_params(
@@ -597,6 +638,7 @@ def parse_input_file(input_file_xml):
         core_proc_fh_obj,
         core_proc_fd_obj,
         core_proc_tomo_fh_obj,
+        core_proc_fnf_obj
     )
 
     return input_params_obj
@@ -612,9 +654,10 @@ def parse_L2_product_section(root):
             or L2_product_string == "FH"
             or L2_product_string == "FD"
             or L2_product_string == "TOMO_FH"
+            or L2_product_string == "FNF"
         ):
 
-            error_message = [L2_product_string + " is an invalid L2_product, possible values are AGB, FH, FD, TOMO_FH"]
+            error_message = [L2_product_string + " is an invalid L2_product, possible values are AGB, FH, FD, TOMO_FH, FNF"]
             logging.error(error_message)
             raise ValueError(error_message)
     else:
@@ -932,6 +975,32 @@ def parse_core_proc_tomo_fh_section(root):
     core_proc_tomo_fh_obj = parse_core_proc_fh_section(root, tomo_fh_flag=True)
 
     return core_proc_tomo_fh_obj
+
+def parse_core_proc_fnf_section(root):
+    
+    core_proc_fnf_item = root.find("core_processing_fnf")
+
+    if core_proc_fnf_item:
+        equi7_products_paths_item = core_proc_fnf_item.find("equi7_products_paths")
+        
+        data_equi7_fnames = {}
+        mask_equi7_fnames = {}
+        for equi7_product_item in equi7_products_paths_item.findall("equi7_product"):
+            stack_id = equi7_product_item.attrib["unique_stack_id"]
+            data_equi7_fnames[stack_id] = []
+            mask_equi7_fnames[stack_id] = []
+            
+            for equi7_tile_item in equi7_product_item.findall("equi7_tile"):
+                
+                data_equi7_fnames[stack_id].append( equi7_tile_item.find("path_data").text )
+                mask_equi7_fnames[stack_id].append( equi7_tile_item.find("path_mask").text )
+            
+        core_proc_fnf_obj = core_processing_fnf(data_equi7_fnames, mask_equi7_fnames)
+
+    else:
+        core_proc_fnf_obj = None
+
+    return core_proc_fnf_obj
 
 
 def write_configuration_file(conf_params_obj, conf_file_xml):
@@ -1254,9 +1323,12 @@ def parse_configuration_file(configuration_file_xml):
     est_tomo_fh_obj = parse_est_tomo_fh_section(root.find("estimate_tomo_fh"))
 
     change_det_obj = parse_change_det_section(root.find("change_detection_fd"))
+    
+    est_fnf_obj = parse_estimate_fnf_section(root.find("estimate_fnf"))
 
     conf_params_obj = conf_params(
-        gdal_obj, proc_flags_obj, ground_canc_obj, est_agb_obj, est_fh_obj, est_tomo_fh_obj, change_det_obj,
+        gdal_obj, proc_flags_obj, ground_canc_obj, est_agb_obj, est_fh_obj,
+        est_tomo_fh_obj, change_det_obj, est_fnf_obj
     )
     return conf_params_obj
 
@@ -1580,6 +1652,21 @@ def parse_change_det_section(change_detect_item):
         conf_fd_est_obj = None
 
     return conf_fd_est_obj
+
+
+def parse_estimate_fnf_section(estimate_fnf_item):
+
+    if estimate_fnf_item:
+
+        product_resolution = float(estimate_fnf_item.find("product_resolution").text)
+        logreg_coeffs_fname = (estimate_fnf_item.find("logreg_coeffs_fname").text)
+
+        conf_fnf_est_obj = conf_fnf_est(product_resolution, logreg_coeffs_fname)
+
+    else:
+        conf_fnf_est_obj = None
+
+    return conf_fnf_est_obj
 
 
 def parse_est_tomo_fh_section(tomo_fh_item):
