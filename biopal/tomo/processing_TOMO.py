@@ -227,7 +227,7 @@ def BiomassForestHeightSKPD(
     out_str = UpperThresholdForestHeight(tomo_cube, opt_str)
     canopy_height = out_str.z
     power_peak = out_str.peak
-    canopy_height = medfilt2d(canopy_height.astype("float64"), kernel_size=5)
+    canopy_height = medfilt2d(canopy_height.astype("float64"), kernel_size=proc_conf.median_factor)
 
     return canopy_height, power_peak, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a
 

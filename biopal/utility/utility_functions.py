@@ -198,7 +198,7 @@ def check_if_geometry_auxiliaries_are_present(
     read_slope=True,
     read_kz=True,
     read_ref_h=True,
-    read_dist=True,
+    read_dist=False,  # No mandatory, needed only for FH if Spectral Shift Filtering
 ):
 
     aux_are_present_flag = True
@@ -231,6 +231,8 @@ def check_if_geometry_auxiliaries_are_present(
         pf_name = os.path.basename(file_names.slant_range_distances_file_names[stack_id])
         folder_name = os.path.dirname(file_names.slant_range_distances_file_names[stack_id])
         if not os.path.exists(os.path.join(folder_name, pf_name)):
+            warning_message = " Spectral Shift Filtering is enabled, the Distances Auxiliary product is mandatory in this case but it is missing."
+            logging.warning(warning_message)
             aux_are_present_flag = False
 
     if read_slope:

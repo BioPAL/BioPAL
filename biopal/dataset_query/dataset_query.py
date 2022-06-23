@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
 # SPDX-License-Identifier: MIT
 
-import os
+import os, sys
 import logging
 import collections
 from shapely.geometry import MultiPoint
@@ -87,7 +87,7 @@ class dataset_query(Task):
                 "Cannot find any data which meets the conditions to run the processing: see the log warnings. \n"
             )
             logging.info("BIOMASS L2 Processor ended without any processing performed.")
-            return 0
+            sys.exit()
 
         logging.info("Geographic Boundaries extracted [deg]:")
         logging.info("Latitude  min: " + str(geographic_boundaries.lat_min))
@@ -316,7 +316,11 @@ def data_select_by_date_and_boundaries(dataset_query_obj):
             and not len(stacks_composition_only_boundaries_match)
             and not len(stacks_composition_not_enough_acq)
         ):
-            logging.warning("Cannot find any data, the L1cRepository is empty")
+            logging.warning(
+                "Cannot find any data into the L1cRepository from {} to {}; data min date is {} anxd max date is {}".format(
+                    start_date, stop_date, edge_values["date_min"], edge_values["date_max"]
+                )
+            )
             pf_idx = 0
 
     else:
@@ -388,6 +392,14 @@ def fill_stack_based_processing_obj(
         reference_agb_folder = None
         average_covariance_folder = None
         forest_height_folder = None
+
+        for stack_id, acquisitions_list in stack_composition.items():
+            if len(acquisitions_list) >= 4:
+                error_message = "FH algorithm is not compatibile with more than #3 acquisitions (#2 baselines), found #{} acquisitions instead.".format(
+                    len(acquisitions_list)
+                )
+                logging.error(error_message)
+                raise InvalidInputError(error_message)
 
     if input_params_obj.L2_product == "TOMO_FH":
 

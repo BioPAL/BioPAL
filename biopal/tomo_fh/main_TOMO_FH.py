@@ -227,7 +227,6 @@ class StackBasedProcessingTOMOFH(Task):
                     unique_stack_id,
                     acquisitions_pf_names,
                     read_ref_h=read_ref_h,
-                    read_dist=False,
                 )
 
                 if conf_params_obj.processing_flags.compute_geometry or not geometry_aux_are_present:
