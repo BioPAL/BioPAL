@@ -63,7 +63,7 @@ Create an empty biopal environment: you can customize the *biopal* environment n
 Install GDAL library::
 
     conda activate biopal
-    conda install GDAL
+    conda install -c conda-forge GDAL=3.5
 
 Install the package::	
 
@@ -95,7 +95,7 @@ Create an empty biopal environment: you can customize the *biopal* environment n
 Install GDAL library::
 
     conda activate biopal
-    conda install GDAL
+    conda install -c conda-forge GDAL=3.5
 
 Install the package from BioPAL/ folder::
 
