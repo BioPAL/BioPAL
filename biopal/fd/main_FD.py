@@ -467,6 +467,8 @@ def changeDetection(
     ######################### INITIALIZATIONS END #########################
 
     # cycle over all global cycles of current nominal geometry (current stack)
+
+    j_matrix = None  # j is the number of covariance matrices being considered
     for time_step_idx, (global_cycle_idx, uniqie_acq_ids_all_cycles_list) in enumerate(global_cycle_dict.items()):
 
         time_tag_mjd_curr = get_data_time_stamp(
@@ -1112,7 +1114,10 @@ def changeDetection(
             del layer_read
             data_driver = None
 
-            j_idx = 1
+            if j_matrix is None:
+                # initialization of the averages counter
+                j_matrix = np.ones((Nrg_equi7, Naz_equi7))
+
             disturbance_matrix = np.zeros((Nrg_equi7, Naz_equi7), dtype=np.bool)
             disturbance_prob_matrix = np.zeros((Nrg_equi7, Naz_equi7), dtype=np.bool)
             disturbance_pixel_validity = np.isnan(np.sum(X_i_6x_vec, 0))
@@ -1134,14 +1139,14 @@ def changeDetection(
 
                     (
                         Y_N,
-                        j_idx,
+                        j_matrix[rg_idx][az_idx],
                         disturbance_matrix[rg_idx, az_idx],
                         disturbance_prob_matrix[rg_idx, az_idx],
                         _,
                     ) = alg_wishart_SU(
                         X_i,
                         Y_N,
-                        j_idx,
+                        j_matrix[rg_idx][az_idx],
                         number_of_pols,
                         cov_number_of_looks,
                         conf_params_obj.change_detection_fd.confidence_level,
