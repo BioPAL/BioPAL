@@ -32,9 +32,9 @@ def build_wheel(session: nox.Session):
     )
 
 
-@nox.session(python="3.7.1")
+@nox.session(python="3.7")
 def build_doc(session: nox.Session):
-    session.conda_install("GDAL")
+    session.conda_install("GDAL=3.5", channel="conda-forge")
     session.install("-e", ".")
     session.install("-r", "doc/requirements.txt")
     rst_files = [

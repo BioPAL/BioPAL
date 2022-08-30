@@ -12,7 +12,7 @@ for a complete guide in setting-up and runnning BioPAL, also have a look at the 
 Requirements
 ------------
 
-Python >= 3.7.1
+Python >= 3.7.13
 
 The needed python packages are specified in the file `requirements`_.
 
@@ -58,7 +58,7 @@ Open a command window with *conda* available and follow this procedure.
 
 Create an empty biopal environment: you can customize the *biopal* environment name::
 
-    conda create --name biopal python==3.7.1
+    conda create --name biopal python=3.7
 
 Install GDAL library::
 
@@ -90,7 +90,7 @@ Make a local clone inside an empty folder (*your_installation_folder/*)::
 
 Create an empty biopal environment: you can customize the *biopal* environment name::
 
-    conda create --name biopal python==3.7.1
+    conda create --name biopal python=3.7
 		
 Install GDAL library::
 
