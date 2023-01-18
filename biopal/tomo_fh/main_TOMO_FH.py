@@ -440,7 +440,7 @@ class StackBasedProcessingTOMOFH(Task):
                     conf_params_obj.estimate_tomo_fh.vertical_range.sampling,
                 )
 
-                (estimated_height, power_peak, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,) = BiomassForestHeightSKPD(
+                (estimated_height, power_peak, rg_vec_subs, az_vec_subs, subs_F_r, subs_F_a,tomo_cube,) = BiomassForestHeightSKPD(
                     data_SLC,
                     cov_est_window_size,
                     raster_info.pixel_spacing_slant_rg,
@@ -520,9 +520,9 @@ class StackBasedProcessingTOMOFH(Task):
                 logging.info("TOMO FH: saving mail results (in slant range geometry) on " + breakpoints_output_folder)
                 post_string = "_SR_" + unique_stack_id
 
-                breakpoint_names = ["estimated_height" + post_string]
+                breakpoint_names = ["estimated_height" + post_string, "tomo_cube", "vertical_vector"]
 
-                save_breakpoints(breakpoints_output_folder, breakpoint_names, [estimated_height])
+                save_breakpoints(breakpoints_output_folder, breakpoint_names, [estimated_height, tomo_cube, vertical_vector])
                 logging.info("...done.\n")
             del estimated_height
 
