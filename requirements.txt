@@ -1,13 +1,13 @@
 GDAL
 lxml
 matplotlib
-numpy
+numpy<1.24
 scipy
 shapely
 scikit-image
 pandas
 pyproj
-setuptools
+setuptools==60.8.2
 equi7grid==0.0.11
 Pytileproj
 progressbar2

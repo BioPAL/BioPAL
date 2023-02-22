@@ -51,7 +51,7 @@ Open a command window with *conda* available and follow this procedure.
 
 Create an empty biopal environment:
 
-    conda create --name biopal python=3.7
+    conda create --name biopal python=3.9
 
 Install GDAL library:
 

@@ -1,5 +1,6 @@
-import nox
 from pathlib import Path
+
+import nox
 
 """
 Run from command line functionalities in isolated python virtual environment
@@ -20,7 +21,11 @@ Details:
 def build_sdist(session: nox.Session):
     session.install("build")
     session.run(
-        "python", "-m", "build", "--sdist", silent=True,
+        "python",
+        "-m",
+        "build",
+        "--sdist",
+        silent=True,
     )
 
 
@@ -28,11 +33,15 @@ def build_sdist(session: nox.Session):
 def build_wheel(session: nox.Session):
     session.install("build")
     session.run(
-        "python", "-m", "build", "--wheel", silent=True,
+        "python",
+        "-m",
+        "build",
+        "--wheel",
+        silent=True,
     )
 
 
-@nox.session(python="3.7")
+@nox.session(python="3.9")
 def build_doc(session: nox.Session):
     session.conda_install("GDAL=3.5", channel="conda-forge")
     session.install("-e", ".")
@@ -48,8 +57,17 @@ def build_doc(session: nox.Session):
     ]
     for rst_file in rst_files:
         session.run(
-            "python", "-m", "sphinx.ext.autosummary.generate", str(Path("doc/api").joinpath(rst_file)),
+            "python",
+            "-m",
+            "sphinx.ext.autosummary.generate",
+            str(Path("doc/api").joinpath(rst_file)),
         )
     session.run(
-        "python", "-m", "sphinx", "-b=html", "-a", "doc", "doc/_build",
+        "python",
+        "-m",
+        "sphinx",
+        "-b=html",
+        "-a",
+        "doc",
+        "doc/_build",
     )
