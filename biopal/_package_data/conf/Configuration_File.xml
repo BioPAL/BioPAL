@@ -407,4 +407,54 @@
 		<product_resolution unit="m">50</product_resolution>
 		<confidence_level>0.01</confidence_level>
 	</change_detection_fd>
+	<estimate_fnf>
+		<product_resolution unit="m">50</product_resolution>
+		<logistic_regresion_coefficientes vertical_wavenumbers_count="4">
+			<max_vertical_wavenumber>
+				<val K="1">0.17289887</val>
+				<val K="2">0.12938761</val>
+				<val K="3">0.086942</val>
+				<val K="4">0.04317632</val>
+			</max_vertical_wavenumber>
+			<coefficients>
+				<vertical_wavenumber K="1">
+					<val>-0.25309877</val>
+					<val>-7.81547935</val>
+					<val>-0.41916121</val>
+					<val>0.44100693</val>
+					<val>0.82334982</val>
+					<val>-0.98223073</val>
+					<val>18.56307547</val>
+				</vertical_wavenumber>
+				<vertical_wavenumber K="2">
+					<val>0.76138855</val>
+					<val>-7.3022208</val>
+					<val>-0.93284092</val>
+					<val>-0.59538288</val>
+					<val>0.61553003</val>
+					<val>-0.92943837</val>
+					<val>19.15425911</val>
+				</vertical_wavenumber>
+				<vertical_wavenumber K="3">
+					<val>1.71069779</val>
+					<val>-8.06435519</val>
+					<val>-0.98822167</val>
+					<val>-0.76468512</val>
+					<val>0.61147859</val>
+					<val>-0.88268492</val>
+					<val>20.03423013</val>
+				</vertical_wavenumber>
+				<vertical_wavenumber K="4">
+					<val>3.47849658</val>
+					<val>-8.82920687</val>
+					<val>-0.37462244</val>
+					<val>-0.12989485</val>
+					<val>0.50763847</val>
+					<val>-0.66507749</val>
+					<val>22.00798223</val>
+				</vertical_wavenumber>
+			</coefficients>
+
+		</logistic_regresion_coefficientes>
+	</estimate_fnf>
 </BioPALConfiguration>

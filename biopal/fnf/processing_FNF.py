@@ -9,7 +9,6 @@ Processing (core) functions for the BIOMASS Forest / Non-Forest map generation
 import numpy as np
 
 
-
 def KPSVD_singular_values(Tm, npol=3):
     """
     Performs the Kronecker Product Singular Value Decomposition (KPSVD) of the

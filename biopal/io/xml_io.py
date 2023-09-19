@@ -1,16 +1,16 @@
 # SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
 # SPDX-License-Identifier: MIT
 
-import os
 import ast
 import logging
-import numpy as np
+import os
 import xml.etree.ElementTree as ET
-from xml.etree.ElementTree import ElementTree, Element, SubElement
 from collections import namedtuple
-from namedlist import namedlist
-from arepytools.timing.precisedatetime import PreciseDateTime
+from xml.etree.ElementTree import Element, ElementTree, SubElement
 
+import numpy as np
+from arepytools.timing.precisedatetime import PreciseDateTime
+from namedlist import namedlist
 
 ###############################################################################
 # structures (namedtuples) for read and write inputs and configuration files ##
@@ -285,7 +285,8 @@ vertical_range_params = namedtuple(
 conf_fnf_est = namedtuple(
     "conf_fnf_est",
     "product_resolution \
-    logreg_coeffs_fname",
+    log_reg_maxkz \
+    log_reg_coeffs",
 )
 ###############################################################################
 
@@ -1659,9 +1660,26 @@ def parse_estimate_fnf_section(estimate_fnf_item):
     if estimate_fnf_item:
 
         product_resolution = float(estimate_fnf_item.find("product_resolution").text)
-        logreg_coeffs_fname = (estimate_fnf_item.find("logreg_coeffs_fname").text)
 
-        conf_fnf_est_obj = conf_fnf_est(product_resolution, logreg_coeffs_fname)
+        logistic_regresion_coeffs_item = estimate_fnf_item.find("logistic_regresion_coefficientes")
+        num_kz = int(logistic_regresion_coeffs_item.attrib["vertical_wavenumbers_count"])
+
+        max_vertical_wavenumber_val_items = logistic_regresion_coeffs_item.find("max_vertical_wavenumber").findall("val")
+        coefficients_vertical_wavenumber_items = logistic_regresion_coeffs_item.find("coefficients").findall("vertical_wavenumber")
+        num_coeffs = len(coefficients_vertical_wavenumber_items[0].findall("val"))
+
+        log_reg_maxkz = np.zeros(num_kz,)
+        log_reg_coeffs = np.zeros((num_kz,num_coeffs))
+
+        for idx_vert_wn, (max_kz_val, coefficients_vertical_wavenumber_item) in enumerate(zip(max_vertical_wavenumber_val_items, coefficients_vertical_wavenumber_items)):
+            log_reg_maxkz[idx_vert_wn] = float(max_kz_val.text)
+
+            coeffs_val_items = coefficients_vertical_wavenumber_item.findall("val")
+            for idx_val, coeffs_val_item in enumerate(coeffs_val_items):
+                log_reg_coeffs[idx_vert_wn, idx_val] = float(coeffs_val_item.text)
+
+
+        conf_fnf_est_obj = conf_fnf_est(product_resolution, log_reg_maxkz, log_reg_coeffs)
 
     else:
         conf_fnf_est_obj = None

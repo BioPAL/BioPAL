@@ -1,17 +1,19 @@
 # SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
 # SPDX-License-Identifier: MIT
 
-import os
 import logging
+import os
+from datetime import datetime
+from shutil import which
+
 import numpy as np
 import pyproj as proj
-from shutil import which
-from datetime import datetime
-from arepytools.timing.precisedatetime import PreciseDateTime
-from arepytools.io.productfolder import ProductFolder
 from arepytools.io.metadata import RasterInfo
-from equi7grid.equi7grid import Equi7Grid
+from arepytools.io.productfolder import ProductFolder
+from arepytools.timing.precisedatetime import PreciseDateTime
 from biopal.utility.constants import LIGHTSPEED
+from equi7grid.equi7grid import Equi7Grid
+
 
 # The class Task is the template to be inherited for the creation of each BioPAL APP
 class Task:
@@ -27,18 +29,18 @@ class Task:
 
     def run(self, input_file_xml):
 
-        try:
+        # try:
 
-            logging.info("Starting {}".format(self.name()))
-            output = self._run(input_file_xml)
-            logging.info("Finished {}".format(self.name()))
+        logging.info("Starting {}".format(self.name()))
+        output = self._run(input_file_xml)
+        logging.info("Finished {}".format(self.name()))
 
-            return output
+        return output
 
-        except Exception as e:
-            error_msg = "biopal error inside {}: {}".format(self.name(), e)
-            logging.error(error_msg, exc_info=True)
-            raise RuntimeError(error_msg)
+        # except Exception as e:
+        #     error_msg = "biopal error inside {}: {}".format(self.name(), e)
+        #     logging.error(error_msg, exc_info=True)
+        #     raise RuntimeError(error_msg)
 
 
 def start_logging(output_folder, L2_product, log_level, app_name=None):

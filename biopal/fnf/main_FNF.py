@@ -1,63 +1,46 @@
 # SPDX-FileCopyrightText: BioPAL <biopal@esa.int>
 # SPDX-License-Identifier: MIT
 
-import os
-import numpy as np
 import logging
-from scipy.signal import convolve2d
+import os
 import shutil
-from osgeo import gdal
-from osgeo.gdalconst import GA_ReadOnly
+
+import numpy as np
+from biopal.data_operations.data_operations import (
+    apply_dem_flattening, mosaiking_fnf, read_and_oversample_aux_data,
+    read_and_oversample_data)
+from biopal.fnf.processing_FNF import (estimate_pixel_coefficients,
+                                       get_centered_logreg_measures,
+                                       logistic_regression)
+from biopal.geocoding.geocoding import geocoding, geocoding_init
+from biopal.geometry.utility_geometry import \
+    compute_and_oversample_geometry_auxiliaries
+from biopal.io.data_io import tiff_formatter
+from biopal.io.xml_io import (core_processing_fnf, parse_configuration_file,
+                              parse_input_file, write_input_file)
+from biopal.screen_calibration.screen_calibration import \
+    apply_calibration_screens
+from biopal.statistics.utility_statistics import \
+    main_covariance_estimation_SR  # build_filtering_matrix,; Covariance2D2Correlation2D,; main_correlation_estimation_SR,; covariance_matrix_vec2mat,
+from biopal.utility.utility_functions import (
+    Task, check_if_geometry_auxiliaries_are_present, check_if_path_exists,
+    choose_equi7_sampling, collect_stacks_to_be_merged,
+    decode_unique_acquisition_id_string, evaluate_estimation_quality_matrix,
+    resolution_heading_correction, save_breakpoints, set_gdal_paths)
 from equi7grid.equi7grid import Equi7Grid
 from equi7grid.image2equi7grid import image2equi7grid
+from osgeo import gdal
+from osgeo.gdalconst import GA_ReadOnly
+from scipy.signal import convolve2d
 
-
-from biopal.data_operations.data_operations import (
-    read_and_oversample_data,
-    read_and_oversample_aux_data,
-    apply_dem_flattening,
-    mosaiking,
-)
-from biopal.utility.utility_functions import (
-    Task,
-    set_gdal_paths,
-    choose_equi7_sampling,
-    check_if_path_exists,
-    check_if_geometry_auxiliaries_are_present,
-    resolution_heading_correction,
-    decode_unique_acquisition_id_string,
-    evaluate_estimation_quality_matrix,
-    save_breakpoints,
-    collect_stacks_to_be_merged,
-)
-from biopal.geocoding.geocoding import (
-    geocoding,
-    geocoding_init,
-)
-from biopal.io.xml_io import (
-    parse_input_file,
-    parse_configuration_file,
-    write_input_file,
-    core_processing_fnf,
-)
-from biopal.statistics.utility_statistics import (
-#     build_filtering_matrix,
-#     Covariance2D2Correlation2D,
-#    main_correlation_estimation_SR,
-    main_covariance_estimation_SR,
-#     covariance_matrix_vec2mat,
-)
-from biopal.io.data_io import tiff_formatter
-from biopal.screen_calibration.screen_calibration import apply_calibration_screens
-from biopal.geometry.utility_geometry import compute_and_oversample_geometry_auxiliaries
-from biopal.fnf.processing_FNF import estimate_pixel_coefficients
-from biopal.fnf.processing_FNF import get_centered_logreg_measures
-from biopal.fnf.processing_FNF import logistic_regression
-
-
-
+FLOAT_NODATA_VALUE = float(-9999.0)
+INT_NODATA_VALUE = int(255)
 
 def pforest_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_merge_dict):
+
+    # data_equi7_fnames: are the probability of forest
+    # mask_equi7_fnames: are the valid values masks for the probability of forest
+    # in output, the forest non-forest mask is generated
 
     # for each stack:
     # 1) check if it is alone, of if there is a couple ASC+DES stacks
@@ -74,7 +57,7 @@ def pforest_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
 
     # each input in data_equi7_fnames is a tiff with two layers
     # first later is data
-    data_layer_index = 1
+    pforest_layer_index = 1
     # second layer is quality
     quality_layer_index = 2
     # third layer is FNF mask (0: NoForest, 1: Forest, nan: No valid value)
@@ -122,60 +105,68 @@ def pforest_masking_and_merging(data_equi7_fnames, mask_equi7_fnames, stacks_to_
 
                 # Load DATA
                 data_driver = gdal.Open(curr_data_fname, GA_ReadOnly)
-                data_curr = data_driver.GetRasterBand(data_layer_index).ReadAsArray()
+                data_curr = data_driver.GetRasterBand(pforest_layer_index).ReadAsArray()
                 projection = data_driver.GetProjection()
                 geotransform = data_driver.GetGeoTransform()
                 # Load quality layer
                 quality_data_curr = data_driver.GetRasterBand(quality_layer_index).ReadAsArray()
                 data_driver = None
 
-                # Load MASK
+                # Load current valid values mask
                 mask_driver = gdal.Open(curr_mask_fname, GA_ReadOnly)
-                mask_curr = (mask_driver.GetRasterBand(1).ReadAsArray()).astype("bool")
+                valid_values_mask_curr = (mask_driver.GetRasterBand(1).ReadAsArray()).astype("bool")
                 mask_driver = None
 
+                # Manage no data values:
+                data_nan_mask = np.isnan(data_curr)
+                data_curr[data_nan_mask] = 0.0
+                quality_data_curr[data_nan_mask] = 0.0
+                # also update the valid values mask, this is useful to mask out also data perimeter
+                valid_values_mask_curr = np.logical_and(valid_values_mask_curr, np.logical_not(data_nan_mask))
+
                 if idx == 0:
+
                     Pforest_sum_data = np.zeros_like(data_curr)
                     quality_sum_data = np.zeros_like(quality_data_curr)
                     N_values = np.zeros_like(Pforest_sum_data)
-                    Pforest_sum_data[mask_curr] = data_curr[mask_curr]
-                    quality_sum_data[mask_curr] = quality_data_curr[mask_curr]
-                    N_values[mask_curr] += 1
+                    Pforest_sum_data[valid_values_mask_curr] = data_curr[valid_values_mask_curr]
+                    quality_sum_data[valid_values_mask_curr] = quality_data_curr[valid_values_mask_curr]
+                    N_values[valid_values_mask_curr] += 1
 
                 else:
 
-                    # data_prev = Pforest_sum_data
-                    # quality_data_prev = quality_sum_data
-                    # del Pforest_out_data, quality_out_data
-
                     # 1) Add the current value to previous:
-                    Pforest_sum_data[mask_curr] += data_curr[mask_curr]
-                    quality_sum_data[mask_curr] += quality_data_curr[mask_curr]
+                    Pforest_sum_data[valid_values_mask_curr] += data_curr[valid_values_mask_curr]
+                    quality_sum_data[valid_values_mask_curr] += quality_data_curr[valid_values_mask_curr]
+
                     # 2) increase the number of valid points for each pixel
-                    N_values[mask_curr] += 1
+                    N_values[valid_values_mask_curr] += 1
 
             # Make the mean and generate global mask
             # Total mask with the pixels having at least 1 value
-            total_mask = (N_values > 0)
+            total_mask = (N_values > 0.0)
             Pforest_avg = np.zeros_like(Pforest_sum_data)
             quality_avg = np.zeros_like(quality_sum_data)
             # Perform the mean
             Pforest_avg[total_mask] = Pforest_sum_data[total_mask] / N_values[total_mask]
             quality_avg[total_mask] = quality_sum_data[total_mask] / N_values[total_mask]
             # Set values without data (N_values == 0) to np.nan
-            Pforest_avg[~total_mask] = np.nan
-            quality_avg[~total_mask] = np.nan
-            # Generate FNF mask by thresholding Pforest
-            FNF_mask = (Pforest_avg > 0.5).astype(np.float32)
-            FNF_mask[~total_mask] = np.nan
+            Pforest_avg[~total_mask] = FLOAT_NODATA_VALUE
+            quality_avg[~total_mask] = FLOAT_NODATA_VALUE
             
+            # Generate FNF mask by thresholding Pforest
+            # FNF is cast as "float", to be written in the temporary tiff (in the final saving, it will be "int")
+            FNF_mask = np.zeros(total_mask.shape, dtype=np.float32)
+            FNF_mask[Pforest_avg > 0.5] = 1.0
+            FNF_mask[~total_mask] = float(INT_NODATA_VALUE)
+
             # save to file:
             Nx, Ny = Pforest_avg.shape
             driver = gdal.GetDriverByName("GTiff")
             outdata = driver.Create(out_data_fname, Ny, Nx, 3, gdal.GDT_Float32)
             outdata.SetGeoTransform(geotransform)  ##sets same geotransform as input
             outdata.SetProjection(projection)  ##sets same projection as input
-            outdata.GetRasterBand(data_layer_index).WriteArray(Pforest_avg)
+            outdata.GetRasterBand(pforest_layer_index).WriteArray(Pforest_avg)
             outdata.GetRasterBand(quality_layer_index).WriteArray(quality_avg)
             outdata.GetRasterBand(fnf_layer_index).WriteArray(FNF_mask)
             outdata.FlushCache()  ##saves to disk!!
@@ -585,7 +576,7 @@ class StackBasedProcessingFNF(Task):
                     raster_info.carrier_frequency_hz,
                     raster_info.range_bandwidth_hz,
                     kz,
-                    conf_params_obj.estimate_fnf.logreg_coeffs_fname,
+                    conf_params_obj.estimate_fnf,
                 )
 
             except Exception as e:
@@ -663,7 +654,7 @@ class StackBasedProcessingFNF(Task):
             # Mask points without data
             estimation_mask_ground[np.isnan(pforest_ground)] = False
             # also casted to float, for incapsulation in a geotiff
-            estimation_mask_ground.astype(float)
+            estimation_mask_ground = np.float32(estimation_mask_ground)
 
             ### create GEOTIFF of all the layers (estimation, mask ):
             logging.info(unique_stack_id + ": formatting data to GEOTIFF...")
@@ -738,7 +729,7 @@ class StackBasedProcessingFNF(Task):
                     accurate_boundary=False,
                     withtilenamesuffix=False,
                     resampling_type="bilinear",
-                    tile_nodata=np.float(0),
+                    tile_nodata=np.float32(0),
                 )
 
             except Exception as e:
@@ -773,7 +764,7 @@ def EstimateProbForest(
     carrier_frequency_hz,
     range_bandwidth_hz,
     kz_stack,
-    logreg_coeffs_fname,
+    estimate_fnf_conf,
 ):
 
 
@@ -810,13 +801,9 @@ def EstimateProbForest(
         kz[..., b_idx] = stack_curr[
             tuple(np.meshgrid(rg_vec_subs, az_vec_subs, indexing='ij'))]
     
-    # Load coefficients table
-    logging.debug("Loading logistic regresion coefficientes file '%s'..." %
-                 logreg_coeffs_fname)
-    with np.load(logreg_coeffs_fname) as f:
-        log_reg_maxkz = f['log_reg_maxkz']
-        log_reg_coeffs = f['log_reg_coeffs']
-    
+    # coefficients table
+    log_reg_maxkz = estimate_fnf_conf.log_reg_maxkz
+    log_reg_coeffs = estimate_fnf_conf.log_reg_coeffs
 
     logging.debug("Obtaining logistic regression features...")
     sv1, coh_std, pi, p12coh, hhvvcoh, trimg = get_centered_logreg_measures(MPMB_correlation)
@@ -943,7 +930,7 @@ class CoreProcessingFNF(Task):
 
             output_folder = os.path.join(products_folder, "global_FNF")
 
-            mosaiking(merging_folder, output_folder)
+            mosaiking_fnf(merging_folder, output_folder)
 
             logging.info("...done.\n")
 
